@@ -23,7 +23,7 @@ const userSchema = new Schema(
       sparse: true, // Allows null values without unique conflict
     },
 
-    passwordHash: {
+    password: {
       type: String,
       required: true,
     },

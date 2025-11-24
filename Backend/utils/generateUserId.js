@@ -1,4 +1,4 @@
-import USER from "../models/user.schema";
+import USER from "../models/user.model.js";
 
 const generateRandom10DigitId = () =>{
     return Math.floor(1000000000 + Math.random() * 9000000000).toString();

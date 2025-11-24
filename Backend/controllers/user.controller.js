@@ -15,7 +15,7 @@ export const Register = async(req,res)=>{
         return res.status(400).json({error: "User already exists"});
     }
     const hashPass = await bcrypt.hash(passwordHash, 10);
-    
+    const jwtToken  = await jwt.sign();
 
 }
 

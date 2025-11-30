@@ -5,10 +5,11 @@ import connectdb from "./config/mongoDB.config.js";
 import userRouter from './routes/user.route.js'
 import {app, io,  server} from './sockets/socket.js';
 
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 
-app.use('/user', userRouter);
+app.use('/auth', userRouter);
 
 
 const port = process.env.PORT || 3000;

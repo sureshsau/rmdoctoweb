@@ -1,13 +1,12 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "../.env" });
-import queueService from '../queues/queueFactory.js';
-import { redisConnection } from "../config/redisConnection.js";
-import { sendOtpEmail } from "../utils/Email.js";
+dotenv.config({ path: "../../.env" });
+import queueService from '../factory/queueFactory.js';
+import { EmailOtp } from "../../services/email.service.js";
 
 const emailWorker = queueService.subscribe("emailQueue", async (job) => {
   switch (job.name) {
     case "send-otp":
-      await sendOtpEmail(job.data.email, job.data.otp);
+      await EmailOtp(job.data.email, job.data.otp);
       break;
 
     case "welcome-email":

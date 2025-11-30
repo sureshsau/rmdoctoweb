@@ -1,16 +1,7 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-dotenv.config();
+import { transporter } from "../config/Email.js";
 
-export const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-});
 
-export const sendOtpEmail = async (email, otp) => {
+export const EmailOtp = async (email, otp) => {
   await transporter.sendMail({
     from: `RMDOCTO <${process.env.MAIL_USER}>`,
     to: email,

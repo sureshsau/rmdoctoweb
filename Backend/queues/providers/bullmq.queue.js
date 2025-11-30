@@ -1,5 +1,5 @@
 import { Queue, Worker } from "bullmq";
-import { QueueInterface } from "./queue.interface.js";
+import { QueueInterface } from "../interfaces/queue.interface.js";
 
 export class BullMQQueueService extends QueueInterface {
   constructor(connection) {

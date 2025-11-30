@@ -1,11 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
-import connectdb from "./utils/DbConnect.js";
+import connectdb from "./config/mongoDB.config.js";
 import userRouter from './routes/user.route.js'
-import redis from './utils/RediesClient.js';
-import { NotificationTemplate } from './models/notificationTemplate.model.js';
-import { Notification } from './models/notification.model.js';
 import {app, io,  server} from './sockets/socket.js';
 
 app.use(express.json());

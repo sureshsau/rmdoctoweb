@@ -1,10 +1,10 @@
-import queueService from "../queues/queueFactory.js";
-import connectdb from "../utils/DbConnect.js";
+import queueService from '../factory/queueFactory.js';
+import connectdb from "../../config/mongoDB.config.js";
 connectdb();
-import { NotificationTemplate } from "../models/notificationTemplate.model.js";
-import { Notification } from "../models/notification.model.js";
-import USER from "../models/user.model.js";   
-import { io } from "../sockets/socket.js";
+import { NotificationTemplate } from "../../models/notificationTemplate.model.js";
+import { Notification } from "../../models/notification.model.js";
+import USER from "../../models/user.model.js";   
+import { io } from "../../sockets/socket.js";
 
 queueService.subscribe("notificationQueue", async (job) => {
   try {

@@ -381,3 +381,156 @@ export const resendOtp = async ({ email, phone }) => {
     return { status: 500, body: { error: "Internal Server Error" } };
   }
 };
+
+
+
+
+
+// Forgot password part 
+export const forgotPasswordSendOtp = async ({ email, phone }) => {
+  try {
+    if (!email && !phone) {
+      return {
+        status: 400,
+        body: { error: "Email or Phone is required." }
+      };
+    }
+
+    const identifier = email || phone;
+    const redisKey = `forgot:user:${identifier}`;
+
+    // Find user
+    let user;
+    if (email) user = await UserRepo.findByEmail(email);
+    else user = await UserRepo.findByPhone(phone);
+
+    if (!user) {
+      return { status: 404, body: { message: "User does not exist." } };
+    }
+
+    const otp = OtpService.generateOtp();
+    const hashedOtp = await bcrypt.hash(String(otp), 10);
+
+    await redis.set(
+      redisKey,
+      JSON.stringify({
+        otp: hashedOtp,
+        lastOtpTime: Date.now(),
+        otpAttempts: 1,
+        identifier
+      }),
+      "EX",
+      600 // 10 minutes expiry
+    );
+
+    // send OTP
+    if (email) await sendOtpEmail(email, otp);
+    // SMS if phone
+
+    return {
+      status: 200,
+      body: { message: "OTP sent for password reset.", identifier }
+    };
+
+  } catch (err) {
+    console.error("forgotPasswordSendOtp:", err);
+    return {
+      status: 500,
+      body: { message: "Internal Server Error" }
+    };
+  }
+};
+
+
+export const forgotPasswordVerifyOtp = async ({ email, phone, otp }) => {
+  try {
+    const identifier = email || phone;
+    const redisKey = `forgot:user:${identifier}`;
+
+    const data = await redis.get(redisKey);
+    if (!data) {
+      return {
+        status: 400,
+        body: { error: "OTP expired or session invalid." }
+      };
+    }
+
+    const parsed = JSON.parse(data);
+
+    const validOtp = await bcrypt.compare(String(otp), parsed.otp);
+    if (!validOtp) {
+      return {
+        status: 400,
+        body: { error: "Invalid OTP" }
+      };
+    }
+
+    // Allow reset password next
+    return {
+      status: 200,
+      body: { message: "OTP verified. You may reset your password now." }
+    };
+
+  } catch (err) {
+    console.error("forgotPasswordVerifyOtp:", err);
+    return {
+      status: 500,
+      body: { message: "Internal Server Error" }
+    };
+  }
+};
+
+export const resetPassword = async ({ email, phone, newPassword }) => {
+  try {
+    const identifier = email || phone;
+    const redisKey = `forgot:user:${identifier}`;
+
+    // Ensure user verified OTP first
+    const session = await redis.get(redisKey);
+    if (!session) {
+      return {
+        status: 400,
+        body: { error: "OTP verification required before resetting password." }
+      };
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      return {
+        status: 400,
+        body: { error: "Password must be at least 8 characters long." }
+      };
+    }
+
+    let user;
+    if (email) user = await UserRepo.findByEmail(email);
+    else user = await UserRepo.findByPhone(phone);
+
+    if (!user) {
+      return { status: 404, body: { error: "User does not exist." } };
+    }
+
+    const hashPass = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = hashPass;
+
+    // Invalidate previous sessions
+    user.webSessionVersion += 1;
+    user.appSessionVersion += 1;
+
+    await user.save();
+
+    // Delete OTP session
+    await redis.del(redisKey);
+
+    return {
+      status: 200,
+      body: { message: "Password reset successfully." }
+    };
+
+  } catch (err) {
+    console.error("resetPassword:", err);
+    return {
+      status: 500,
+      body: { message: "Internal Server Error" }
+    };
+  }
+};

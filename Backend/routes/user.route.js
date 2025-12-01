@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { login, register, resendOtp, verifyOtp } from "../controllers/auth.controller.js";
-
+import { validate } from "../middlewares/validate.js";
 
 const router = Router();
 

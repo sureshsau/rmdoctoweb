@@ -368,7 +368,7 @@ export const resendOtp = async ({ email, phone }) => {
     );
 
     // Send OTP
-    if (email) await sendEmailOtp(email, otp);
+    if (email) await sendOtpEmail(email, otp);
     // if phone → SMS OTP here
 
     return {
@@ -479,6 +479,7 @@ export const forgotPasswordVerifyOtp = async ({ email, phone, otp }) => {
     };
   }
 };
+
 
 export const resetPassword = async ({ email, phone, newPassword }) => {
   try {

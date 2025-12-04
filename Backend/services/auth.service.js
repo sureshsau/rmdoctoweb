@@ -10,223 +10,255 @@ import { newUserNotification } from "../queues/producers/notification.producer.j
 
 
 export const register = async (data) => {
-  const { name, email, phone, password } = data;
-  if (!name || !phone|| !password) {
-    return { status: 400, body: { error: "All fields are required" } };
-  }
+  try {
+    // Normalize
+    const name = data.name?.trim();
+    const phone = data.phone?.trim() || null;
+    const email = data.email?.trim().toLowerCase() || null;
+    const password = data.password;
 
+    // =============================
+    // Basic Validation
+    // =============================
+    if (!name || !phone || !password) {
+      return { status: 400, body: { message: "Name, phone & password are required." } };
+    }
 
-  if (password.length < 8) {
+    if (!/^\d{10}$/.test(phone)) {
+      return { status: 400, body: { message: "Invalid phone number." } };
+    }
+
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+      return { status: 400, body: { message: "Invalid email format." } };
+    }
+
+    if (password.length < 8) {
       return {
         status: 400,
-        body: { error: "Password must be at least 8 characters long." },
+        body: { message: "Password must be at least 8 characters long." },
       };
     }
 
-  // Which identifier to use?
-  const identifier = email || phone; 
-  if (!identifier) {
-      return {
-        status: 400,
-        body: { error: "Either email or phone is required as an identifier." },
-      };
-  }
+    // ✅ ALWAYS use phone as identifier
+    const identifier = phone;
+    const redisKey = `register:user:${phone}`;
 
-  const redisKey = `register:user:${identifier}`;
+    // =============================
+    // Duplicate Check (DB)
+    // =============================
+    const [
+      existingByEmail,
+      existingByPhone,
+      pendingByEmail,
+      pendingByPhone,
+    ] = await Promise.all([
+      email ? UserRepo.findByEmail(email) : null,
+      UserRepo.findByPhone(phone),
+      email ? PendingRepo.findByEmail(email) : null,
+      PendingRepo.findByPhone(phone),
+    ]);
 
-  // Check duplicate user
-    if (email) {
-      const existingByEmail = await UserRepo.findByEmail(email);
-      if (existingByEmail) {
-        return { status: 400, body: { error: "Email already registered." } };
-      }
-    }
-
-    const existingByPhone = await UserRepo.findByPhone(phone);
     if (existingByPhone) {
-      return { status: 400, body: { error: "Phone number already registered." } };
+      return { status: 409, body: { message: "Phone already registered." } };
     }
 
-    // Existing pending user (waiting for approval)
-    if (email) {
-      const pendingByEmail = await PendingRepo.findByEmail(email);
-      if (pendingByEmail) {
-        return {
-          status: 400,
-          body: { error: "Registration already pending for this email." },
-        };
-      }
+    if (existingByEmail) {
+      return { status: 409, body: { message: "Email already registered." } };
     }
 
-    const pendingByPhone = await PendingRepo.findByPhone(phone);
     if (pendingByPhone) {
       return {
-        status: 400,
-        body: { error: "Registration already pending for this phone number." },
+        status: 409,
+        body: { message: "Registration already pending for this phone." },
       };
     }
 
+    if (pendingByEmail) {
+      return {
+        status: 409,
+        body: { message: "Registration already pending for this email." },
+      };
+    }
 
-  const hashPass = await bcrypt.hash(password, 10);
-    const otp = OtpService.generateOtp();            // e.g. 4–6 digit code
+    // =============================
+    // Generate OTP + Hash
+    // =============================
+    const hashPass = await bcrypt.hash(password, 10);
+    const otp = OtpService.generateOtp();
     const hashedOtp = await bcrypt.hash(String(otp), 10);
     const now = Date.now();
 
-  const existing = await redis.get(redisKey);
+    const existing = await redis.get(redisKey);
 
-  // =====================================================
-  // OTP RESEND FLOW
-  // =====================================================
-  if (existing) {
-    let parsed = JSON.parse(existing);
+    // =============================
+    // OTP RESEND FLOW
+    // =============================
+    if (existing) {
+      let parsed = JSON.parse(existing);
 
-    // Cooldown
-    if (parsed.lastOtpTime && now - parsed.lastOtpTime < 60000) {
-      const remaining = Math.ceil((60000 - (now - parsed.lastOtpTime)) / 1000);
-      return {
-        status: 429,
-        body: { error: `Please wait ${remaining} seconds to request another OTP.` },
-      };
+      if (parsed.lastOtpTime && now - parsed.lastOtpTime < 60000) {
+        const remaining = Math.ceil((60000 - (now - parsed.lastOtpTime)) / 1000);
+        return {
+          status: 429,
+          body: { message: `Wait ${remaining}s to request another OTP.` },
+        };
+      }
+
+      parsed.otp = hashedOtp;
+      parsed.lastOtpTime = now;
+      parsed.otpAttempts = (parsed.otpAttempts || 0) + 1;
+
+      await redis.set(redisKey, JSON.stringify(parsed), "EX", 30);
+
+      if (email) await sendOtpEmail(email, otp);
+      // else: TODO send SMS to phone
+
+      return { status: 200, body: { message: "OTP resent", identifier } };
     }
 
-    parsed.otp = hashedOtp;
-    parsed.lastOtpTime = now;
-    parsed.otpAttempts = (parsed.otpAttempts || 0) + 1;
+    // =============================
+    // NEW OTP SESSION
+    // =============================
+    await redis.set(
+      redisKey,
+      JSON.stringify({
+        name,
+        email,
+        phone,
+        hashPass,
+        otp: hashedOtp,
+        otpAttempts: 1,
+        lastOtpTime: now,
+      }),
+      "EX",
+      300
+    );
 
-    await redis.set(redisKey, JSON.stringify(parsed), "EX", 1800);
-
-    // Send OTP
     if (email) await sendOtpEmail(email, otp);
-    else if (phone) {
-      // TODO: send OTP via SMS
-    }
+    // else: TODO send SMS
 
-    return { status: 200, body: { message: "OTP resent", identifier } };
+    return {
+      status: 200,
+      body: { message: "OTP sent", phone, identifier }, // identifier = phone
+    };
+
+  } catch (error) {
+    console.error("Register Error:", error);
+    return {
+      status: 500,
+      body: { message: "Internal server error. Please try again." },
+    };
   }
-
-
-
-  // =====================================================
-  // NEW OTP SESSION
-  // =====================================================
-  await redis.set(
-    redisKey,
-    JSON.stringify({
-      name,
-      email,
-      phone,
-      hashPass,
-      otp: hashedOtp,
-      otpAttempts: 1,
-      lastOtpTime: now,
-    }),
-    "EX",
-    1800
-  );
-
-  // Send OTP
-  if (email) await sendOtpEmail(email, otp);
-  else if (phone) {
-    // TODO: send OTP via SMS
-  }
-
-  return { status: 200, body: { message: "OTP sent", identifier } };
 };
 
 
-export const verifyOtp = async ({ email, phone, otp, ip, device }) => {
- try {
-    const identifier = email || phone;
+export const verifyOtp = async ({ identifier, otp, ip, device }) => {
+  try {
+    // identifier IS phone
     const redisKey = `register:user:${identifier}`;
-    // Get redis session
+
     const data = await redis.get(redisKey);
     if (!data) {
-      return { status: 400, body: { error: "Session expired or no data found" } };
+      return { status: 410, body: { error: "Session expired or no data found" } };
     }
 
-    let parsed = JSON.parse(data);
+    const parsed = JSON.parse(data);
 
     // Compare OTP
     const validOtp = await bcrypt.compare(String(otp), parsed.otp);
     if (!validOtp) {
-      return { status: 400, body: { error: "Invalid OTP" } };
+      return { status: 401, body: { error: "Invalid OTP" } };
     }
 
-    // -------------------------------------------------------
-    // ✨ CREATE NEW USER after OTP verification
-    // -------------------------------------------------------
+    // =============================
+    // HARD duplicate check (safety)
+    // =============================
+    const [existingEmail, existingPhone] = await Promise.all([
+      parsed.email ? UserRepo.findByEmail(parsed.email) : null,
+      UserRepo.findByPhone(parsed.phone),
+    ]);
+
+    if (existingPhone) {
+      return { status: 409, body: { error: "Phone already registered." } };
+    }
+
+    if (existingEmail) {
+      return { status: 409, body: { error: "Email already registered." } };
+    }
+
+    // =============================
+    // Create new user
+    // =============================
     const newUserData = {
       name: parsed.name,
-      email: parsed.email || null,
       phone: parsed.phone,
+      email: parsed.email ? parsed.email.trim().toLowerCase() : undefined,
       passwordHash: parsed.hashPass,
 
-      // ⭐ OTP device = first login device
       firstLoginIP: ip,
       firstLoginDevice: device,
-
-      // ⭐ Initial login details
       lastLoginIP: ip,
       lastLoginDevice: device,
       lastLoginAt: new Date(),
 
-      // ⭐ Login history
       devices: [
-        {
-          ip,
-          device,
-          loggedInAt: new Date()
-        }
+        { ip, device, loggedInAt: new Date() }
       ],
 
-      // ⭐ New user is not approved yet
       isActive: false,
-      userType: "user"
+      userType: "user",
     };
 
-    // Save user
     const user = await UserRepo.create(newUserData);
-
-    // -------------------------------------------------------
-    // OPTIONAL: Notify admin for approval
-    // -------------------------------------------------------
 
     await newUserNotification({
       name: parsed.name,
       email: parsed.email,
-      userId: user._id.toString()
+      userId: user._id.toString(),
     });
 
-    // Delete redis OTP session
     await redis.del(redisKey);
 
-    // sending json webToken 
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(device);
     const deviceType = isMobile ? "app" : "web";
+
     let version = user.webSessionVersion;
-    if (deviceType === "web"){
-    user.webSessionVersion += 1;
-    version = user.webSessionVersion
-    }else{
+    if (deviceType === "web") {
+      user.webSessionVersion += 1;
+      version = user.webSessionVersion;
+    } else {
       user.appSessionVersion += 1;
       version = user.appSessionVersion;
-    };
-    await user.save()
-   const jwtToken = jwt.sign(
-  { id: user._id, deviceType, version },
-  process.env.JWT_SECRET,
-  { expiresIn: "30d" }
-);
-    return {
-      status: 200,
-      body: { message: "OTP verified. Account created and sent for admin approval.", user:user, token: jwtToken}
+    }
+    await user.save();
+
+    const jwtToken = jwt.sign(
+      { id: user._id, deviceType, version },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    const sanitizeUser = {
+      id: user._id,
+      name: user.name,
+      identifier: user.email || user.phone,
+      role: user.userType,
     };
 
+    return {
+      status: 201,
+      body: {
+        message: "OTP verified. Account created and sent for admin approval.",
+        user: sanitizeUser,
+        token: jwtToken,
+      },
+    };
   } catch (err) {
     console.log("verifyOtp error:", err);
     return { status: 500, body: { error: "Internal Server Error" } };
   }
 };
+
 
 
 
@@ -296,6 +328,13 @@ export const login = async ({ email, phone, password, ip, device }) => {
 
     await user.save();
 
+
+    const senitizeUser = {
+      id: user._id,
+      name: user.name,
+      identifier: user.email || user.phone,
+      role: user.userType,
+    }
     // Generate JWT
     const token = jwt.sign(
       {
@@ -311,7 +350,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
       status: 200,
       body: {
         message: "Login successful",
-        user,
+        user:senitizeUser,
         token
       }
     };
@@ -322,90 +361,93 @@ export const login = async ({ email, phone, password, ip, device }) => {
   }
 };
 
-
-
-
-
-export const resendOtp = async ({ email, phone }) => {
+// Resend Otp
+export const resendOtp = async ({ identifier }) => {
   try {
-    // Must have either email or phone
-    if (!email && !phone) {
-      return {
-        status: 400,
-        body: { error: "Email or phone is required." }
-      };
+    // console.log("yes it's hit");
+    if (!identifier) {
+      return { status: 400, body: { error: "Identifier is required." } };
     }
 
-    const identifier = email || phone;
-    const redisKey = `register:user:${identifier}`
-
-
-    // Check session
+    const redisKey = `register:user:${identifier}`;
     const existing = await redis.get(redisKey);
+
     if (!existing) {
       return {
         status: 400,
-        body: { error: "Session expired. Please restart registration." }
+        body: { error: "Session expired. Please restart registration." },
       };
     }
 
     const parsed = JSON.parse(existing);
 
-    // Generate new OTP
-    const otp = Math.floor(Math.random() * 9000) + 1000; // 1000–9999
+    // ---------------------------
+    // 1. Cooldown check (60 sec)
+    // ---------------------------
+    if (parsed.lastOtpTime && Date.now() - parsed.lastOtpTime < 60_000) {
+      const remaining = Math.ceil((60000 - (Date.now() - parsed.lastOtpTime)) / 1000);
+
+      return {
+        status: 429,
+        body: { error: `Please wait ${remaining}s before requesting again.` },
+      };
+    }
+
+    // ---------------------------
+    // 2. Generate new OTP
+    // ---------------------------
+    const otp = OtpService.generateOtp();
     const hashedOtp = await bcrypt.hash(String(otp), 10);
 
-    // Save back to Redis (keep other fields)
     await redis.set(
       redisKey,
       JSON.stringify({
         ...parsed,
         otp: hashedOtp,
-        lastOtpTime: Date.now()
+        lastOtpTime: Date.now(), // ⬅️ Updated timestamp
       }),
       "EX",
-      1800
+      300
     );
 
-    // Send OTP
-    if (email) await sendOtpEmail(email, otp);
-    // if phone → SMS OTP here
+    if (parsed.email) {
+      await sendOtpEmail(parsed.email, otp);
+    }
+    // TODO: send SMS if no email
 
     return {
       status: 200,
-      body: { message: "OTP resent successfully" }  // DO NOT return OTP
+      body: { message: "OTP resent successfully" },
     };
-
   } catch (err) {
     console.error(err);
     return { status: 500, body: { error: "Internal Server Error" } };
   }
 };
 
-
-
-
-
 // Forgot password part 
-export const forgotPasswordSendOtp = async ({ email, phone }) => {
+export const forgotPasswordSendOtp = async ({ identifier, type }) => {
   try {
-    if (!email && !phone) {
+    if (!identifier || !type) {
       return {
         status: 400,
-        body: { error: "Email or Phone is required." }
+        body: { error: "Identifier and type are required." }
       };
     }
 
-    const identifier = email || phone;
     const redisKey = `forgot:user:${identifier}`;
 
-    // Find user
-    let user;
-    if (email) user = await UserRepo.findByEmail(email);
-    else user = await UserRepo.findByPhone(phone);
+    let user = null;
+
+    if (type === "email") {
+      user = await UserRepo.findByEmail(identifier);
+    } 
+    else if (type === "phone") {
+      user = await UserRepo.findByPhone(identifier);
+    }
 
     if (!user) {
-      return { status: 404, body: { message: "User does not exist." } };
+      return { status: 404, body: { message: "User does not exist with given credentials." } };
     }
 
     const otp = OtpService.generateOtp();
@@ -416,74 +458,58 @@ export const forgotPasswordSendOtp = async ({ email, phone }) => {
       JSON.stringify({
         otp: hashedOtp,
         lastOtpTime: Date.now(),
-        otpAttempts: 1,
-        identifier
+        type,
+        identifier,
       }),
       "EX",
-      600 // 10 minutes expiry
+      300
     );
 
-    // send OTP
-    if (email) await sendOtpEmail(email, otp);
-    // SMS if phone
+    if (type === "email") {
+      await sendOtpEmail(identifier, otp);
+    }
+    // else send SMS to phone
 
     return {
       status: 200,
-      body: { message: "OTP sent for password reset.", identifier }
+      body: { message: "OTP sent for password reset.", identifier, type }
     };
 
   } catch (err) {
     console.error("forgotPasswordSendOtp:", err);
-    return {
-      status: 500,
-      body: { message: "Internal Server Error" }
-    };
+    return { status: 500, body: { message: "Internal Server Error" } };
   }
 };
 
 
-export const forgotPasswordVerifyOtp = async ({ email, phone, otp }) => {
-  try {
-    const identifier = email || phone;
-    const redisKey = `forgot:user:${identifier}`;
 
-    const data = await redis.get(redisKey);
-    if (!data) {
-      return {
-        status: 400,
-        body: { error: "OTP expired or session invalid." }
-      };
-    }
+export const forgotPasswordVerifyOtp = async ({ identifier, otp, type }) => {
+  const redisKey = `forgot:user:${identifier}`;
+  const data = await redis.get(redisKey);
 
-    const parsed = JSON.parse(data);
-
-    const validOtp = await bcrypt.compare(String(otp), parsed.otp);
-    if (!validOtp) {
-      return {
-        status: 400,
-        body: { error: "Invalid OTP" }
-      };
-    }
-
-    // Allow reset password next
-    return {
-      status: 200,
-      body: { message: "OTP verified. You may reset your password now." }
-    };
-
-  } catch (err) {
-    console.error("forgotPasswordVerifyOtp:", err);
-    return {
-      status: 500,
-      body: { message: "Internal Server Error" }
-    };
+  if (!data) {
+    return { status: 400, body: { error: "OTP expired or session invalid." } };
   }
+
+  const parsed = JSON.parse(data);
+
+  if (parsed.type !== type) {
+    return { status: 400, body: { error: "Invalid request type." } };
+  }
+
+  const validOtp = await bcrypt.compare(String(otp), parsed.otp);
+  if (!validOtp) {
+    return { status: 400, body: { error: "Invalid OTP" } };
+  }
+
+  return { status: 200, body: { message: "OTP verified." } };
 };
 
 
-export const resetPassword = async ({ email, phone, newPassword }) => {
+
+export const resetPassword = async ({ identifier,type, newPassword }) => {
   try {
-    const identifier = email || phone;
+    // console.log("am i hiting");
     const redisKey = `forgot:user:${identifier}`;
 
     // Ensure user verified OTP first
@@ -503,10 +529,16 @@ export const resetPassword = async ({ email, phone, newPassword }) => {
     }
 
     let user;
-    if (email) user = await UserRepo.findByEmail(email);
-    else user = await UserRepo.findByPhone(phone);
+    // if (email) user = await UserRepo.findByEmail(email);
+    // else user = await UserRepo.findByPhone(phone);
+    if(type === "email"){
+      user = await UserRepo.findByEmail(identifier);
+    }else{
+      user = await UserRepo.findByPhone(phone);
+    }
 
     if (!user) {
+      console.log('this is issue');
       return { status: 404, body: { error: "User does not exist." } };
     }
 

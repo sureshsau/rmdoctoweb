@@ -1,19 +1,25 @@
 import { body } from "express-validator";
 
 export const forgotPasswordSendOtpValidator = [
-  body("email")
-    .optional()
-    .isEmail()
-    .withMessage("Invalid email format"),
+  body("identifier")
+    .notEmpty()
+    .withMessage("Identifier (email or phone) is required.")
+    .isString()
+    .withMessage("Identifier must be a string"),
 
-  body("phone")
-    .optional()
-    .isMobilePhone()
-    .withMessage("Invalid phone number"),
+  body("type")
+    .notEmpty()
+    .withMessage("Type is required.")
+    .isIn(["email", "phone"])
+    .withMessage("Type must be 'email' or 'phone'"),
 
-  body().custom(body => {
-    if (!body.email && !body.phone) {
-      throw new Error("Email or phone is required.");
+  // Conditional validation
+  body("identifier").custom((value, { req }) => {
+    if (req.body.type === "email" && !/^\S+@\S+\.\S+$/.test(value)) {
+      throw new Error("Invalid email format.");
+    }
+    if (req.body.type === "phone" && !/^\d{10}$/.test(value)) {
+      throw new Error("Invalid phone number.");
     }
     return true;
   })

@@ -14,9 +14,14 @@ export const create = async (data) => {
   try {
     return await USER.create(data);
   } catch (err) {
-    if (err.code === 11000) {
-      throw new Error("DUPLICATE_KEY");
-    }
     throw err;
   }
 };
+
+
+// const find = async() =>{
+//   let user = await USER.find();
+//   console.log("all user",user);
+// }
+
+// find();

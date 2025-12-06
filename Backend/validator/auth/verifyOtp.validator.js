@@ -1,11 +1,6 @@
 import { body } from "express-validator";
 
 export const verifyOtpValidator = [
-  body("phone")
-    .trim()
-    .notEmpty().withMessage("Phone is required")
-    .isMobilePhone().withMessage("Invalid phone number"),
-
   body("otp")
     .trim()
     .notEmpty().withMessage("OTP is required")

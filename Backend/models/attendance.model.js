@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const AttendanceSchema = new mongoose.Schema({
   userId: { type: ObjectId, ref: "User", required: true, index: true },
-  companyId: { type: ObjectId, ref: "Company", required: true },
+  companyId: { type: ObjectId, ref: "Company" },
 
   date: { type: String, index: true }, // "2025-03-30"
 
@@ -11,7 +11,7 @@ const AttendanceSchema = new mongoose.Schema({
     time: Date,
     lat: Number,
     lng: Number,
-    faceVerified: Boolean,
+    verifiedBy:String,
     confidence: Number, // 0.00 - 1.00
     imageUrl: String, // stored for audit logs
 
@@ -24,7 +24,7 @@ const AttendanceSchema = new mongoose.Schema({
     time: Date,
     lat: Number,
     lng: Number,
-    faceVerified: Boolean,
+    verifiedBy:String,
     confidence: Number,
     imageUrl: String,
 

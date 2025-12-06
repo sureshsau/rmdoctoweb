@@ -1,10 +1,16 @@
-import express from 'express'
-import { authenticate } from '../middlewires/auth.middlewire.js';
+import express from "express";
+import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { checkInByFaceController, getAttendanceSettingsController } from "../controllers/attendance.controller.js";
 
-const router=express.Router();
+const router = express.Router();
 
 router
-    .post('/checkIn',authenticate)
+  .post(
+          "/checkIn",
+          authenticate,
+          authorize(["Attendance:create"]),
+          checkInByFaceController
+        )
+  .get('/settings',authenticate,authorize(["Attendance.settings:view:self","Attendance.settings:view:all"]),getAttendanceSettingsController)
 
-
-export default router
+export default router;

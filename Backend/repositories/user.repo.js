@@ -18,10 +18,3 @@ export const create = async (data) => {
   }
 };
 
-
-// const find = async() =>{
-//   let user = await USER.find();
-//   console.log("all user",user);
-// }
-
-// find();

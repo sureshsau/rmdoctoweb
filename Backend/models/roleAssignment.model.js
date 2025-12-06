@@ -48,4 +48,5 @@ const RoleAssignmentSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model("RoleAssignment", RoleAssignmentSchema);
+const ROLEASSIGNMENTS = mongoose.model("RoleAssignment", RoleAssignmentSchema);
+export default ROLEASSIGNMENTS;

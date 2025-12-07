@@ -5,7 +5,6 @@ import AppError from "../utils/AppError.js";
 // CREATE ROLE
 // --------------------------------------
 export async function createRoleService({
-  companyId,
   key,
   name,
   description,
@@ -104,6 +103,7 @@ export async function createRoleService({
 // --------------------------------------
 export async function getAllRolesService(companyId) {
   return await ROLE.find({ companyId }).sort({ createdAt: -1 });
+
 }
 
 

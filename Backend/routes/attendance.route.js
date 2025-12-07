@@ -5,12 +5,7 @@ import { checkInByFaceController, getAttendanceSettingsController } from "../con
 const router = express.Router();
 
 router
-  .post(
-          "/checkIn",
-          authenticate,
-          authorize(["Attendance:create"]),
-          checkInByFaceController
-        )
+  .post("/checkIn",authenticate,authorize(["Attendance:create"]),checkInByFaceController)
   .get('/settings',authenticate,authorize(["Attendance.settings:view:self","Attendance.settings:view:all"]),getAttendanceSettingsController)
 
 export default router;

@@ -64,9 +64,9 @@ export const createRole = async (req, res, next) => {
 // --------------------------------------
 // GET ALL ROLES
 // --------------------------------------
-export const getRoles = async (req, res, next) => {
+export const getAllRolesController = async (req, res, next) => {
   try {
-    const roles = await getAllRolesService(req.user.companyId);
+    const roles = await getAllRolesService();
 
     return res.json({
       success: true,
@@ -75,7 +75,7 @@ export const getRoles = async (req, res, next) => {
     });
 
   } catch (err) {
-    next(err);
+    throw new AppError("Internal server error",500);
   }
 };
 

@@ -18,14 +18,13 @@ const AttendanceSettingsSchema = new mongoose.Schema({
   },
 
   // Allowed locations for attendance
-  allowedLocations: [
-    {
+  allowedLocations:{
       name: String,
       lat: Number,
       lng: Number,
-      radiusMeters: { type: Number, default: 50 }
+      radiusMeters: { type: Number, default: 10 }
     }
-  ],
+  ,
 
   // ============================
   // ⭐ FACE RECOGNITION STORAGE

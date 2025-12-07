@@ -102,11 +102,14 @@ export async function createRoleService({
 // --------------------------------------
 // GET ALL ROLES
 // --------------------------------------
-export async function getAllRolesService(companyId) {
-  return await ROLE.find({ companyId }).sort({ createdAt: -1 });
+export async function getAllRolesService() {
+  try{
+    const rolesData=await ROLE.find().select("key coreProfile roleType permissions").lean();
+    return rolesData;
+  }catch(err){
+    throw new AppError("Internal server error",)
+  }
 }
-
-
 
 // --------------------------------------
 // GET ROLE BY ID

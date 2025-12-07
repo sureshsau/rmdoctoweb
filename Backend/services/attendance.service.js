@@ -49,3 +49,60 @@ export const checkIn=async(data)=>{
 
     }
 }
+
+/**
+ * Update attendance settings for ALL users (but only the fields that exist in settings)
+ */
+export const setAttendanceSettingsForAllUsers = async (settings) => {
+  try {
+    if (!settings || typeof settings !== "object") {
+      throw new AppError("Invalid settings payload", 400);
+    }
+
+    // ---------------------------------------
+    // Build dynamic update object ($set only)
+    // ---------------------------------------
+    const updateData = {};
+
+    const allowedFields = [
+      "shiftStartTime",
+      "shiftEndTime",
+      "requiredHoursPerDay",
+      "halfDayMinHours",
+      "graceMinutes",
+      "weeklyOffDays",
+      "allowedLocations",
+      "faceEmbedding",
+      "faceProportion",
+      "overtimeAllowed",
+      "otAfterHours"
+    ];
+
+    for (const key of allowedFields) {
+      if (settings[key] !== undefined) {
+        updateData[key] = settings[key];
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError("No valid settings fields provided", 400);
+    }
+
+    // ---------------------------------------
+    // Apply update to ALL attendance settings
+    // ---------------------------------------
+    const result = await AttendanceSettings.updateMany(
+      {},
+      { $set: updateData }
+    );
+
+    return {
+      updatedCount: result.modifiedCount,
+      appliedSettings: updateData
+    };
+
+  } catch (err) {
+    console.error("setAttendanceSettingsForAllUsers ERROR:", err);
+    throw new AppError("Internal Server Error while updating settings", 500);
+  }
+};

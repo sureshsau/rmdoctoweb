@@ -1,4 +1,4 @@
-import { checkIn } from "../services/attendance.service.js"
+import { checkIn, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
 
 export const getAttendanceSettingsController = async (req, res, next) => {
@@ -35,6 +35,19 @@ export const getAttendanceSettingsController = async (req, res, next) => {
     next(err); // pass to global error handler
   }
 };
+
+export const setAttendanceSettingsForAllUsersController=async(req,res)=>{
+  try{
+    if(!req.body){
+      res.status(400).json({
+        message:"setting is missing",
+      })
+    }
+    await setAttendanceSettingsForAllUsers(req.body);
+  }catch(err){
+      throw new AppError("Internal Server Error",500);
+  }
+}
 
 export const checkInByFaceController=async(req,res)=>{
     try{

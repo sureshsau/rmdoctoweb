@@ -1,4 +1,4 @@
-import { checkIn, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
+import { checkIn, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
 
 export const getAttendanceSettingsController = async (req, res, next) => {
@@ -49,6 +49,28 @@ export const setAttendanceSettingsForAllUsersController=async(req,res)=>{
   }
 }
 
+
+export const registerFaceEmbeddingController = async (req, res, next) => {
+  try {
+    const { userId, embedding, faceProportion } = req.body;
+
+    const result = await registerFaceEmbeddingService({
+      userId,
+      embedding,
+      faceProportion
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Face registered successfully",
+      data: result
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const checkInByFaceController=async(req,res)=>{
     try{
         const {location}=req.body;
@@ -56,3 +78,51 @@ export const checkInByFaceController=async(req,res)=>{
         
     }
 }
+
+export const getMyAttendanceThisMonthController = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return next(new AppError("User authentication failed. Please login again.", 401));
+    }
+
+    // Month/year NOT passed → service uses current month/year automatically
+    const result = await getAttendanceService({ userId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance fetched successfully for current month",
+      data: result
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getAttendanceByRangeController = async (req, res, next) => {
+  try {
+    const userId = req.params.userId;
+
+    const { from, to, monthFrom, monthTo, year } = req.query;
+
+    const data = await getAttendanceService({
+      userId,
+      from,
+      to,
+      rangeMonthFrom: monthFrom,
+      rangeMonthTo: monthTo,
+      year
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance fetched for range",
+      data
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};

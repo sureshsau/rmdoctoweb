@@ -8,7 +8,7 @@ import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function page() {
-  const API_URL = "http://localhost:5000";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
   const [showOtpSend, setShowOtpSend] = useState<boolean>(false);
 

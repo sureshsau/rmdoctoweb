@@ -8,7 +8,7 @@ import axios from "axios";
 
 
 export default function page() {
-  const API_URL = "http://localhost:5000";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
   const [formData, setFormData] = useState<{
     email?: string,
@@ -213,8 +213,8 @@ const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
 
         {/* Title */}
         <div className="text-center">
-          <h2 className="text-4xl font-extrabold text-gray-900">Sign Up</h2>
-          <p className="text-gray-600 mt-2">Create your account to get started</p>
+          <h2 className="text-4xl font-extrabold text-gray-900">Sign In</h2>
+          <p className="text-gray-600 mt-2">Login to your account</p>
         </div>
 
         {/* Form */}

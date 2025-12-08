@@ -6,7 +6,7 @@ import { Lock, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 
 export default function ResetPasswordPage() {
-  const API_URL = "http://localhost:5000";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
   const params = useSearchParams();
 

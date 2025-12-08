@@ -9,8 +9,7 @@ export default function VerifyOTPPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
-
-  const API_URL = "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // ---------------------------------------------------
   // STATES

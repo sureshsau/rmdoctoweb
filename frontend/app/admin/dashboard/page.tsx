@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useState} from 'react';
+import React, {useState,useEffect} from 'react';
 import { Users, UserCheck, DollarSign, Clock, TrendingUp, TrendingDown, Activity, BarChart3, PieChart, Search,Calendar, Bell, Check, X } from 'lucide-react';
 import { Card, StatCard } from '@/components/admin/Card';
 import { Table } from '@/components/admin/Table';
@@ -335,11 +335,8 @@ const accessRequestData = [
 export default function DashboardPage() {
   
 const [searchQuery, setSearchQuery] = useState("");
-const [users, setUsers] = useState([
-  { id: 1, name: "Mayur Laxkar", email: "mayur@gmail.com" },
-  { id: 2, name: "Riya Sharma", email: "riya@gmail.com" },
-  { id: 3, name: "Amit Verma", email: "amitv@example.com" },
-]);
+const [users, setUsers] = useState<any[]>([]);
+const [loadingUsers, setLoadingUsers] = useState(false);
 
 const filteredUsers = users.filter(
   (u) =>
@@ -414,6 +411,39 @@ const assignRoleToUser = async () => {
 
 
 
+
+
+// List all user to assign role 
+useEffect(() => {
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await fetch("http://localhost:5000/user", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      // ✅ Adjust this based on your API response shape
+      setUsers(data.users || data);
+
+    } catch (err) {
+      console.error("❌ Failed to fetch users:", err);
+      alert("Failed to load users from backend");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  fetchUsers();
+}, []);
 
 
   return (
@@ -521,7 +551,9 @@ const assignRoleToUser = async () => {
 
   {/* User List */}
   <div className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: "260px" }}>
-    {filteredUsers.length === 0 ? (
+    {loadingUsers ? (
+  <p className="text-gray-500 text-sm text-center mt-6">Loading users...</p>
+) : filteredUsers.length === 0 ? (
       <p className="text-gray-500 text-sm text-center mt-6">No users found</p>
     ) : (
       filteredUsers.map((user) => (

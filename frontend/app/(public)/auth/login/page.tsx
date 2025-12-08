@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, User, Phone, EyeOff, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
+import { ROLE_DASHBOARD_MAP } from "@/lib/roleRoutes";
+import { getUserFromToken } from "@/lib/auth";
 import axios from "axios";
 
 
-export default function page() {
+export default function LoginPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
   const [formData, setFormData] = useState<{
@@ -84,18 +86,22 @@ const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
 
     // SUCCESS
     if (res.status === 200) {
-  setErrors({});
-  const { user, token } = res.data;
+  const { token, user } = res.data;
 
   localStorage.setItem("token", token);
   localStorage.setItem("user", JSON.stringify(user));
-  localStorage.setItem("role", user.userType);
 
-  if (user.userType === "admin") {
-    router.push("/admin/dashboard");
-  } else {
-    router.push("/"); // or /dashboard
-  }
+  // ✅ CLEAR PASSWORD
+  setFormData(prev => ({ ...prev, password: "" }));
+
+  // ✅ REDIRECT BASED ON TOKEN ROLE (NOT RESPONSE BODY)
+  const decoded = getUserFromToken();
+  const redirectPath =
+    decoded?.role && ROLE_DASHBOARD_MAP[decoded.role]
+      ? ROLE_DASHBOARD_MAP[decoded.role]
+      : "/dashboard";
+
+  router.push(redirectPath);
 }
 
   } catch (error: any) {

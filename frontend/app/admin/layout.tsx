@@ -1,15 +1,20 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react'; // ✅ added useEffect
+import { useRouter } from "next/navigation";                   // ✅ added
 import { Sidebar } from '@/components/admin/Sidebar';
 import { TopBar } from '@/components/admin/TopBar';
 import { cn } from '@/lib/utils';
+import { getUserFromToken } from "@/lib/auth";                  // ✅ added
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();                                   // ✅ added
+  const [authChecked, setAuthChecked] = useState(false);        // ✅ added
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -24,6 +29,35 @@ export default function AdminLayout({
   const closeMobileSidebar = useCallback(() => {
     setIsMobileSidebarOpen(false);
   }, []);
+
+  // ✅ ✅ ADMIN AUTH GUARD (CORE SECURITY)
+  useEffect(() => {
+    const user = getUserFromToken();
+
+    // ❌ Not logged in
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+
+    // ❌ Logged in but NOT admin
+    if (user.role !== "admin") {
+      router.push("/unauthorized");
+      return;
+    }
+
+    // ✅ Authorized
+    setAuthChecked(true);
+  }, [router]);
+
+  // ✅ Prevent UI flash before auth check finishes
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-lg font-semibold">
+        Verifying admin access...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-gray-50 fixed inset-0">

@@ -9,7 +9,7 @@ export default function VerifyOTPPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // ---------------------------------------------------
   // STATES
@@ -67,7 +67,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
     }
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -75,7 +78,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
     const newOtp = ["", "", "", ""];
 
     for (let i = 0; i < pasted.length; i++) newOtp[i] = pasted[i];
@@ -110,15 +116,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
       if (res.status === 201) {
         setOtp(["", "", "", ""]);
+        // ✅ Store auth session
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-        localStorage.setItem("role", res.data.user.role);
 
-        if (res.data.user.userType === "admin") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/");
-        }
+        // ✅ ALWAYS redirect to home after OTP
+        router.push("/");
       }
     } catch (error: any) {
       const status = error.response?.status;
@@ -200,7 +203,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
               {otp.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => {(inputRefs.current[index] = el)}}
+                  ref={(el) => {
+                    inputRefs.current[index] = el;
+                  }}
                   type="text"
                   maxLength={1}
                   inputMode="numeric"
@@ -238,7 +243,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
           </form>
 
           <div className="text-center">
-            <Link href="/auth/register" className="text-sm text-gray-600 hover:text-cyan-700">
+            <Link
+              href="/auth/register"
+              className="text-sm text-gray-600 hover:text-cyan-700"
+            >
               ← Back to Sign Up
             </Link>
           </div>

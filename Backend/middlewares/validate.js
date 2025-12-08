@@ -13,5 +13,7 @@ export const validate = (req, res, next) => {
     });
   }
 
+  console.log("error");
+
   next();
 };

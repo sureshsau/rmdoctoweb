@@ -12,6 +12,7 @@ import { newUserNotification } from "../queues/producers/notification.producer.j
 export const register = async (data) => {
   try {
     // Normalize
+    console.log("Hit");
     const name = data.name?.trim();
     const phone = data.phone?.trim() || null;
     const email = data.email?.trim().toLowerCase() || null;
@@ -233,7 +234,11 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
     await user.save();
 
     const jwtToken = jwt.sign(
-      { id: user._id, deviceType, version },
+      { id: user._id, 
+        deviceType,
+        version,
+        role:user.userType
+      },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
@@ -340,7 +345,8 @@ export const login = async ({ email, phone, password, ip, device }) => {
       {
         id: user._id,
         deviceType,
-        version
+        version,
+        role:user.userType
       },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }

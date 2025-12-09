@@ -8,6 +8,7 @@ import attendanceRouter from './routes/attendance.route.js'
 import rolesRoute from './routes/role.route.js'
 import roleAssignmentsRoute from './routes/roleAssignments.route.js'
 import userRoute from './routes/user.route.js'
+import permissionRoute from './routes/permission.route.js'
 import AppError from './utils/AppError.js';
 import cors from 'cors';
 
@@ -22,6 +23,7 @@ app.use('/attendance',attendanceRouter)
 app.use('/roles',rolesRoute);
 app.use('/role-assignments',roleAssignmentsRoute);
 app.use('/user',userRoute);
+app.use('/permission',permissionRoute);
 
 const port = process.env.PORT || 3000;
 server.listen(port,()=>{

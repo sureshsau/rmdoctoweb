@@ -57,13 +57,8 @@ export const checkIn=async(data)=>{
 export const setAttendanceSettingsForAllUsers = async (settings) => {
   try {
     if (!settings || typeof settings !== "object") {
-      throw new AppError("Invalid settings payload", 400);
+      throw new AppError("Invalid attendance settings payload", 400);
     }
-
-    // ---------------------------------------
-    // Build dynamic update object ($set only)
-    // ---------------------------------------
-    const updateData = {};
 
     const allowedFields = [
       "shiftStartTime",
@@ -72,12 +67,11 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
       "halfDayMinHours",
       "graceMinutes",
       "weeklyOffDays",
-      "allowedLocations",
-      "faceEmbedding",
-      "faceProportion",
-      "overtimeAllowed",
-      "otAfterHours"
+      "allowedLocation",
+      "overtimeAllowed"
     ];
+
+    const updateData = {};
 
     for (const key of allowedFields) {
       if (settings[key] !== undefined) {
@@ -86,27 +80,44 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      throw new AppError("No valid settings fields provided", 400);
+      throw new AppError("No valid attendance settings fields provided", 400);
     }
 
-    // ---------------------------------------
-    // Apply update to ALL attendance settings
-    // ---------------------------------------
-    const result = await AttendanceSettings.updateMany(
-      {},
-      { $set: updateData }
-    );
+    // Validate location only if present
+    if (updateData.allowedLocation) {
+      const loc = updateData.allowedLocation;
+
+      if (
+        !loc.name ||
+        typeof loc.lat !== "number" ||
+        typeof loc.lng !== "number"
+      ) {
+        throw new AppError("Invalid allowedLocation object", 400);
+      }
+
+      if (!loc.radiusMeters) loc.radiusMeters = 10;
+    }
+
+    // Update ALL users
+    const result = await AttendanceSettings.updateMany({}, { $set: updateData });
+
+    const updatedCount =
+      result.modifiedCount ??
+      result.nModified ??
+      0;
 
     return {
-      updatedCount: result.modifiedCount,
+      updatedCount,
       appliedSettings: updateData
     };
 
   } catch (err) {
     console.error("setAttendanceSettingsForAllUsers ERROR:", err);
-    throw new AppError("Internal Server Error while updating settings", 500);
+    throw new AppError("Internal Server Error while updating attendance settings", 500);
   }
 };
+
+
 
 
 

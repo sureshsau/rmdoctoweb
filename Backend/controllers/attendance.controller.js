@@ -43,7 +43,11 @@ export const setAttendanceSettingsForAllUsersController=async(req,res)=>{
         message:"setting is missing",
       })
     }
-    await setAttendanceSettingsForAllUsers(req.body);
+    const data=await setAttendanceSettingsForAllUsers(req.body);
+    return res.status(200).json({
+      message:"set attendance setting for all users",
+      updateCounte:data.updatedCount
+    })
   }catch(err){
       throw new AppError("Internal Server Error",500);
   }
@@ -115,7 +119,6 @@ export const getAttendanceByRangeController = async (req, res, next) => {
       rangeMonthTo: monthTo,
       year
     });
-
     return res.status(200).json({
       success: true,
       message: "Attendance fetched for range",

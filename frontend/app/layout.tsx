@@ -23,14 +23,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthRoute = pathname?.startsWith('/auth');
-
+  const isCheckInOut = pathname?.startsWith('/ChekInOut');
   return (
     <>
       {/* Show navbar only for non-admin routes */}
-      {(!isAdminRoute && !isAuthRoute ) && <Navbar />}
+      {(!isAdminRoute && !isAuthRoute && !isCheckInOut ) && <Navbar />}
       
       {/* Content wrapper: add top padding for regular pages, none for auth or admin */}
-      <div className={isAdminRoute || isAuthRoute ? "" : "pt-20"}>
+      <div className={isAdminRoute || isAuthRoute || isCheckInOut ? "" : "pt-20"}>
         {children}
       </div>
     </>

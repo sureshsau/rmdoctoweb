@@ -27,7 +27,7 @@ router
 
   .post('/setAttendanceSettings',
         authenticate,
-        authorize(["Attendance.settings:update:all"]),
+      //   authorize(["Attendance.settings:update:all"]),
         setAttendanceSettingsForAllUsersController)
 
   .post('/register/face',

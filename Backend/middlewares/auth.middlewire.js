@@ -109,6 +109,9 @@ export function authorize(requiredPermissions) {
     // ---------------------------------
     const isAllowed = (neededPerm) => {
       const [needRes, needAct, needScope] = neededPerm.split(":");
+      if(req.user.userType=="admin"){
+        return true;
+      }
 
       for (const perm of granted) {
         const [res, act, scope] = perm.split(":");

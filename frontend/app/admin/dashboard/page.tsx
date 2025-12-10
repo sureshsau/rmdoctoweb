@@ -19,7 +19,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import axios from "axios";
-
+import FaceRegister  from "@/components/admin/FaceRegister";
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -335,6 +335,8 @@ const accessRequestData = [
 
 export default function DashboardPage() {
   
+const [selectedUserId, setSelectedUserId] = useState(null);
+    const [showRegisterFace, setShowRegisterFace] = useState(false);
 const [searchQuery, setSearchQuery] = useState("");
 const [users, setUsers] = useState<any[]>([]);
 const [loadingUsers, setLoadingUsers] = useState(false);
@@ -594,7 +596,14 @@ useEffect(() => {
             <p className="font-semibold text-gray-800">{user.name}</p>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
-
+            <button
+                onClick={() =>{ setShowRegisterFace(true)
+                  setSelectedUserId(user._id);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
+                Register Face
+          </button>
+          
           {/* Right: Role Button */}
           <button onClick={() => onRoleAssign(user)} className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-all">
             Assign Role
@@ -769,6 +778,23 @@ useEffect(() => {
   </div>
 )}
 
+      {/* Face Register Modal */}
+{showRegisterFace && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="relative w-full max-w-6xl">
+      
+      {/* Close Button */}
+      <button
+        onClick={() => setShowRegisterFace(false)}
+        className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100">
+        <X className="h-5 w-5 text-gray-700" />
+      </button>
+
+      {/* Face Register Component */}
+      <FaceRegister userId={selectedUserId!} />
+    </div>
+  </div>
+)}
     </div>
   );
 }

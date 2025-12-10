@@ -172,6 +172,7 @@ const attendanceColumns = [
 ];
 
 export default function AttendancePage() {
+
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -179,7 +180,7 @@ export default function AttendancePage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDateActionModalOpen, setIsDateActionModalOpen] = useState(false);
-  const [showRegisterFace, setShowRegisterFace] = useState(false);
+
 const [showAttendanceSettings, setShowAttendanceSettings] = useState(false);
 
   const itemsPerPage = 10;
@@ -249,12 +250,6 @@ const [showAttendanceSettings, setShowAttendanceSettings] = useState(false);
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Simple Modern Header */}
      <div className="flex items-center gap-3">
-  <Button
-    onClick={() => setShowRegisterFace(true)}
-    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-  >
-    Register Face
-  </Button>
 
   <Button
     onClick={() => setShowAttendanceSettings(true)}
@@ -475,23 +470,6 @@ const [showAttendanceSettings, setShowAttendanceSettings] = useState(false);
           </div>
         </div>
       )}
-      {/* Face Register Modal */}
-{showRegisterFace && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="relative w-full max-w-6xl">
-      
-      {/* Close Button */}
-      <button
-        onClick={() => setShowRegisterFace(false)}
-        className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100">
-        <X className="h-5 w-5 text-gray-700" />
-      </button>
-
-      {/* Face Register Component */}
-      <FaceRegister />
-    </div>
-  </div>
-)}
 
 {showAttendanceSettings && (
   <AttendanceSettingsModal onClose={() => setShowAttendanceSettings(false)} />

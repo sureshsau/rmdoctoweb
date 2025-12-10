@@ -5,13 +5,19 @@ import { User } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [isLoggedIn, setIsLoggendIn] = useState<string>();
-  useEffect(()=>{
-    let token = localStorage.getItem('token');
-    if(token){
-      setIsLoggendIn(token);
-    }
-  }, []);
+ const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [role, setRole] = useState<string | null>(null);
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  const user = localStorage.getItem("user");
+
+  if (token && user) {
+    const parsedUser = JSON.parse(user);
+    setIsLoggedIn(true);
+    setRole(parsedUser.role); // doctor, admin, user, etc.
+  }
+}, []);
   
   const navigationItems = [
     { name: "Home", link: "/" },
@@ -29,6 +35,22 @@ const Navbar = () => {
   const closeMenu = () => {
     setIsMenuOpen(false);
   };
+
+
+  const getDashboardLink = () => {
+  if (!role) return "/dashboard";
+
+  switch (role) {
+    case "doctor":
+      return "/doctor/dashboard";
+    case "admin":
+      return "/admin/dashboard";
+    case "hms":
+      return "/hms/dashboard";
+    default:
+      return "/user/dashboard"; // normal users
+  }
+};
 
   return (
     <>
@@ -72,13 +94,18 @@ const Navbar = () => {
 
            {/* Desktop Right Buttons */}
 <div className="hidden lg:flex items-center gap-4">
-  <Link
-    href="/book-appointment"
-    className="text-sm font-semibold px-5 py-2.5 rounded-full text-white bg-gradient-to-r from-cyan-600 to-blue-600 backdrop-blur-xl hover:shadow-xl hover:scale-105 transition-all duration-300"
-  >
-    Book Appointment
-  </Link>
 
+  {/* Show Book Appointment only for visitors + normal users */}
+  {(!isLoggedIn || role === "user") && (
+    <Link
+      href="/book-appointment"
+      className="text-sm font-semibold px-5 py-2.5 rounded-full text-white bg-gradient-to-r from-cyan-600 to-blue-600 backdrop-blur-xl hover:shadow-xl hover:scale-105 transition-all duration-300"
+    >
+      Book Appointment
+    </Link>
+  )}
+
+  {/* If not logged in → show login/signup */}
   {!isLoggedIn ? (
     <div className="flex items-center gap-3">
       <Link
@@ -97,17 +124,22 @@ const Navbar = () => {
     </div>
   ) : (
     <div className="flex items-center gap-4">
+
+      {/* Dashboard (role based) */}
       <Link
-        href="/dashboard"
+        href={getDashboardLink()}
         className="text-sm font-semibold px-4 py-2 rounded-full text-blue-600 bg-blue-100 hover:bg-blue-200 transition-all"
       >
         Dashboard
       </Link>
 
+      {/* Logout */}
       <button
         onClick={() => {
           localStorage.removeItem("token");
-          setIsLoggendIn(undefined);
+          localStorage.removeItem("user");
+          setIsLoggedIn(false);
+          setRole(null);
         }}
         className="text-sm font-semibold px-4 py-2 rounded-full text-red-600 bg-red-100 hover:bg-red-200 transition-all"
       >
@@ -115,7 +147,9 @@ const Navbar = () => {
       </button>
     </div>
   )}
+
 </div>
+
 
 
 

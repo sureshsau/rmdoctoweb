@@ -34,38 +34,83 @@ export default function AttendanceSettingsModal({ onClose }: Props) {
   };
 
   const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
+  try {
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-      await axios.post(
-        `${API_URL}/attendance/setAttendanceSettings`,
-        form,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    // ✅ Build correct payload for backend
+    const payload: any = {
+      ...form,
+    };
 
-      setSuccess("✅ Attendance settings applied to ALL users");
-      setTimeout(onClose, 1200);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Update failed");
-      console.log(err);
-    } finally {
-      setLoading(false);
-      
+    // ✅ Convert lat/lng into allowedLocation object
+    if (form.latitude && form.longitude) {
+      payload.allowedLocation = {
+        name: "Office",
+        lat: Number(form.latitude),
+        lng: Number(form.longitude),
+        radiusMeters: 10,
+      };
+
+      delete payload.latitude;
+      delete payload.longitude;
     }
-  };
 
+    const res = await axios.post(
+      `${API_URL}/attendance/setAttendanceSettings`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
+    // ✅ SHOW UPDATED COUNT
+    const updatedCount = res.data.updatedCount;
+
+    setSuccess(`✅ Settings applied to ${updatedCount} users`);
+
+    // ✅ CUSTOM SUCCESS TOAST
+    window.dispatchEvent(
+      new CustomEvent("toast", {
+        detail: {
+          type: "success",
+          message: `Updated ${updatedCount} users successfully`,
+        },
+      })
+    );
+
+    setTimeout(onClose, 1200);
+  } catch (err: any) {
+    const msg =
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      "Update failed";
+
+    setError(msg);
+
+    // ✅ CUSTOM ERROR TOAST
+    window.dispatchEvent(
+      new CustomEvent("toast", {
+        detail: {
+          type: "error",
+          message: msg,
+        },
+      })
+    );
+
+    console.log(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch User location 
-  const fetchCurrentLocation = () => {
+const fetchCurrentLocation = () => {
   if (!navigator.geolocation) {
     setError("Geolocation is not supported by your browser");
     return;
@@ -73,13 +118,13 @@ export default function AttendanceSettingsModal({ onClose }: Props) {
 
   navigator.geolocation.getCurrentPosition(
     (position) => {
-      const lat = position.coords.latitude.toFixed(6);
-      const lng = position.coords.longitude.toFixed(6);
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
 
       setForm((prev) => ({
         ...prev,
-        latitude: lat,
-        longitude: lng,
+        latitude: String(lat),
+        longitude: String(lng),
       }));
 
       setError("");

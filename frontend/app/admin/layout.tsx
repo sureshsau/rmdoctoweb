@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/admin/Sidebar';
 import { TopBar } from '@/components/admin/TopBar';
 import { cn } from '@/lib/utils';
 import { getUserFromToken } from "@/lib/auth";                  // ✅ added
-
+import { requireRole } from "@/lib/roleGuard";
 export default function AdminLayout({
   children,
 }: {
@@ -30,30 +30,14 @@ export default function AdminLayout({
     setIsMobileSidebarOpen(false);
   }, []);
 
-  // ✅ ✅ ADMIN AUTH GUARD (CORE SECURITY)
-  useEffect(() => {
-    const user = getUserFromToken();
-
-    // ❌ Not logged in
-    if (!user) {
-      router.push("/auth/login");
-      return;
-    }
-
-    // ❌ Logged in but NOT admin
-    if (user.role !== "admin") {
-      router.push("/unauthorized");
-      return;
-    }
-
-    // ✅ Authorized
-    setAuthChecked(true);
+   useEffect(() => {
+    const ok = requireRole(router, ["admin"]);
+    if (ok) setAuthChecked(true);
   }, [router]);
 
-  // ✅ Prevent UI flash before auth check finishes
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-lg font-semibold">
+      <div className="min-h-screen flex items-center justify-center font-semibold">
         Verifying admin access...
       </div>
     );

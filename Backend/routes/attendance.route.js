@@ -9,10 +9,11 @@ import {
   getAttendanceByRangeController
 } from "../controllers/attendance.controller.js";
 
+
 const router = express.Router();
 
 router
-  .post("/checkIn",
+  .post("/checkIn/face",
         authenticate,
         authorize(["Attendance:create"]),
         checkInByFaceController)

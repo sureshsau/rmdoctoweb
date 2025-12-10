@@ -10,7 +10,6 @@ const AttendanceSettingsSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-
     // Shift configs
     shiftStartTime: { type: String, default: "09:00" },
     shiftEndTime: { type: String, default: "17:00" },
@@ -23,10 +22,7 @@ const AttendanceSettingsSchema = new mongoose.Schema(
       type: [String], // ["Sunday", "Saturday"]
       default: [],
     },
-
-    // ================
     // SINGLE LOCATION
-    // ================
     allowedLocation: {
       type: {
         lat: { type: Number, required: true },
@@ -35,19 +31,13 @@ const AttendanceSettingsSchema = new mongoose.Schema(
       },
       default: null,
     },
-
-    // ============================
-    // ⭐ FACE RECOGNITION STORAGE
-    // ============================
-
     // 128D embedding vector
     faceEmbedding: {
       type: [Number],
       validate: (v) => !v || v.length === 128,
       default: null,
     },
-
-    // Face proportion / landmark ratios
+    // Face proportion 
     faceProportion: {
       eyeDistance: Number,
       noseWidth: Number,

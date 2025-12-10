@@ -1,5 +1,101 @@
-
-
 {
-    "user":[]
+  "user": [
+    { "key": "user:create", "desc": "Create a new user" },
+    { "key": "user:view", "desc": "View all users" },
+    { "key": "user:view:self", "desc": "View own profile" },
+    { "key": "user:update", "desc": "Edit any user" },
+    { "key": "user:update:self", "desc": "Edit own profile" },
+    { "key": "user:delete", "desc": "Delete a user" },
+    { "key": "user:block", "desc": "Block/unblock any user" }
+  ],
+
+  "role": [
+    { "key": "role:create", "desc": "Create a new role" },
+    { "key": "role:update", "desc": "Update a role" },
+    { "key": "role:delete", "desc": "Delete a role" },
+    { "key": "role:view", "desc": "View all roles" },
+    { "key": "role:assign", "desc": "Assign role to a user" },
+    { "key": "role:revoke", "desc": "Remove user role" }
+  ],
+
+  "permission": [
+    { "key": "permission:view", "desc": "View all permissions" }
+  ],
+
+  "attendance.settings": [
+    { "key": "attendance.settings:view:self", "desc": "View own attendance settings" },
+    { "key": "attendance.settings:view:all", "desc": "View all employees' attendance settings" },
+    { "key": "attendance.settings:update", "desc": "Update attendance settings for all users" },
+    { "key": "attendance.settings:face:update", "desc": "Register/update face recognition data" }
+  ],
+
+  "attendance": [
+    { "key": "attendance:create", "desc": "Mark attendance (check-in/check-out)" },
+    { "key": "attendance:view:self", "desc": "View own attendance" },
+    { "key": "attendance:view:all", "desc": "View attendance of all employees" },
+    { "key": "attendance:manual:create", "desc": "Admin/receptionist manually mark attendance" },
+    { "key": "attendance:approve.manual", "desc": "Approve manual attendance requests" }
+  ],
+
+  "doctor": [
+    { "key": "doctor:view", "desc": "View all doctors" },
+    { "key": "doctor:update", "desc": "Update doctor information" },
+    { "key": "doctor:profile:update:self", "desc": "Doctor updates own profile" },
+    { "key": "doctor:schedule:update", "desc": "Update doctor schedule" }
+  ],
+
+  "patient": [
+    { "key": "patient:create", "desc": "Register a patient" },
+    { "key": "patient:view", "desc": "View patient details" },
+    { "key": "patient:update", "desc": "Update patient details" }
+  ],
+
+  "appointment": [
+    { "key": "appointment:create", "desc": "Create a doctor appointment" },
+    { "key": "appointment:view", "desc": "View appointment details" },
+    { "key": "appointment:view:self", "desc": "View own appointments" },
+    { "key": "appointment:update", "desc": "Update appointment details" },
+    { "key": "appointment:cancel", "desc": "Cancel patient appointment" }
+  ],
+
+  "agent": [
+    { "key": "agent:create", "desc": "Register an agent" },
+    { "key": "agent:view", "desc": "View all agents" },
+    { "key": "agent:update", "desc": "Update agent information" },
+    { "key": "agent:commission:view", "desc": "View agent commissions" },
+    { "key": "agent:kyc:update", "desc": "Approve agent KYC" }
+  ],
+
+  "employee": [
+    { "key": "employee:create", "desc": "Register an employee" },
+    { "key": "employee:view", "desc": "View all employees" },
+    { "key": "employee:update", "desc": "Update employee information" },
+    { "key": "employee:incentive:view", "desc": "View employee incentives" }
+  ],
+
+  "lab": [
+    { "key": "lab:create", "desc": "Register a lab" },
+    { "key": "lab:view", "desc": "View all labs" },
+    { "key": "lab:update", "desc": "Update lab details" },
+    { "key": "lab:test:create", "desc": "Add lab tests" },
+    { "key": "lab:test:update", "desc": "Update test fees" }
+  ],
+
+  "finance": [
+    { "key": "finance:profit:view", "desc": "View daily/monthly profit reports" },
+    { "key": "finance:due:view", "desc": "View lab dues" },
+    { "key": "finance:due:notify", "desc": "Send due notifications to labs" },
+    { "key": "finance:payout:approve", "desc": "Approve agent payouts" }
+  ],
+
+  "notifications": [
+    { "key": "notification:send", "desc": "Send notifications to users" },
+    { "key": "notification:template:update", "desc": "Manage notification templates" }
+  ],
+
+  "voucher": [
+    { "key": "voucher:create", "desc": "Generate vouchers" },
+    { "key": "voucher:view", "desc": "View voucher list" },
+    { "key": "voucher:assign", "desc": "Assign vouchers to patients" }
+  ]
 }

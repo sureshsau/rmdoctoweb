@@ -1,4 +1,4 @@
-import { checkIn, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
+import { checkIn, checkInByFaceService, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
 
 export const getAttendanceSettingsController = async (req, res, next) => {
@@ -75,13 +75,7 @@ export const registerFaceEmbeddingController = async (req, res, next) => {
   }
 };
 
-export const checkInByFaceController=async(req,res)=>{
-    try{
-        const {location}=req.body;
-    }catch(err){
-        
-    }
-}
+
 
 export const getMyAttendanceThisMonthController = async (req, res, next) => {
   try {
@@ -129,3 +123,25 @@ export const getAttendanceByRangeController = async (req, res, next) => {
     next(err);
   }
 };
+
+
+export const checkInByFaceController = async (req, res, next) => {
+  try {
+    const { faceEmbedding, lat, lng, deviceInfo, imageUrl } = req.body;
+
+    const result = await checkInByFaceService({
+      userId: req.user.id,
+      faceEmbedding,
+      lat,
+      lng,
+      deviceInfo,
+      imageUrl
+    });
+
+    res.status(200).json(result);
+
+  } catch (err) {
+    next(err);
+  }
+};
+

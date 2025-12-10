@@ -1,6 +1,7 @@
 import AppError from "../utils/AppError.js"
 import AttendanceSettings from '../models/attendanceSettings.model.js'
 import mongoose from "mongoose";
+import redisClient from '../config/redis.config.js'
 
 export async function fetchSelfAttendanceSettings(userId) {
   const settings = await AttendanceSettings.findOne({ userId }).lean();
@@ -270,3 +271,141 @@ export async function getAttendanceService({
     logs
   };
 }
+function cosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== 128 || vecB.length !== 128) return 0;
+
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < 128; i++) {
+    dot += vecA[i] * vecB[i];
+    magA += vecA[i] ** 2;
+    magB += vecB[i] ** 2;
+  }
+
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+function isWithinRadius(lat1, lng1, lat2, lng2, radiusMeters = 20) {
+  const R = 6371e3; // Earth radius in m
+  const toRad = deg => (deg * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2;
+
+  const distance = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return distance <= radiusMeters;
+}
+
+export const checkInByFaceService = async ({
+  userId,
+  faceEmbedding,
+  lat,
+  lng,
+  deviceInfo,
+  imageUrl
+}) => {
+  if (!Array.isArray(faceEmbedding) || faceEmbedding.length !== 128) {
+    throw new AppError("Invalid face embedding vector", 400);
+  }
+
+  // ----------------------------------------------------------------
+  // 1️⃣ FETCH SETTINGS (Try Redis → fallback MongoDB)
+  // ----------------------------------------------------------------
+  let settings;
+
+  const redisKey = `attendance_settings:${userId}`;
+
+  const cached = await redisClient.get(redisKey);
+
+  if (cached) {
+    settings = JSON.parse(cached);
+  } else {
+    settings = await AttendanceSettings.findOne({ userId }).lean();
+    if (!settings) throw new AppError("Attendance settings missing for user", 404);
+
+    // Cache for 5 hours
+    redisClient.set(redisKey, JSON.stringify(settings), "EX", 60 * 60 * 5);
+  }
+
+  // ----------------------------------------------------------------
+  // 2️⃣ FACE MATCHING
+  // ----------------------------------------------------------------
+  const storedEmbedding = settings.faceEmbedding;
+
+  if (!storedEmbedding)
+    throw new AppError("Face reference not registered for user", 400);
+
+  const similarity = cosineSimilarity(faceEmbedding, storedEmbedding);
+  const confidence = Number(similarity.toFixed(3)); // accuracy 0.000
+
+  const faceMatched = confidence >= 0.85; // threshold (adjust)
+
+  // ----------------------------------------------------------------
+  // 3️⃣ LOCATION CHECK
+  // ----------------------------------------------------------------
+  let locationValid = false;
+
+  if (settings.allowedLocation) {
+    locationValid = isWithinRadius(
+      lat,
+      lng,
+      settings.allowedLocation.lat,
+      settings.allowedLocation.lng,
+      settings.allowedLocation.radiusMeters || 20
+    );
+  }
+
+  // ----------------------------------------------------------------
+  // 4️⃣ PREVENT DOUBLE CHECK-IN
+  // ----------------------------------------------------------------
+  const today = new Date().toISOString().split("T")[0];
+
+  let attendance = await Attendance.findOne({ userId, date: today });
+
+  if (attendance && attendance.checkIn && attendance.checkIn.time) {
+    throw new AppError("User already checked in today", 400);
+  }
+
+  // ----------------------------------------------------------------
+  // 5️⃣ CREATE / UPDATE ATTENDANCE ENTRY
+  // ----------------------------------------------------------------
+  if (!attendance) {
+    attendance = new Attendance({
+      userId,
+      date: today
+    });
+  }
+
+  attendance.checkIn = {
+    time: new Date(),
+    lat,
+    lng,
+    verifiedBy: faceMatched ? "face" : "manual_review",
+    confidence,
+    imageUrl,
+    spoofDetected: !faceMatched,
+    deviceInfo
+  };
+
+  // Fraud Detection Flags
+  attendance.fraudCheck = {
+    gpsMismatch: !locationValid,
+    repeatedFace: false,
+    suspiciousActivity: faceMatched ? null : "Low confidence face match"
+  };
+
+  await attendance.save();
+
+  return {
+    message: "Check-in successful",
+    checkIn: attendance.checkIn,
+    fraud: attendance.fraudCheck,
+    faceMatched,
+    locationValid,
+    confidence
+  };
+};

@@ -15,6 +15,7 @@ export default function CheckInPage({
   useEffect(() => {
     const ok = requireRole(router, [
       "doctor",
+      "admin",
       "receptionist",
       "agent",
     ]);

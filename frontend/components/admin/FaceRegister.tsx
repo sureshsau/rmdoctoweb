@@ -1,312 +1,233 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { generateFaceVector } from '@/lib/face';
+import { Camera, Loader2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import axios from 'axios';
+import { generateFaceVector } from '@/lib/face';
 
-const CRAYON_BLUE = '#4C9FFF';
-
-export default function FaceLoginPage({userId}:{
-  userId: string
+/* ----------------------------------
+   Toast Component (Popup)
+---------------------------------- */
+function Toast({
+  type,
+  message,
+  onClose,
+}: {
+  type: 'error' | 'success';
+  message: string;
+  onClose: () => void;
 }) {
-  if (!userId) return null; 
-  console.log(userId);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const styles =
+    type === 'error'
+      ? 'bg-red-600'
+      : 'bg-green-600';
+
+  return (
+    <div className={`fixed top-6 right-6 z-50 ${styles} text-white px-4 py-3 rounded-lg shadow-lg max-w-sm`}>
+      <div className="flex items-start gap-3">
+        {type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+        <p className="text-sm leading-snug">{message}</p>
+        <button onClick={onClose} className="ml-auto">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------
+   Error Mapping (Backend → User)
+---------------------------------- */
+function mapCheckInError(err: any): string {
+  const msg = err?.response?.data?.message || '';
+
+  if (msg.includes('already checked in'))
+    return 'You have already checked in today.';
+
+  if (msg.includes('Face reference not registered'))
+    return 'Face not registered. Please complete face setup first.';
+
+  if (msg.includes('Attendance settings missing'))
+    return 'Face setup missing. Please contact administrator.';
+
+  if (msg.includes('Invalid face embedding'))
+    return 'Face capture failed. Please try again.';
+
+  if (err?.code === 'ERR_NETWORK')
+    return 'Network issue. Please check your internet connection.';
+
+  return 'Unable to check in right now. Please try again.';
+}
+
+/* ----------------------------------
+   Main Component
+---------------------------------- */
+export default function FaceCheckInPage({ userId }: { userId: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [vector, setVector] = useState<number[] | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [toast, setToast] = useState<{
+    type: 'error' | 'success';
+    message: string;
+  } | null>(null);
 
-  // ✅ Freeze Face Vector Generator Against Runtime Tampering
-  useEffect(() => {
-    Object.freeze(generateFaceVector);
-  }, []);
-
-  // ✅ Camera Init
+  /* ---------------- Camera ---------------- */
   useEffect(() => {
     let stream: MediaStream | null = null;
 
-    const initCamera = async () => {
+    (async () => {
       try {
-        setError('');
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: false,
-        });
-
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play();
-            setIsCameraReady(true);
+            setCameraReady(true);
           };
         }
-      } catch (err) {
-        console.error(err);
-        setError('Unable to access camera. Please allow camera permission.');
+      } catch {
+        setToast({ type: 'error', message: 'Camera permission denied.' });
       }
-    };
+    })();
 
-    initCamera();
-
-    return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-    };
+    return () => stream?.getTracks().forEach(t => t.stop());
   }, []);
 
-  // ✅ Motion Detection (Liveness)
-  const lastFrameRef = useRef<Uint8ClampedArray | null>(null);
+  /* ---------------- Location ---------------- */
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      pos => setCoords({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      }),
+      () => setToast({ type: 'error', message: 'Location permission denied.' })
+    );
+  }, []);
 
-  const detectMotion = () => {
-    if (!videoRef.current || !canvasRef.current) return false;
+  /* ---------------- Auto dismiss toast ---------------- */
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return false;
-
-    canvas.width = 100;
-    canvas.height = 100;
-
-    ctx.drawImage(video, 0, 0, 100, 100);
-    const currentFrame = ctx.getImageData(0, 0, 100, 100).data;
-
-    if (!lastFrameRef.current) {
-      lastFrameRef.current = currentFrame;
-      return false;
+  /* ---------------- Check-In Logic ---------------- */
+  const handleCheckIn = async () => {
+    if (!videoRef.current || !canvasRef.current || !coords) {
+      setToast({ type: 'error', message: 'Camera or location not ready.' });
+      return;
     }
 
-    let diff = 0;
-    for (let i = 0; i < currentFrame.length; i += 4) {
-      diff += Math.abs(currentFrame[i] - lastFrameRef.current[i]);
+    const token = localStorage.getItem('token');
+    if (!token || !userId) {
+      setToast({ type: 'error', message: 'Session expired. Please login again.' });
+      return;
     }
-
-    lastFrameRef.current = currentFrame;
-    return diff > 20000;
-  };
-
-  // ✅ One-Click Auto Face Login
-  const handleAutoCaptureAndLogin = async () => {
-    if (isCapturing || isGenerating || isSubmitting) return;
-    if (!videoRef.current || !canvasRef.current) return;
-   const token =
-  typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-// const user =
-//   typeof window !== "undefined"
-//     ? JSON.parse(localStorage.getItem("user") || "null")
-//     : null;
-
-// const userId = user?.id; 
-if (!token || !userId) {
-  throw new Error("Authentication data missing. Please login again.");
-}
 
     try {
-      setIsCapturing(true);
-      setIsGenerating(false);
-      setIsSubmitting(false);
-      setError('');
-      setSuccessMessage('');
+      setLoading(true);
 
-      // ✅ Liveness Check
-      // if (!detectMotion()) {
-      //   throw new Error('No face movement detected. Please blink or move slightly.');
-      // }
-
-      // ✅ Capture Snapshot
+      /* Capture image */
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas unavailable');
+      const ctx = canvas.getContext('2d')!;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
 
-      const width = video.videoWidth || 640;
-      const height = video.videoHeight || 480;
+      const imageUrl = canvas.toDataURL('image/jpeg');
 
-      canvas.width = width;
-      canvas.height = height;
+      /* Generate embedding */
+      const faceEmbedding = await generateFaceVector(imageUrl);
 
-      ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-
-      if (!dataUrl.startsWith('data:image/jpeg')) {
-        throw new Error('Invalid capture source');
+      if (!Array.isArray(faceEmbedding) || faceEmbedding.length !== 128) {
+        throw new Error('Invalid face vector');
       }
 
-      setCapturedImage(dataUrl);
+      /* Backend call (EXACT CONTRACT MATCH) */
+      const res = await axios.post(
+        `${API_URL}/attendance/checkIn/face`,
+        {
+          userId,
+          faceEmbedding,
+          lat: coords.lat,
+          lng: coords.lng,
+          deviceInfo: navigator.userAgent,
+          imageUrl,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
-      setIsCapturing(false);
-      setIsGenerating(true);
+      const { faceMatched, locationValid, confidence } = res.data;
 
-      // ✅ Generate Vector (Backend Contract Preserved)
-      const faceVector = await generateFaceVector(dataUrl);
-
-      // ✅ Hard Client Validation
-      if (
-        !Array.isArray(faceVector) ||
-        faceVector.length !== 128 ||
-        faceVector.some(v => typeof v !== 'number' || isNaN(v))
-      ) {
-        throw new Error('Corrupted face vector');
+      if (!faceMatched) {
+        setToast({ type: 'error', message: 'Face does not match. Please try again.' });
+        return;
       }
 
-      setVector(faceVector);
+      if (!locationValid) {
+        setToast({ type: 'error', message: 'You are outside the allowed location.' });
+        return;
+      }
 
-      setIsGenerating(false);
-      setIsSubmitting(true);
-
-      // ✅ API Call (UNCHANGED)
-      console.log("Vector length:", faceVector.length);
-
-const res = await axios.post(
-  `${API_URL}/attendance/register/face`,
-  {
-    userId,                    // ✅ REQUIRED BY BACKEND
-    embedding: faceVector,     // ✅ REQUIRED BY BACKEND
-    snapshot: dataUrl,         // (extra is fine)
-  },
-  {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-
-setSuccessMessage('✅ Face verified successfully. Login complete!');
-
+      setToast({
+        type: 'success',
+        message: `Checked in successfully (confidence ${confidence})`,
+      });
     } catch (err: any) {
-  console.error("AXIOS FULL ERROR:", err);
-
-  const backendMessage =
-    err?.response?.data?.message ||
-    err?.response?.data?.error ||
-    err?.message ||
-    '❌ Face verification failed. Try again.';
-
-  setError(backendMessage);
-} finally {
-      setIsCapturing(false);
-      setIsGenerating(false);
-      setIsSubmitting(false);
+      setToast({ type: 'error', message: mapCheckInError(err) });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRetake = () => {
-    setCapturedImage(null);
-    setVector(null);
-    setError('');
-    setSuccessMessage('');
-  };
-
+  /* ---------------- UI ---------------- */
   return (
-    <div className="w-full flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 flex overflow-hidden bg-white">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
 
-        {/* LEFT INFO PANEL */}
-        <div
-          className="w-2/5 p-6 text-white flex flex-col justify-between"
-          style={{ background: `linear-gradient(135deg, ${CRAYON_BLUE}, #90C2FF)` }}
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="w-full max-w-md bg-white p-6 rounded-xl shadow space-y-4">
+        <h1 className="text-xl font-bold text-center">Face Check-In</h1>
+
+        <div className="h-56 bg-black rounded overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover" />
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+
+        <button
+          onClick={handleCheckIn}
+          disabled={!cameraReady || !coords || loading}
+          className="w-full bg-black text-white py-3 rounded-lg disabled:opacity-60"
         >
-          <div>
-            <h1 className="text-2xl font-bold mb-2">Face Login</h1>
-            <p className="text-white/90 text-sm">
-              One-click secure face verification & login system.
-            </p>
-          </div>
-          <div className="text-xs text-white/80 mt-6">
-            Your face data is encrypted and securely verified.
-          </div>
-        </div>
-
-        {/* RIGHT CAMERA PANEL */}
-        <div className="w-3/5 p-5 bg-slate-50 flex flex-col gap-4">
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-              <AlertCircle className="w-4 h-4" />
-              {error}
-            </div>
+          {loading ? (
+            <span className="flex justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" /> Verifying…
+            </span>
+          ) : (
+            <span className="flex justify-center gap-2">
+              <Camera size={16} /> Check In
+            </span>
           )}
-
-          {successMessage && (
-            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg text-sm">
-              <CheckCircle2 className="w-4 h-4" />
-              {successMessage}
-            </div>
-          )}
-
-          <div className="relative rounded-2xl overflow-hidden bg-black h-[320px] border">
-
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
-              <div className="w-52 h-64 border-2 border-dashed border-cyan-400 rounded-full opacity-70" />
-            </div>
-
-            {!capturedImage ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img
-                src={capturedImage}
-                className="w-full h-full object-cover"
-                alt="Captured"
-              />
-            )}
-
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-
-          <div className="flex gap-3 flex-wrap items-center">
-            {!capturedImage ? (
-              <button
-                onClick={handleAutoCaptureAndLogin}
-                disabled={!isCameraReady || isCapturing || isGenerating || isSubmitting}
-                className="px-5 py-2 rounded-full text-white flex items-center gap-2 text-sm shadow-md disabled:opacity-60"
-                style={{ backgroundColor: CRAYON_BLUE }}
-              >
-                {(isCapturing || isGenerating || isSubmitting) ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    {isCapturing && 'Capturing...'}
-                    {isGenerating && 'Processing...'}
-                    {isSubmitting && 'Verifying...'}
-                  </>
-                ) : (
-                  <>
-                    <Camera size={16} />
-                    Capture & Login
-                  </>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={handleRetake}
-                className="px-4 py-2 border rounded-full flex items-center gap-2 text-sm"
-              >
-                <RefreshCw size={16} />
-                Retake
-              </button>
-            )}
-          </div>
-
-          <p className="text-xs text-slate-500">
-            {vector ? `Vector Length: ${vector.length}` : 'Vector not generated'}
-          </p>
-        </div>
+        </button>
       </div>
     </div>
   );

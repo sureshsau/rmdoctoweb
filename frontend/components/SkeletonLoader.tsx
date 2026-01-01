@@ -1,15 +1,15 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, Variants  } from 'framer-motion';
 
-const shimmer = {
+const shimmer:Variants = {
   hidden: { x: '-100%' },
   visible: { 
     x: '100%',
     transition: { 
       repeat: Infinity, 
       duration: 1.5,
-      ease: 'linear' 
+      ease: [0, 0, 1, 1] 
     }
   }
 };

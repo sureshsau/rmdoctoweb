@@ -2,12 +2,7 @@ import mongoose from "mongoose";
 
 const RoleSchema = new mongoose.Schema(
   {
-    // Multi-company support
-    companyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      default: null
-    },
+
     // Machine readable unique key (VERY IMPORTANT)
     key: {
       type: String,

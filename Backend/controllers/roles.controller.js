@@ -37,14 +37,13 @@ export const createRole = async (req, res, next) => {
     // CREATE ROLE USING SERVICE
     // -------------------------
     const role = await createRoleService({
-      companyId: req.user?.companyId || null,   // for now null, later dynamic
       key,
       name,
       description,
       permissions,
       roleType,
       coreProfile,
-      createdBy: "692d2b1348c59e839af3b3fa"
+      createdBy: "695bb6e9055484a5b4728a5d"
     });
 
     return res.status(201).json({
@@ -57,10 +56,6 @@ export const createRole = async (req, res, next) => {
     next(err);
   }
 };
-
-
-
-
 // --------------------------------------
 // GET ALL ROLES
 // --------------------------------------

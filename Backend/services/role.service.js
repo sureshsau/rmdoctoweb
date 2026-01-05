@@ -38,8 +38,7 @@ export async function createRoleService({
   // but global keys in core roles should be unique
   // -----------------------------
   const exists = await ROLE.findOne({
-    key,
-    companyId: companyId || null
+    key
   });
 
   if (exists) {
@@ -61,7 +60,7 @@ export async function createRoleService({
   ];
 
   if (coreProfile) {
-    if (!VALID_CORE_PROFILES.includes(coreProfile)) {
+    if (!VALID_CORE_PROFILES.includes(key)) {
       throw new AppError("Invalid coreProfile value", 400);
     }
     // auto enforce core roleType
@@ -74,13 +73,12 @@ export async function createRoleService({
   // -----------------------------
   try {
     const role = await ROLE.create({
-      companyId,
       key,
       name,
       description,
       permissions,
       roleType: roleType || "custom",
-      coreProfile: coreProfile || null,
+      coreProfile:key,
       createdBy
     });
 

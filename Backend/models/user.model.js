@@ -2,13 +2,7 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    // MULTI-TENANCY (Multiple hospitals/companies)
-    companyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      index: true,
-      default: null,
-    },
+    
 
     // BASIC IDENTITY
     name: { type: String, required: true, trim: true },

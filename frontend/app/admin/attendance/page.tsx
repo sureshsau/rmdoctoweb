@@ -10,6 +10,8 @@ import { Badge } from '@/components/admin/Badge';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { format } from 'date-fns';
+import FaceRegister from '@/components/admin/FaceRegister';
+import AttendanceSettingsModal from '@/components/admin/AttendendanceSettings';
 
 // Mock data
 const attendanceData = [
@@ -170,6 +172,7 @@ const attendanceColumns = [
 ];
 
 export default function AttendancePage() {
+
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('today');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -177,6 +180,9 @@ export default function AttendancePage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDateActionModalOpen, setIsDateActionModalOpen] = useState(false);
+
+const [showAttendanceSettings, setShowAttendanceSettings] = useState(false);
+
   const itemsPerPage = 10;
 
   // Filter data based on search and filters
@@ -239,32 +245,38 @@ export default function AttendancePage() {
   const attendanceRate = filteredData.length > 0 ? Math.round((presentCount / filteredData.length) * 100) : 0;
 
   return (
+    <>
     <div className="min-h-full bg-linear-to-br from-gray-50 to-gray-100/50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Simple Modern Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Attendance</h1>
-            <p className="text-gray-600">Track and manage employee attendance records</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setIsCalendarOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 border-gray-200 hover:bg-gray-50 rounded-lg"
-            >
-              <Calendar className="h-4 w-4" /> 
-              Date Range
-            </Button>
-            <Button 
-              onClick={handleExportCSV} 
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
+     <div className="flex items-center gap-3">
+
+  <Button
+    onClick={() => setShowAttendanceSettings(true)}
+    variant="outline"
+    className="px-4 py-2 rounded-lg"
+  >
+    Attendance Settings
+  </Button>
+
+  <Button
+    variant="outline"
+    onClick={() => setIsCalendarOpen(true)}
+    className="flex items-center gap-2 px-4 py-2 border-gray-200 hover:bg-gray-50 rounded-lg"
+  >
+    <Calendar className="h-4 w-4" /> 
+    Date Range
+  </Button>
+
+  <Button 
+    onClick={handleExportCSV} 
+    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+  >
+    <Download className="h-4 w-4" />
+    Export CSV
+  </Button>
+</div>
+
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -458,6 +470,11 @@ export default function AttendancePage() {
           </div>
         </div>
       )}
+
+{showAttendanceSettings && (
+  <AttendanceSettingsModal onClose={() => setShowAttendanceSettings(false)} />
+)}
     </div>
+    </>
   );
 }

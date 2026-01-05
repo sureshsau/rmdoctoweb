@@ -110,7 +110,7 @@ const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     // ==========================
     if (error.response) {
       const msg = error.response.data?.message;
-
+      console.log(error);
       // Show backend message directly
       setErrors({ all: msg || "Something went wrong. Try again." });
       return;

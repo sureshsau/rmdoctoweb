@@ -11,7 +11,8 @@ export async function createRoleService({
   permissions,
   roleType,
   coreProfile,
-  createdBy
+  createdBy,
+  companyId = null
 }) {
 
   // -----------------------------
@@ -28,7 +29,6 @@ export async function createRoleService({
   if (!permissions || permissions.length === 0) {
     throw new AppError("At least one permission is required", 400);
   }
-
   // Normalize key
   key = key.trim().toLowerCase();
 

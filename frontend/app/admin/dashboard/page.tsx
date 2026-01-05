@@ -18,7 +18,8 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-
+import axios from "axios";
+import FaceRegister  from "@/components/admin/FaceRegister";
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -334,6 +335,8 @@ const accessRequestData = [
 
 export default function DashboardPage() {
   
+const [selectedUserId, setSelectedUserId] = useState(null);
+    const [showRegisterFace, setShowRegisterFace] = useState(false);
 const [searchQuery, setSearchQuery] = useState("");
 const [users, setUsers] = useState<any[]>([]);
 const [loadingUsers, setLoadingUsers] = useState(false);
@@ -356,28 +359,48 @@ const [roles, setRoles] = useState<any[]>([]);
 const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 const [loadingRoles, setLoadingRoles] = useState(false);
 
+
+
+// Toast
+const [toast, setToast] = useState({
+  message: "",
+  type: "success", // success | error | info
+  visible: false,
+});
+
+const showToast = (message: string, type: "success" | "error" | "info") => {
+  setToast({ message, type, visible: true });
+
+  setTimeout(() => {
+    setToast((prev) => ({ ...prev, visible: false }));
+  }, 3000);
+};
+
+
+
+
 const onRoleAssign = async (user: any) => {
   setSelectedUser(user);
   setIsRoleDrawerOpen(true);
   setLoadingRoles(true);
 
   try {
-    const res = await fetch("http://localhost:5000/roles", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const res = await axios.get("http://localhost:5000/roles");
 
-    if (!res.ok) {
-      throw new Error(`HTTP Error: ${res.status}`);
+    const data = res.data;
+    console.log(data);
+    if (Array.isArray(data)) {
+      setRoles(data);
+    } else if (Array.isArray(data.roles)) {
+      setRoles(data.roles);
+    } else if (Array.isArray(data.data)) {
+      setRoles(data.data);
+    } else {
+      setRoles([]);
     }
-
-    const data = await res.json();
-    setRoles(data.roles || data);
   } catch (err) {
     console.error("❌ Failed to fetch roles:", err);
-    alert("Backend is not reachable. Check server & CORS.");
+    showToast("Failed to load roles from backend", "error");
   } finally {
     setLoadingRoles(false);
   }
@@ -386,28 +409,37 @@ const onRoleAssign = async (user: any) => {
 
 
 const assignRoleToUser = async () => {
-  if (!selectedRoleId || !selectedUser) return;
+  if (!selectedRoleId || !selectedUser) {
+    showToast("Please select a user and a role", "info");
+    return;
+  }
 
   try {
-    const res = await fetch("http://localhost:5000/role-assignments/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: selectedUser.id,
+    const res = await axios.post(
+      "http://localhost:5000/role-assignments/assign",
+      {
+        userId: selectedUser._id,
         roleId: selectedRoleId,
-      }),
-    });
+      }
+    );
 
-    const data = await res.json();
-    console.log("Role assigned:", data);
+    showToast("✅ Role assigned successfully", "success");
 
     setIsRoleDrawerOpen(false);
     setSelectedRoleId("");
     setSelectedUser(null);
-  } catch (err) {
-    console.error("Assign failed", err);
+  } catch (err: any) {
+    console.error("❌ Assign failed", err);
+
+    const errorMsg =
+      err?.response?.data?.message ||
+      err?.message ||
+      "Failed to assign role";
+
+    showToast(errorMsg, "error");
   }
 };
+
 
 
 
@@ -418,25 +450,22 @@ useEffect(() => {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch("http://localhost:5000/user", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await axios.get("http://localhost:5000/user");
 
-      if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status}`);
+      const data = res.data;
+
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else if (Array.isArray(data.users)) {
+        setUsers(data.users);
+      } else if (Array.isArray(data.data)) {
+        setUsers(data.data);
+      } else {
+        setUsers([]);
       }
-
-      const data = await res.json();
-
-      // ✅ Adjust this based on your API response shape
-      setUsers(data.users || data);
-
     } catch (err) {
       console.error("❌ Failed to fetch users:", err);
-      alert("Failed to load users from backend");
+      showToast("Failed to load users from backend", "error");
     } finally {
       setLoadingUsers(false);
     }
@@ -444,6 +473,7 @@ useEffect(() => {
 
   fetchUsers();
 }, []);
+
 
 
   return (
@@ -558,7 +588,7 @@ useEffect(() => {
     ) : (
       filteredUsers.map((user) => (
         <div
-          key={user.id}
+          key={user._id}
           className="p-4 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-between transition-all"
         >
           {/* Left: Name + Email */}
@@ -566,7 +596,14 @@ useEffect(() => {
             <p className="font-semibold text-gray-800">{user.name}</p>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
-
+            <button
+                onClick={() =>{ setShowRegisterFace(true)
+                  setSelectedUserId(user._id);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
+                Register Face
+          </button>
+          
           {/* Right: Role Button */}
           <button onClick={() => onRoleAssign(user)} className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-all">
             Assign Role
@@ -699,7 +736,7 @@ useEffect(() => {
                 ${selectedRoleId === role._id ? "border-rose-500 bg-rose-50" : "hover:bg-gray-50"}`}
             >
               <div>
-                <p className="font-medium text-gray-800">{role.name}</p>
+                <p className="font-medium text-gray-800">{role.key}</p>
                 <p className="text-xs text-gray-500">{role.description}</p>
               </div>
               <input
@@ -724,6 +761,40 @@ useEffect(() => {
   </div>
 )}
 
+  {/* ✅ Custom Toast */}
+{toast.visible && (
+  <div className="fixed top-6 right-6 z-[9999] animate-slideIn">
+    <div
+      className={`px-6 py-4 rounded-xl shadow-xl text-white font-semibold ${
+        toast.type === "success"
+          ? "bg-emerald-500"
+          : toast.type === "error"
+          ? "bg-red-500"
+          : "bg-blue-500"
+      }`}
+    >
+      {toast.message}
+    </div>
+  </div>
+)}
+
+      {/* Face Register Modal */}
+{showRegisterFace && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="relative w-full max-w-6xl">
+      
+      {/* Close Button */}
+      <button
+        onClick={() => setShowRegisterFace(false)}
+        className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100">
+        <X className="h-5 w-5 text-gray-700" />
+      </button>
+
+      {/* Face Register Component */}
+      <FaceRegister userId={selectedUserId!} />
+    </div>
+  </div>
+)}
     </div>
   );
 }

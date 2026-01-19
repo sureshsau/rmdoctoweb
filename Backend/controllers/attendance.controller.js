@@ -1,5 +1,7 @@
-import { checkIn, checkInByFaceService, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers } from "../services/attendance.service.js"
+import { attendanceMarkServiceByFace, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers, setupUserAttendanceService } from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
+import { getFaceEmbedding } from "../utils/getFaceEmbedding.js";
+import fs from 'fs';
 
 export const getAttendanceSettingsController = async (req, res, next) => {
   try {
@@ -54,26 +56,87 @@ export const setAttendanceSettingsForAllUsersController=async(req,res)=>{
 }
 
 
-export const registerFaceEmbeddingController = async (req, res, next) => {
+export const setupUserAttendanceController = async (req, res) => {
+
+
   try {
-    const { userId, embedding, faceProportion } = req.body;
+    const { userId } = req.params;
+
+
+    const result = await setupUserAttendanceService({
+      userId,
+      attendanceSettings: req.body,
+      faceImageFile: req.file || null
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance settings configured successfully",
+      data: result
+    });
+
+  } catch (error) {
+    console.error("❌ setupUserAttendanceController error:", error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+
+
+export const registerFaceEmbeddingController = async (req, res, next) => {
+  let imagePath;
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Face image is required",
+      });
+    }
+
+    imagePath = req.file.path;
+
+    const { userId, faceProportion } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const embedding = await getFaceEmbedding(imagePath);
+    console.log(embedding);
 
     const result = await registerFaceEmbeddingService({
       userId,
       embedding,
-      faceProportion
+      faceProportion,
+      imagePath,
     });
 
-    res.status(200).json({
+    return res.status(201).json({
       success: true,
       message: "Face registered successfully",
-      data: result
+      data: result,
     });
-
   } catch (err) {
-    next(err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Face registration failed",
+    });
+  } finally {
+    if (imagePath && fs.existsSync(imagePath)) {
+      fs.unlink(imagePath, () => {});
+    }
   }
 };
+
 
 
 
@@ -125,23 +188,46 @@ export const getAttendanceByRangeController = async (req, res, next) => {
 };
 
 
-export const checkInByFaceController = async (req, res, next) => {
-  try {
-    const { faceEmbedding, lat, lng, deviceInfo, imageUrl } = req.body;
 
-    const result = await checkInByFaceService({
-      userId: req.user.id,
-      faceEmbedding,
-      lat,
-      lng,
-      deviceInfo,
-      imageUrl
+export const markAttendanceByFaceController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { lat, lng } = req.body;
+    const faceImage = req.file;
+
+    if (!faceImage) {
+      return res.status(400).json({
+        success: false,
+        message: "Face image required"
+      });
+    }
+
+    if (lat == null || lng == null) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required"
+      });
+    }
+
+    const result = await attendanceMarkServiceByFace({
+      userId,
+      faceImageBuffer: faceImage.buffer, // 🔥 IMPORTANT
+      userLat: Number(lat),
+      userLng: Number(lng)
     });
 
-    res.status(200).json(result);
+    return res.status(200).json({
+      success: true,
+      message: `Attendance ${result.action} successful`,
+      data: result
+    });
 
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error("❌ markAttendanceByFaceController:", error);
+
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message
+    });
   }
 };
-

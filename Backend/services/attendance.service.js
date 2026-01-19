@@ -2,6 +2,79 @@ import AppError from "../utils/AppError.js"
 import AttendanceSettings from '../models/attendanceSettings.model.js'
 import mongoose from "mongoose";
 import redisClient from '../config/redis.config.js'
+import { registerFaceToAwsAndStoreImageToS3, verifyFaceWithRekognition } from "./aws.service.js";
+import AttendanceLog from "../models/attendanceLog.model.js";
+
+
+
+
+
+export const setupUserAttendanceService = async ({
+  userId,
+  attendanceSettings,
+  faceImageFile
+}) => {
+  if (!userId) {
+    const err = new Error("userId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  console.log("👉 setupUserAttendanceService called");
+  console.log("🔹 faceImageFile present:", !!faceImageFile);
+
+  // 🔐 CREATE-ONLY
+  const settings = new AttendanceSettings({
+    userId,
+    ...attendanceSettings
+  });
+
+  // 👤 Optional face registration
+  if (faceImageFile) {
+    if (!faceImageFile.buffer) {
+      throw new Error("Face image buffer missing (multer misconfigured)");
+    }
+
+    console.log("⏫ registering face with AWS...");
+
+    const faceData = await registerFaceToAwsAndStoreImageToS3({
+      userId,
+      imageBuffer: faceImageFile.buffer,
+      mimeType: faceImageFile.mimetype
+    });
+
+    console.log("✅ face registered:", faceData);
+
+    settings.faceId = faceData.faceId;
+    settings.faceImage = {
+      bucket: faceData.bucketName,
+      key: faceData.key
+    };
+    settings.faceRegisteredAt = new Date();
+    settings.isFaceActive = true;
+  }
+
+  try {
+    await settings.save();
+    console.log("✅ AttendanceSettings saved:", settings._id);
+  } catch (error) {
+    if (error.code === 11000) {
+      const err = new Error("Attendance settings already exist for this user");
+      err.statusCode = 409;
+      throw err;
+    }
+    throw error;
+  }
+
+  return {
+    settingsId: settings._id,
+    faceRegistered: Boolean(faceImageFile)
+  };
+};
+
+
+
+
 
 export async function fetchSelfAttendanceSettings(userId) {
   const settings = await AttendanceSettings.findOne({ userId }).lean();
@@ -117,9 +190,6 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
     throw new AppError("Internal Server Error while updating attendance settings", 500);
   }
 };
-
-
-
 
 
 export async function registerFaceEmbeddingService({ userId, embedding, faceProportion }) {
@@ -271,141 +341,207 @@ export async function getAttendanceService({
     logs
   };
 }
-function cosineSimilarity(vecA, vecB) {
-  if (!vecA || !vecB || vecA.length !== 128 || vecB.length !== 128) return 0;
 
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < 128; i++) {
-    dot += vecA[i] * vecB[i];
-    magA += vecA[i] ** 2;
-    magB += vecB[i] ** 2;
+export const attendanceMarkServiceByFace = async ({
+  userId,
+  faceImageBuffer,
+  userLat,
+  userLng
+}) => {
+  const now = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1️⃣ Load attendance settings
+  const settings = await AttendanceSettings.findOne({
+    userId,
+    isFaceActive: true
+  });
+
+  if (!settings) {
+    throw new Error("Attendance settings not configured");
   }
 
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+  // 2️⃣ GEO-FENCE VALIDATION
+  if (settings.allowedLocation) {
+    if (userLat == null || userLng == null) {
+      throw new Error("Location permission required");
+    }
+
+    const { lat, lng, radiusMeters } = settings.allowedLocation;
+
+    const distance = calculateDistanceMeters(
+      lat,
+      lng,
+      userLat,
+      userLng
+    );
+
+    if (distance > radiusMeters) {
+      throw new Error("You are outside allowed attendance location");
+    }
+  }
+
+  // 3️⃣ Load today's attendance
+  let attendance = await AttendanceLog.findOne({
+    userId,
+    attendanceDate: today
+  });
+
+  // 4️⃣ FACE VERIFICATION (🔥 BUFFER BASED)
+  const faceVerification = await verifyFaceWithRekognition({
+    imageBuffer: faceImageBuffer,
+    expectedFaceId: settings.faceId
+  });
+
+  if (!faceVerification.verified) {
+    throw new Error("Face verification failed");
+  }
+
+  // 5️⃣ CHECK-IN
+  if (!attendance) {
+    attendance = new AttendanceLog({
+      userId,
+      attendanceDate: today,
+      locationVerified: true,
+      locationDistanceMeters: Math.round(
+        calculateDistanceMeters(
+          settings.allowedLocation.lat,
+          settings.allowedLocation.lng,
+          userLat,
+          userLng
+        )
+      ),
+      checkIn: {
+        time: now,
+        verifiedBy: "FACE",
+        confidence: faceVerification.confidence,
+        faceIdUsed: faceVerification.faceId
+      },
+      status: "WORKING"
+    });
+
+    await attendance.save();
+
+    return {
+      action: "CHECK_IN",
+      time: now
+    };
+  }
+
+  // 6️⃣ CHECK-OUT
+  // 6️⃣ CHECK-OUT (WITH CALCULATION)
+if (attendance.checkIn?.time && !attendance.checkOut?.time) {
+  attendance.checkOut = {
+    time: now,
+    verifiedBy: "FACE",
+    confidence: faceVerification.confidence,
+    faceIdUsed: faceVerification.faceId
+  };
+
+  // ⏱️ WORK DURATION
+  const workedMinutes = diffMinutes(
+    attendance.checkIn.time,
+    now
+  );
+
+  attendance.totalHours = Number(
+    (workedMinutes / 60).toFixed(2)
+  );
+
+  // 🕘 SHIFT TIMES
+  const shiftStartMin = parseTimeToMinutes(
+    settings.shiftStartTime
+  );
+  const shiftEndMin = parseTimeToMinutes(
+    settings.shiftEndTime
+  );
+  const requiredMin = settings.requiredHoursPerDay * 60;
+  const halfDayMin = settings.halfDayMinHours * 60;
+
+  const checkInMin =
+    attendance.checkIn.time.getHours() * 60 +
+    attendance.checkIn.time.getMinutes();
+
+  const checkOutMin =
+    now.getHours() * 60 +
+    now.getMinutes();
+
+  // ⏰ LATE ENTRY
+  if (checkInMin > shiftStartMin + settings.graceMinutes) {
+    attendance.lateByMinutes =
+      checkInMin - (shiftStartMin + settings.graceMinutes);
+  }
+
+  // 🚪 EARLY LEAVE
+  if (checkOutMin < shiftEndMin) {
+    attendance.earlyLeaveMinutes =
+      shiftEndMin - checkOutMin;
+  }
+
+  // 📊 FINAL STATUS
+  if (workedMinutes >= requiredMin) {
+    attendance.status = "PRESENT_FULL";
+  } else if (workedMinutes >= halfDayMin) {
+    attendance.status = "PRESENT_HALF";
+  } else {
+    attendance.status = "ABSENT";
+  }
+
+  await attendance.save();
+
+  return {
+    action: "CHECK_OUT",
+    time: now,
+    workedHours: attendance.totalHours,
+    status: attendance.status
+  };
 }
-function isWithinRadius(lat1, lng1, lat2, lng2, radiusMeters = 20) {
-  const R = 6371e3; // Earth radius in m
-  const toRad = deg => (deg * Math.PI) / 180;
+
+
+  throw new Error("Attendance already completed for today");
+};
+
+
+export const calculateDistanceMeters = (
+  lat1,
+  lng1,
+  lat2,
+  lng2
+) => {
+  if (
+    lat1 == null ||
+    lng1 == null ||
+    lat2 == null ||
+    lng2 == null
+  ) {
+    throw new Error("Invalid coordinates for distance calculation");
+  }
+
+  const toRad = (value) => (value * Math.PI) / 180;
+
+  const R = 6371000; // Earth radius in meters
 
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
 
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) ** 2;
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
 
-  const distance = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return distance <= radiusMeters;
-}
+  return R * c; // distance in meters
+};
 
-export const checkInByFaceService = async ({
-  userId,
-  faceEmbedding,
-  lat,
-  lng,
-  deviceInfo,
-  imageUrl
-}) => {
-  if (!Array.isArray(faceEmbedding) || faceEmbedding.length !== 128) {
-    throw new AppError("Invalid face embedding vector", 400);
-  }
+const parseTimeToMinutes = (timeStr) => {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+};
 
-  // ----------------------------------------------------------------
-  // 1️⃣ FETCH SETTINGS (Try Redis → fallback MongoDB)
-  // ----------------------------------------------------------------
-  let settings;
-
-  const redisKey = `attendance_settings:${userId}`;
-
-  const cached = await redisClient.get(redisKey);
-
-  if (cached) {
-    settings = JSON.parse(cached);
-  } else {
-    settings = await AttendanceSettings.findOne({ userId }).lean();
-    if (!settings) throw new AppError("Attendance settings missing for user", 404);
-
-    // Cache for 5 hours
-    redisClient.set(redisKey, JSON.stringify(settings), "EX", 60 * 60 * 5);
-  }
-
-  // ----------------------------------------------------------------
-  // 2️⃣ FACE MATCHING
-  // ----------------------------------------------------------------
-  const storedEmbedding = settings.faceEmbedding;
-
-  if (!storedEmbedding)
-    throw new AppError("Face reference not registered for user", 400);
-
-  const similarity = cosineSimilarity(faceEmbedding, storedEmbedding);
-  const confidence = Number(similarity.toFixed(3)); // accuracy 0.000
-
-  const faceMatched = confidence >= 0.85; // threshold (adjust)
-
-  // ----------------------------------------------------------------
-  // 3️⃣ LOCATION CHECK
-  // ----------------------------------------------------------------
-  let locationValid = false;
-
-  if (settings.allowedLocation) {
-    locationValid = isWithinRadius(
-      lat,
-      lng,
-      settings.allowedLocation.lat,
-      settings.allowedLocation.lng,
-      settings.allowedLocation.radiusMeters || 20
-    );
-  }
-
-  // ----------------------------------------------------------------
-  // 4️⃣ PREVENT DOUBLE CHECK-IN
-  // ----------------------------------------------------------------
-  const today = new Date().toISOString().split("T")[0];
-
-  let attendance = await Attendance.findOne({ userId, date: today });
-
-  if (attendance && attendance.checkIn && attendance.checkIn.time) {
-    throw new AppError("User already checked in today", 400);
-  }
-
-  // ----------------------------------------------------------------
-  // 5️⃣ CREATE / UPDATE ATTENDANCE ENTRY
-  // ----------------------------------------------------------------
-  if (!attendance) {
-    attendance = new Attendance({
-      userId,
-      date: today
-    });
-  }
-
-  attendance.checkIn = {
-    time: new Date(),
-    lat,
-    lng,
-    verifiedBy: faceMatched ? "face" : "manual_review",
-    confidence,
-    imageUrl,
-    spoofDetected: !faceMatched,
-    deviceInfo
-  };
-
-  // Fraud Detection Flags
-  attendance.fraudCheck = {
-    gpsMismatch: !locationValid,
-    repeatedFace: false,
-    suspiciousActivity: faceMatched ? null : "Low confidence face match"
-  };
-
-  await attendance.save();
-
-  return {
-    message: "Check-in successful",
-    checkIn: attendance.checkIn,
-    fraud: attendance.fraudCheck,
-    faceMatched,
-    locationValid,
-    confidence
-  };
+const diffMinutes = (start, end) => {
+  return Math.max(0, Math.floor((end - start) / 60000));
 };

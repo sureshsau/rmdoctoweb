@@ -20,6 +20,7 @@ export const verifyOtp = async (req, res) => {
 };
 export const login = async (req, res) => {
   try {
+    console.log('login hit');
     const response = await AuthService.login({
       ...req.body,
       ip: req.ip,

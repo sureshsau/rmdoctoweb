@@ -6,11 +6,12 @@ const AttendanceSettingsSchema = new mongoose.Schema(
     userId: {
       type: ObjectId,
       ref: "User",
-      unique: true,
       required: true,
+      unique: true,
       index: true,
     },
-    // Shift configs
+
+    // Shift configuration
     shiftStartTime: { type: String, default: "09:00" },
     shiftEndTime: { type: String, default: "17:00" },
     requiredHoursPerDay: { type: Number, default: 8 },
@@ -19,36 +20,37 @@ const AttendanceSettingsSchema = new mongoose.Schema(
 
     // Weekly off
     weeklyOffDays: {
-      type: [String], // ["Sunday", "Saturday"]
+      type: [String],
       default: [],
     },
-    // SINGLE LOCATION
+
+    // Location restriction
     allowedLocation: {
-      type: {
-        lat: { type: Number, required: true },
-        lng: { type: Number, required: true },
-        radiusMeters: { type: Number, default: 10 },
-      },
-      default: null,
+      lat: Number,
+      lng: Number,
+      radiusMeters: { type: Number, default: 50 },
+      strict: { type: Boolean, default: true },
     },
-    // 128D embedding vector
-    faceEmbedding: {
-      type: [Number],
-      validate: (v) => !v || v.length === 128,
-      default: null,
+
+    // AWS Rekognition reference
+    faceId: {
+      type: String,
+      index: true,
     },
-    // Face proportion 
-    faceProportion: {
-      eyeDistance: Number,
-      noseWidth: Number,
-      jawRatio: Number,
-      faceWidth: Number,
-      faceHeight: Number,
-      headPose: {
-        roll: Number,
-        pitch: Number,
-        yaw: Number,
-      },
+
+    faceImage: {
+      bucket: { type: String,required:true},
+      key: { type: String,required:true },
+    },
+
+    faceRegisteredAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    isFaceActive: {
+      type: Boolean,
+      default: true,
     },
 
     // Future support
@@ -57,9 +59,7 @@ const AttendanceSettingsSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const AttendanceSettings = mongoose.model(
+export default mongoose.model(
   "AttendanceSettings",
   AttendanceSettingsSchema
 );
-
-export default AttendanceSettings;

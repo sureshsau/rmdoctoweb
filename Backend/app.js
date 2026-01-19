@@ -11,12 +11,20 @@ import userRoute from './routes/user.route.js'
 import permissionRoute from './routes/permission.route.js'
 import AppError from './utils/AppError.js';
 import cors from 'cors';
+import { ensureRekognitionCollection } from './services/aws.service.js';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({
-    origin:"http://localhost:3000",
+    origin:"*",
+    credentials:true
 }))
+
+app.get("/",(req,res)=>{
+  res.json({
+    message:"working backend"
+  })
+})
 
 app.use('/auth', authRouter);
 app.use('/attendance',attendanceRouter)
@@ -31,6 +39,11 @@ server.listen(port,()=>{
     console.log(`app is listing on port ${port}`);
 })
 
+try{
+  ensureRekognitionCollection()
+}catch(err){
+
+}
 
 app.use((err, req, res, next) => {
   console.error("ERROR:", err);

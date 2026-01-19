@@ -337,7 +337,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     const senitizeUser = {
       id: user._id,
       name: user.name,
-      identifier: user.email || user.phone,
+      email: user.email || user.phone,
       role: user.userType,
     }
     // Generate JWT

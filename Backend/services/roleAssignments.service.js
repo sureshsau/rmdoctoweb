@@ -4,6 +4,7 @@ import RoleAssignment from "../models/roleAssignment.model.js";
 import User from "../models/user.model.js";
 import DoctorProfile from "../models/doctorProfile.schema.js";
 import Role from '../models/role.model.js';
+import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
 
 import AppError from "../utils/AppError.js";
 import { createAttendanceSetting } from "./attendance.service.js";
@@ -50,6 +51,7 @@ async function ensureCoreProfileForUser(user, role) {
   if (!role.coreProfile) return null;
 
   const cp = role.coreProfile;
+  console.log(cp);
 
   // doctor
   if (cp == "doctor" && !user.profiles.doctorId) {
@@ -61,11 +63,13 @@ async function ensureCoreProfileForUser(user, role) {
   }
 
   // agent
-//   if ((cp === "agent" || cp === "marketing_agent") && !user.profiles.agentId) {
-//     const a = await AgentProfile.create({ userId: user._id, companyId: user.companyId });
-//     user.profiles.agentId = a._id;
-//     return a._id;
-//   }
+  if ((cp === "marketing_agent") && !user.profiles.marketing_agent) {
+    console.log('creating profile')
+    const a = await MarketingAgentProfile.create({ userId: user._id });
+    user.profiles.marketing_agentId = a._id;
+    user.userType="marketing_agent";
+    return a._id;
+  }
 
   // receptionist/employee -> use EmployeeProfile
 //   if ((cp === "receptionist" || cp === "employee") && !user.profiles.employeeId) {
@@ -118,7 +122,6 @@ export async function assignRoleService({ userId, roleId, scope = "company", sco
 
   // Rebuild permissions cache
   await rebuildUserPermissions(userId);
-  await createAttendanceSetting({userId});
 
   return assignment;
 }

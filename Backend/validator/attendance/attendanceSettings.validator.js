@@ -1,5 +1,4 @@
 import { body, validationResult } from "express-validator";
-import { cleanupUploadedFile } from "../../utils/cleanupUploadedFile.js";
 
 export const attendanceSettingsValidationRules = [
   body("shiftStartTime")
@@ -56,8 +55,6 @@ export const validateAttendanceSettings = (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    // 🔥 CLEANUP FILE IF VALIDATION FAILS
-    cleanupUploadedFile(req);
 
     return res.status(422).json({
       success: false,

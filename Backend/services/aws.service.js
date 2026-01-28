@@ -168,3 +168,95 @@ export const ensureRekognitionCollection = async () => {
   }
 };
 
+
+
+export const uploadKycDocumentToS3 = async ({
+  userId,
+  documentType,   // "aadhaar_front" | "aadhaar_back" | "pan" | "gst"
+  imageBuffer,
+  mimeType
+}) => {
+  console.log("👉 uploadKycDocumentToS3 called");
+
+  try {
+    const bucketName = process.env.KYC_BUCKET;
+    const region = process.env.AWS_REGION;
+
+
+    if (!userId || !documentType || !imageBuffer || !bucketName) {
+      throw new Error("Missing required parameters for KYC upload");
+    }
+
+    // 🗂️ Structured S3 key (important for audit & security)
+    const key = `kyc/${userId}/${documentType}.jpg`;
+
+    console.log("⏫ Uploading KYC document to S3...", key);
+
+    const uploadResult = await s3.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: imageBuffer,
+        ContentType: mimeType,
+        ACL: "private" // 🔒 IMPORTANT for KYC
+      })
+    );
+
+    console.log(" KYC upload success:", uploadResult);
+
+    const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+
+    console.log("🔹 KYC S3 URL:", s3Url);
+
+    return {
+      bucket: bucketName,
+      key,
+      url: s3Url,
+      documentType
+    };
+
+  } catch (error) {
+    console.error("❌ KYC upload failed");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Full error:", error);
+    throw error;
+  }
+};
+
+
+export const uploadMedicineImageToS3 = async ({
+  medicineId,
+  imageType,
+  imageBuffer,
+  mimeType,
+  fileName
+}) => {
+  const bucketName = process.env.MEDICINE_BUCKET;
+  const region = process.env.AWS_REGION;
+
+  if (!imageBuffer || !bucketName) {
+    throw new Error("Missing image upload parameters");
+  }
+
+  const ext = mimeType.split("/")[1] || "jpg";
+  const key = `medicines/${medicineId}/${imageType}/${Date.now()}-${fileName}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType
+    })
+  );
+
+  return {
+    url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
+    key
+  };
+};
+
+
+
+

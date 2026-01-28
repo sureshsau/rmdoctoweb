@@ -12,6 +12,8 @@ import permissionRoute from './routes/permission.route.js'
 import AppError from './utils/AppError.js';
 import cors from 'cors';
 import { ensureRekognitionCollection } from './services/aws.service.js';
+import agentRoute from './routes/agent.route.js'
+import medicineRouter from './routes/medicine.route.js'
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -32,6 +34,8 @@ app.use('/roles',rolesRoute);
 app.use('/role-assignments',roleAssignmentsRoute);
 app.use('/user',userRoute);
 app.use('/permission',permissionRoute);
+app.use('/agent',agentRoute)
+app.use('/medicines',medicineRouter)
 
 const port = process.env.PORT || 3000;
 server.listen(port,()=>{

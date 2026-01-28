@@ -28,10 +28,9 @@ const UserSchema = new mongoose.Schema(
         "receptionist",
         "patient",
         "user", // new users waiting for approval
-        "lab_owner",
       ],
       default: "user",
-    },
+    }, 
 
     // PROFILE LINKS (business data)
     profiles: {
@@ -50,6 +49,9 @@ const UserSchema = new mongoose.Schema(
         ref: "ReceptionistProfile",
       },
       labOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: "LabProfile" },
+      marketing_agentId:{
+        type:mongoose.Schema.Types.ObjectId,ref:"MarketingAgentProfile"
+      }
     },
 
     // RBAC: Extra user-level permissions (rare cases)

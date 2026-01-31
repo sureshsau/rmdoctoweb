@@ -60,24 +60,24 @@ export const register = async (data) => {
     ]);
 
     if (existingByPhone) {
-      return { status: 409, body: { message: "Phone already registered." } };
+      return { status: 409, body: {success:false, message: "Phone already registered." } };
     }
 
     if (existingByEmail) {
-      return { status: 409, body: { message: "Email already registered." } };
+      return { status: 409, body: {success:false, message: "Email already registered." } };
     }
 
     if (pendingByPhone) {
       return {
         status: 409,
-        body: { message: "Registration already pending for this phone." },
+        body: {success:false, message: "Registration already pending for this phone." },
       };
     }
 
     if (pendingByEmail) {
       return {
         status: 409,
-        body: { message: "Registration already pending for this email." },
+        body: {success:false, message: "Registration already pending for this email." },
       };
     }
 
@@ -140,14 +140,14 @@ export const register = async (data) => {
 
     return {
       status: 200,
-      body: { message: "OTP sent", phone, identifier }, // identifier = phone
+      body: {success:true, message: "OTP sent", phone, identifier }, // identifier = phone
     };
 
   } catch (error) {
     console.error("Register Error:", error);
     return {
       status: 500,
-      body: { message: "Internal server error. Please try again." },
+      body: {success:false, message: "Internal server error. Please try again." },
     };
   }
 };
@@ -155,46 +155,60 @@ export const register = async (data) => {
 
 export const verifyOtp = async ({ identifier, otp, ip, device }) => {
   try {
-    // identifier IS phone
     const redisKey = `register:user:${identifier}`;
 
     const data = await redis.get(redisKey);
     if (!data) {
-      return { status: 410, body: { error: "Session expired or no data found" } };
+      return {
+        status: 410,
+        body: { success: false, message: "Session expired or invalid" },
+      };
     }
 
     const parsed = JSON.parse(data);
 
-    // Compare OTP
+    // 🔐 Verify OTP
     const validOtp = await bcrypt.compare(String(otp), parsed.otp);
     if (!validOtp) {
-      return { status: 401, body: { error: "Invalid OTP" } };
+      return {
+        status: 401,
+        body: { success: false, message: "Invalid OTP" },
+      };
     }
 
-    // =============================
-    // HARD duplicate check (safety)
-    // =============================
+    // 🔒 Duplicate checks
     const [existingEmail, existingPhone] = await Promise.all([
       parsed.email ? UserRepo.findByEmail(parsed.email) : null,
       UserRepo.findByPhone(parsed.phone),
     ]);
 
     if (existingPhone) {
-      return { status: 409, body: { error: "Phone already registered." } };
+      return {
+        status: 409,
+        body: { success: false, message: "Phone already registered" },
+      };
     }
 
     if (existingEmail) {
-      return { status: 409, body: { error: "Email already registered." } };
+      return {
+        status: 409,
+        body: { success: false, message: "Email already registered" },
+      };
     }
 
-    // =============================
-    // Create new user
-    // =============================
+    // 👤 Create basic user (NO ROLES, NO PERMISSIONS)
     const newUserData = {
       name: parsed.name,
       phone: parsed.phone,
       email: parsed.email ? parsed.email.trim().toLowerCase() : undefined,
       passwordHash: parsed.hashPass,
+
+      dashboard: "user",
+      role: [],
+      permissions: [],
+
+      isActive: true,
+      isBlocked: false,
 
       firstLoginIP: ip,
       firstLoginDevice: device,
@@ -202,28 +216,28 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
       lastLoginDevice: device,
       lastLoginAt: new Date(),
 
-      devices: [
-        { ip, device, loggedInAt: new Date() }
-      ],
-
-      isActive: false,
-      userType: "user",
+      devices: [{ ip, device, loggedInAt: new Date() }],
     };
 
     const user = await UserRepo.create(newUserData);
 
     await newUserNotification({
-      name: parsed.name,
-      email: parsed.email,
+      name: user.name,
+      email: user.email,
       userId: user._id.toString(),
     });
 
     await redis.del(redisKey);
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(device);
+    // 📱 Device detection
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+        device
+      );
     const deviceType = isMobile ? "app" : "web";
 
-    let version = user.webSessionVersion;
+    // 🔁 Session versioning
+    let version;
     if (deviceType === "web") {
       user.webSessionVersion += 1;
       version = user.webSessionVersion;
@@ -231,38 +245,48 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
       user.appSessionVersion += 1;
       version = user.appSessionVersion;
     }
+
     await user.save();
 
-    const jwtToken = jwt.sign(
-      { id: user._id, 
+    // 🔐 JWT (KEEP IT SMALL)
+    const token = jwt.sign(
+      {
+        id: user._id,
         deviceType,
         version,
-        role:user.userType
       },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
 
+    // 🧼 Response-safe user object
     const sanitizeUser = {
       id: user._id,
       name: user.name,
       identifier: user.email || user.phone,
-      role: user.userType,
+      dashboard: user.dashboard,
+      roles: user.role || [],
+      permissions: user.permissions || [],
     };
 
     return {
       status: 201,
       body: {
+        success: true,
         message: "OTP verified. Account created and sent for admin approval.",
         user: sanitizeUser,
-        token: jwtToken,
+        token,
       },
     };
   } catch (err) {
-    console.log("verifyOtp error:", err);
-    return { status: 500, body: { error: "Internal Server Error" } };
+    console.error("verifyOtp error:", err);
+    return {
+      status: 500,
+      body: { success: false, message: "Internal Server Error" },
+    };
   }
 };
+
 
 
 
@@ -272,81 +296,93 @@ export const login = async ({ email, phone, password, ip, device }) => {
     if ((!email && !phone) || !password) {
       return {
         status: 400,
-        body: {success:false, message: "Email/Phone and Password are required." }
+        body: { success: false, message: "Email/Phone and password are required" },
       };
     }
 
-    // Find user  await user.save()
+    // 1️⃣ Find user
     let user;
     if (email) user = await UserRepo.findByEmail(email);
     else user = await UserRepo.findByPhone(phone);
 
     if (!user) {
-      return { status: 404, body: {success:false, message: "User does not exist." } };
+      return {
+        status: 404,
+        body: { success: false, message: "User does not exist" },
+      };
     }
 
-    // Check if user is blocked
-    // if (user.isBlocked) {
-    //   return {
-    //     status: 403,
-    //     body: { error: "Your account is blocked. Contact support." }
-    //   };
-    // }
+    // 2️⃣ Optional safety checks
+    if (user.isBlocked) {
+      return {
+        status: 403,
+        body: { success: false, message: "Account is blocked" },
+      };
+    }
 
-    // Check if account is approved
-    // if (!user.isActive) {
-    //   return {
-    //     status: 403,
-    //     body: { error: "Your account is not approved yet." }
-    //   };
-    // }
+    if (!user.isActive) {
+      return {
+        status: 403,
+        body: { success: false, message: "Account not active" },
+      };
+    }
 
-    // Validate password
+    // 3️⃣ Validate password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      return { status: 401, body: {success:false, message: "Invalid password." } };
+      return {
+        status: 401,
+        body: { success: false, message: "Invalid password" },
+      };
     }
 
-    // Tracke device type 
-     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(device);
+    // 4️⃣ Detect device type
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+        device
+      );
     const deviceType = isMobile ? "app" : "web";
-    let version = user.webSessionVersion;
-    if(deviceType === "web"){
+
+    // 5️⃣ Session versioning
+    let version;
+    if (deviceType === "web") {
       user.webSessionVersion += 1;
       version = user.webSessionVersion;
-    }else{
+    } else {
       user.appSessionVersion += 1;
       version = user.appSessionVersion;
     }
 
-    // Update login details
+    // 6️⃣ Update login metadata
     user.lastLoginIP = ip;
     user.lastLoginDevice = device;
     user.lastLoginAt = new Date();
 
-    // Push login history
     user.devices.push({
       ip,
       device,
-      loggedInAt: new Date()
+      loggedInAt: new Date(),
     });
 
     await user.save();
 
-
-    const senitizeUser = {
+    // 7️⃣ Sanitize user for response
+    const sanitizedUser = {
       id: user._id,
       name: user.name,
-      email: user.email || user.phone,
-      role: user.userType,
-    }
-    // Generate JWT
+      phone: user.phone,
+      email: user.email || null,
+      dashboard: user.dashboard,
+      roles: user.roles || [],
+      permissions:user.permissions || []
+    };
+
+    // 8️⃣ Generate JWT (keep it small)
     const token = jwt.sign(
       {
         id: user._id,
         deviceType,
         version,
-        role:user.userType
       },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
@@ -355,18 +391,21 @@ export const login = async ({ email, phone, password, ip, device }) => {
     return {
       status: 200,
       body: {
-        success:true,
+        success: true,
         message: "Login successful",
-        user:senitizeUser,
-        token
-      }
+        user: sanitizedUser,
+        token,
+      },
     };
-
   } catch (err) {
     console.error("Login error:", err);
-    return { status: 500, body: { error: "Internal Server Error" } };
+    return {
+      status: 500,
+      body: { success: false, message: "Internal server error" },
+    };
   }
 };
+
 
 // Resend Otp
 export const resendOtp = async ({ identifier }) => {

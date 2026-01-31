@@ -27,126 +27,156 @@ const validateAgentPayload = ({
 
 export const registerAgentByMarketingAgentService = async ({
   marketingAgentId,
-  payload,
+  payload
 }) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  console.log("creating agent");
 
   try {
     const {
       agentName,
       phone,
       password,
+
       latitude,
       longitude,
+
       address = null,
       city = null,
       state = null,
       pincode = null,
-      parentAgentId = null,
+
+      parentAgentId = null
     } = payload;
 
     validateAgentPayload({ agentName, phone, latitude, longitude });
 
-    let user = await User.findOne({ phone }).session(session);
+    // 🔍 1. Find user by phone
+    let user = await User.findOne({ phone });
 
-    // 🌳 MLM level logic (unchanged)
+    // 🔍 2. If agent profile already exists
+    if (user?.profiles?.agentId) {
+      const existingAgentProfile = await AgentProfile.findById(
+        user.profiles.agentId
+      );
+
+      if (existingAgentProfile) {
+        if (existingAgentProfile.marketingAgentId) {
+          throw new Error("Agent is already allocated to a marketing agent");
+        }
+
+        // Assign if unallocated
+        await AgentProfile.updateOne(
+          { _id: existingAgentProfile._id },
+          {
+            $set: {
+              marketingAgentId,
+              registeredBy: "MARKETING_AGENT",
+              status: "INACTIVE",
+              agentName,
+              address,
+              city,
+              state,
+              pincode,
+              location: {
+                type: "Point",
+                coordinates: [longitude, latitude]
+              }
+            }
+          }
+        );
+
+        return {
+          userId: user._id,
+          agentProfileId: existingAgentProfile._id,
+          message: "Existing agent assigned under marketing agent successfully"
+        };
+      }
+    }
+
+    // 🌳 MLM level
     let level = 0;
     if (parentAgentId) {
-      const parentAgent = await AgentProfile.findById(parentAgentId).session(session);
-      if (!parentAgent) throw new Error("Parent agent not found");
+      const parentAgent = await AgentProfile.findById(parentAgentId);
+
+      if (!parentAgent) {
+        throw new Error("Parent agent not found");
+      }
+
       level = parentAgent.level + 1;
     }
 
-    // 🔹 Create user if not exists
+    // 🔹 3. Create user if not exists
     if (!user) {
       const passwordHash = await hashPassword(password);
 
-      const users = await User.create(
-        [
-          {
-            name: agentName,
-            phone,
-            dashboard: "agent",
-            roles: ["agent"],
-            permissions: [], // resolved below
-            isActive: false,
-            isBlocked: false,
-            passwordHash,
-            kycStatus: "none",
-          },
-        ],
-        { session }
-      );
+      user = await User.create({
+        name: agentName,
+        phone,
 
-      user = users[0];
+        // ✅ NEW RBAC FIELDS
+        dashboard: "agent",
+        role: ["agent"],
+        permissions: [],
+
+        isActive: false,
+        isBlocked: false,
+        passwordHash,
+        kycStatus: "none"
+      });
     }
 
-    // 🔹 Create agent profile
-    const agentProfiles = await AgentProfile.create(
-      [
-        {
-          userId: user._id,
-          agentName,
-          phone,
-          address,
-          city,
-          state,
-          pincode,
-          location: {
-            type: "Point",
-            coordinates: [longitude, latitude],
-          },
-          parentAgentId,
-          level,
-          directDownlineCount: 0,
-          totalDownlineCount: 0,
-          marketingAgentId,
-          status: "INACTIVE",
-          registeredBy: "MARKETING_AGENT",
-        },
-      ],
-      { session }
-    );
+    // 🔹 4. Create agent profile
+    const agentProfile = await AgentProfile.create({
+      userId: user._id,
+      agentName,
+      phone,
+      address,
+      city,
+      state,
+      pincode,
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude]
+      },
+      parentAgentId,
+      level,
+      directDownlineCount: 0,
+      totalDownlineCount: 0,
+      marketingAgentId,
+      status: "INACTIVE",
+      registeredBy: "MARKETING_AGENT"
+    });
 
-    const agentProfileId = agentProfiles[0]._id;
+    const agentProfileId = agentProfile._id;
 
-    // 🔗 Link profile + RBAC update (NEW WAY)
-    const role = await ROLE.findOne({ key: "agent" })
-      .select("permissions")
-      .lean();
-
-    if (!role) {
-      throw new Error("Agent role not found");
-    }
+    // 🔗 5. Link agent profile + RBAC update
+    const role = await ROLE.findOne({ key: "agent" }).select("permissions").lean();
+    
 
     await User.updateOne(
       { _id: user._id },
       {
         $set: {
           dashboard: "agent",
-          roles: ["agent"],
-          permissions: role.permissions,
-          "profiles.agentId": agentProfileId,
-        },
-      },
-      { session }
+          role: ["agent"],
+          permissions: role?.permissions ||[],
+          "profiles.agentId": agentProfileId
+        }
+      }
     );
-
-    await session.commitTransaction();
-    session.endSession();
 
     return {
       userId: user._id,
       agentProfileId,
-      message: "New agent registered successfully",
+      message: "New agent registered successfully"
     };
+
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     throw error;
   }
 };
+
+
 
 
 

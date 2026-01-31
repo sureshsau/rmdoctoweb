@@ -22,36 +22,68 @@ export const getHierarchyController = async (req, res) => {
 };
 
 
-
 export const registerAgentController = async (req, res) => {
   try {
-    const { userType } = req.user;
-    
-    const marketingAgentId=null;
-    if (userType == "marketing_agent") {
-       marketingAgentId=user.id;
-    }else if(userType=="agent"){
-        const agentProfile=await AgentProfile.findOne({userId:req.user.id});
-        if(!agentProfile){
-            return res.status(400).json({
-            success: false,
-            message: "agent profile is not created"
-            });
-        }
-        marketingAgentId=agentProfile.marketingAgentId;
-    }else{
-        marketingAgentId=null
+    const { dashboard, roles, id: id } = req.user;
+
+    let marketingAgentId = null;
+
+    // 🔹 If marketing agent himself is registering
+    if (roles?.includes("marketing_agent")) {
+      marketingAgentId = userId;
     }
-    const result = await registerAgentByMarketingAgentService({
-        marketingAgentId: req.user.id,
-        payload: req.body
+
+    // 🔹 If agent is registering another agent (downline)
+    else if (roles?.includes("agent")) {
+      const agentProfile = await AgentProfile.findOne({ userId });
+
+      if (!agentProfile) {
+        return res.status(400).json({
+          success: false,
+          message: "Agent profile not found",
+        });
+      }
+
+      if (!agentProfile.marketingAgentId) {
+        return res.status(400).json({
+          success: false,
+          message: "Marketing agent not assigned to this agent",
+        });
+      }
+
+      marketingAgentId = agentProfile.marketingAgentId;
+    }
+
+    // 🔹 Admin / subadmin case (optional)
+    else if (roles?.includes("admin") || roles?.includes("subadmin")) {
+      marketingAgentId = null;
+    }
+
+    // ❌ Unauthorized
+    else {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to register agent",
       });
+    }
+
+    const result = await registerAgentByMarketingAgentService({
+      marketingAgentId,
+      payload: req.body,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Agent registered successfully",
+      data: result,
+    });
 
   } catch (error) {
     console.error("❌ Agent registration error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "Internal server error"
+      message: error.message || "Internal server error",
     });
   }
 };
+

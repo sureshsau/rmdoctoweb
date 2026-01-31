@@ -31,7 +31,7 @@ const UserSchema = new mongoose.Schema(
     },
 
     // RBAC (BACKEND AUTHORIZATION)
-    role: {
+    roles: {
       type: [String], // e.g. ["doctor", "receptionist"]
       default: [],
       index: true,

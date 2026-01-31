@@ -25,19 +25,19 @@ export const authenticate = async (req, res, next) => {
         "_id dashboard roles permissions webSessionVersion appSessionVersion isBlocked isActive"
       )
       .lean();
-
+      
     if (!user || user.isBlocked || !user.isActive) {
-      return res.status(401).json({ message: "Account inactive or blocked" });
+      return res.status(401).json({success:false, message: "your Account is inactive or blocked" });
     }
 
     // Session validation
     if (decoded.deviceType === "web") {
       if (user.webSessionVersion !== decoded.version) {
-        return res.status(401).json({ message: "Session expired" });
+        return res.status(401).json({success:false, message: "Session expired" });
       }
     } else {
       if (user.appSessionVersion !== decoded.version) {
-        return res.status(401).json({ message: "Session expired" });
+        return res.status(401).json({success:false, message: "Session expired" });
       }
     }
 
@@ -65,6 +65,8 @@ export function authorize(requiredPermissions) {
 
   return (req, res, next) => {
     const user = req.user;
+
+    console.log(user);
 
     if (!user || !Array.isArray(user.permissions)) {
       return res

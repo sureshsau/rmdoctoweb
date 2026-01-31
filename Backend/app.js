@@ -18,7 +18,7 @@ import medicineRouter from './routes/medicine.route.js'
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({
-    origin:"*",
+    origin:["http://localhost:3001"],
     credentials:true
 }))
 

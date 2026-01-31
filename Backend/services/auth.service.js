@@ -272,7 +272,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     if ((!email && !phone) || !password) {
       return {
         status: 400,
-        body: { error: "Email/Phone and Password are required." }
+        body: {success:false, message: "Email/Phone and Password are required." }
       };
     }
 
@@ -282,7 +282,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     else user = await UserRepo.findByPhone(phone);
 
     if (!user) {
-      return { status: 404, body: { error: "User does not exist." } };
+      return { status: 404, body: {success:false, message: "User does not exist." } };
     }
 
     // Check if user is blocked
@@ -304,7 +304,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     // Validate password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      return { status: 401, body: { error: "Invalid password." } };
+      return { status: 401, body: {success:false, message: "Invalid password." } };
     }
 
     // Tracke device type 
@@ -355,6 +355,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     return {
       status: 200,
       body: {
+        success:true,
         message: "Login successful",
         user:senitizeUser,
         token

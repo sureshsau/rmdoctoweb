@@ -15,47 +15,30 @@ import AppError from "../utils/AppError.js";
 
 export const createRole = async (req, res, next) => {
   try {
-    const {
-      key,
-      name,
-      description,
-      permissions,
-      roleType,
-      coreProfile
-    } = req.body;
+    const { key, name, permissions } = req.body;
 
-    // -------------------------
-    // BASIC VALIDATIONS
-    // -------------------------
     if (!key) return next(new AppError("Role key is required", 400));
     if (!name) return next(new AppError("Role name is required", 400));
-    if (!permissions || !Array.isArray(permissions) || permissions.length === 0) {
+    if (!Array.isArray(permissions) || permissions.length === 0) {
       return next(new AppError("At least one permission is required", 400));
     }
 
-    // -------------------------
-    // CREATE ROLE USING SERVICE
-    // -------------------------
     const role = await createRoleService({
       key,
       name,
-      description,
       permissions,
-      roleType,
-      coreProfile,
-      createdBy: "695bb6e9055484a5b4728a5d"
     });
 
     return res.status(201).json({
       success: true,
       message: "Role created successfully",
-      data: role
+      data: role,
     });
-
   } catch (err) {
     next(err);
   }
 };
+
 // --------------------------------------
 // GET ALL ROLES
 // --------------------------------------

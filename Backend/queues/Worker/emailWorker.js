@@ -6,6 +6,7 @@ import { EmailOtp } from "../../services/email.service.js";
 const emailWorker = queueService.subscribe("emailQueue", async (job) => {
   switch (job.name) {
     case "send-otp":
+      console.log('send otp')
       await EmailOtp(job.data.email, job.data.otp);
       break;
 

@@ -1,6 +1,6 @@
 import USER from "../models/user.model.js";
 import AppError from "../utils/AppError.js"
-
+import { createUserService } from "../services/user.service.js";
 
 
 export const getAllUserController=async(req,res)=>{
@@ -17,3 +17,28 @@ export const getAllUserController=async(req,res)=>{
         throw new AppError("Intenal sever Error",500);
     }
 }
+
+
+
+export const createUser = async (req, res, next) => {
+  try {
+    const { name, phone, email } = req.body;
+
+    if (!name || !phone) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Name and phone are required" });
+    }
+
+    const result = await createUserService({ name, phone, email });
+
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

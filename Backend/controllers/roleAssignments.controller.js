@@ -12,16 +12,29 @@ import AppError from "../utils/AppError.js";
 // assign single role
 export const assignRole = async (req, res, next) => {
   try {
-    const { userId, roleId, scope, scopeId } = req.body;
-    if (!userId || !roleId) return next(new AppError("userId and roleId required", 400));
+    const { userId, roles, permissions, dashboard } = req.body;
 
-    const assignment = await assignRoleService({ userId, roleId, scope, scopeId, grantedBy:'692d2b1348c59e839af3b3fa' });
+    if (!userId) {
+      return next(new AppError("userId is required", 400));
+    }
 
-    return res.status(201).json({ success: true, message: "Role assigned", data: assignment });
+    const updatedUser = await assignRoleService({
+      userId,
+      roles,
+      permissions,
+      dashboard,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Roles and permissions updated successfully",
+      data: updatedUser,
+    });
   } catch (err) {
     next(err);
   }
 };
+
 
 // assign many roles at once
 export const assignMultipleRoles = async (req, res, next) => {

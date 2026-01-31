@@ -29,7 +29,7 @@ export const login = async (req, res) => {
 
     return res.status(response.status).json(response.body);
   } catch (err) {
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ success:false, message: "Server error" });
   }
 };
 

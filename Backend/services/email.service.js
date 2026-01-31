@@ -2,6 +2,7 @@ import { transporter } from "../config/Email.js";
 
 
 export const EmailOtp = async (email, otp) => {
+  console.log('email send');
   await transporter.sendMail({
     from: `RMDOCTO <${process.env.MAIL_USER}>`,
     to: email,

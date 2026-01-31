@@ -1,15 +1,14 @@
-import express from 'express'
-import { authenticate } from '../middlewares/auth.middlewire.js';
-import { registerAgentController } from '../controllers/agent.controller.js';
+import express from "express";
+import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { registerAgentController } from "../controllers/agent.controller.js";
 
-const router=express.Router();
+const router = express.Router();
 
-router
-    .post('/register',
-        authenticate,
-        registerAgentController
-    )
+router.post(
+  "/register",
+  authenticate,
+  authorize("agent.create"),
+  registerAgentController
+);
 
-
-
-export default router
+export default router;

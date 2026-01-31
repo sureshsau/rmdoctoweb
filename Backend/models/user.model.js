@@ -2,8 +2,6 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    
-
     // BASIC IDENTITY
     name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, index: true, sparse: true },
@@ -13,11 +11,11 @@ const UserSchema = new mongoose.Schema(
     passwordHash: { type: String },
 
     // ACCOUNT STATUS
-    isActive: { type: Boolean, default: false }, // true only after approval
-    isBlocked: { type: Boolean, default: false }, // admin can block account
+    isActive: { type: Boolean, default: false },
+    isBlocked: { type: Boolean, default: false },
 
-    // DEFAULT USER TYPE (controls UI only — NOT permissions)
-    userType: {
+    // DASHBOARD TYPE (UI routing only)
+    dashboard: {
       type: String,
       enum: [
         "admin",
@@ -27,49 +25,46 @@ const UserSchema = new mongoose.Schema(
         "marketing_agent",
         "receptionist",
         "patient",
-        "user", // new users waiting for approval
+        "user",
       ],
       default: "user",
-    }, 
-
-    // PROFILE LINKS (business data)
-    profiles: {
-      doctorId: { type: mongoose.Schema.Types.ObjectId, ref: "DoctorProfile" },
-      employeeId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "EmployeeProfile",
-      },
-      agentId: { type: mongoose.Schema.Types.ObjectId, ref: "AgentProfile" },
-      patientId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "PatientProfile",
-      },
-      receptionistId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "ReceptionistProfile",
-      },
-      labOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: "LabProfile" },
-      marketing_agentId:{
-        type:mongoose.Schema.Types.ObjectId,ref:"MarketingAgentProfile"
-      }
     },
 
-    // RBAC: Extra user-level permissions (rare cases)
-    userSpecificPermissions: [{ type: String }],
+    // RBAC (BACKEND AUTHORIZATION)
+    role: {
+      type: [String], // e.g. ["doctor", "receptionist"]
+      default: [],
+      index: true,
+    },
 
-    // SESSION CONTROL – Single login per device type
-    tokenVersion: { type: Number, default: 0 }, // global invalidate
-    webSessionVersion: { type: Number, default: 0 }, // web session
-    appSessionVersion: { type: Number, default: 0 }, // mobile session
+    permissions: {
+      type: [String], // e.g. ["appointment.create", "patient.read"]
+      default: [],
+    },
 
-    // DEVICE INFO (optional but recommended)
-    // lastLoginAt:    { type: Date },
-    // lastLoginIP:    { type: String },
-    // lastLoginDevice: { type: String }, // "web", "android", "ios"
+    // PROFILE LINKS
+    profiles: {
+      doctorId: { type: mongoose.Schema.Types.ObjectId, ref: "DoctorProfile" },
+      employeeId: { type: mongoose.Schema.Types.ObjectId, ref: "EmployeeProfile" },
+      agentId: { type: mongoose.Schema.Types.ObjectId, ref: "AgentProfile" },
+      patientId: { type: mongoose.Schema.Types.ObjectId, ref: "PatientProfile" },
+      receptionistId: { type: mongoose.Schema.Types.ObjectId, ref: "ReceptionistProfile" },
+      labOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: "LabProfile" },
+      marketing_agentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MarketingAgentProfile",
+      },
+    },
+
+    // SESSION CONTROL
+    tokenVersion: { type: Number, default: 0 },
+    webSessionVersion: { type: Number, default: 0 },
+    appSessionVersion: { type: Number, default: 0 },
+
+    // DEVICE INFO
     lastLoginAt: { type: Date },
     lastLoginIP: { type: String },
     lastLoginDevice: { type: String },
-
     firstLoginIP: { type: String },
     firstDevice: { type: String },
 
@@ -81,29 +76,23 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
-    // KYC + APPROVALS
+    // KYC
     kycStatus: {
       type: String,
       enum: ["none", "pending", "verified", "rejected"],
       default: "none",
     },
-    kycDocuments: [
-      {
-        url: String,
-        type: String,
-      },
-    ],
+    kycDocuments: [{ url: String, type: String }],
 
-    // SECURITY FEATURES
+    // SECURITY
     failedLoginAttempts: { type: Number, default: 0 },
-    lockUntil: { type: Date }, // temporary block after too many attempts
+    lockUntil: { type: Date },
 
     // NOTIFICATIONS
-    pushToken: { type: String }, // mobile push notifications
+    pushToken: { type: String },
     fcmTokens: [{ type: String }],
   },
   { timestamps: true }
 );
 
-let USER = mongoose.model("User", UserSchema);
-export default USER;
+export default mongoose.model("User", UserSchema);

@@ -47,84 +47,75 @@ export async function rebuildUserPermissions(userId) {
  * NOTE: keep minimal fields; HR/admin will update profile later.
  */
 async function ensureCoreProfileForUser(user, role) {
+  const map = {
+    doctor: "doctorId",
+    employee: "employeeId",
+    agent: "agentId",
+    marketing_agent: "marketing_agentId",
+    receptionist: "receptionistId",
+    patient: "patientId",
+  };
 
-  if (!role.coreProfile) return null;
+  const profileKey = map[role];
+  if (!profileKey) return;
 
-  const cp = role.coreProfile;
-  console.log(cp);
+  if (!user.profiles[profileKey]) {
+    const ModelMap = {
+      doctorId: DoctorProfile,
+      employeeId: EmployeeProfile,
+      agentId: AgentProfile,
+      marketing_agentId: MarketingAgentProfile,
+      receptionistId: ReceptionistProfile,
+      patientId: PatientProfile,
+    };
 
-  // doctor
-  if (cp == "doctor" && !user.profiles.doctorId) {
-    console.log('creating doctor')
-    const d = await DoctorProfile.create({ userId: user._id, companyId: user.companyId });
-    user.profiles.doctorId = d._id;
-    user.userType="doctor";
-    return d._id;
+    const profile = await ModelMap[profileKey].create({ userId: user._id });
+    user.profiles[profileKey] = profile._id;
   }
-
-  // agent
-  if ((cp === "marketing_agent") && !user.profiles.marketing_agent) {
-    console.log('creating profile')
-    const a = await MarketingAgentProfile.create({ userId: user._id });
-    user.profiles.marketing_agentId = a._id;
-    user.userType="marketing_agent";
-    return a._id;
-  }
-
-  // receptionist/employee -> use EmployeeProfile
-//   if ((cp === "receptionist" || cp === "employee") && !user.profiles.employeeId) {
-//     const e = await EmployeeProfile.create({
-//       userId: user._id,
-//       companyId: user.companyId,
-//       employeeType: cp
-//     });
-//     user.profiles.employeeId = e._id;
-//     return e._id;
-//   }
-
-  // lab_owner
-//   if (cp === "lab_owner" && !user.profiles.labOwnerId) {
-//     // LabProfile model assumed as LabProfile
-//     const l = await (await import("../models/labProfile.model.js")).default.create({ userId: user._id, companyId: user.companyId });
-//     user.profiles.labOwnerId = l._id;
-//     return l._id;
-//   }
-
-  return null;
 }
+
 
 /**
  * Assign a single role to a user (idempotent).
  * It creates a RoleAssignment document and triggers permission rebuild.
  * It will auto-create core profile if required.
  */
-export async function assignRoleService({ userId, roleId, scope = "company", scopeId = null, grantedBy }) {
-  // validate user exists
+export async function assignRoleService({
+  userId,
+  roles = [],
+  permissions = [],
+  dashboard = "user",
+}) {
   const user = await User.findById(userId);
   if (!user) throw new AppError("User not found", 404);
 
-  const role = await ROLE.findById(roleId);
-  if (!role) throw new AppError("Role not found", 404);
-
-  const existing = await RoleAssignment.findOne({ userId, roleId, scope, scopeId, active: true });
-  if (existing) {
-    throw new AppError('this role already given to user',400)
+  // Merge roles (avoid duplicates)
+  if (roles.length) {
+    user.roles = Array.from(new Set([...user.roles, ...roles]));
   }
 
-  // Create assignment
-  const assignment = await RoleAssignment.create({
-    userId, roleId, scope, scopeId, grantedBy, active: true
-  });
+  // Merge permissions (avoid duplicates)
+  if (permissions.length) {
+    user.permissions = Array.from(
+      new Set([...user.permissions, ...permissions])
+    );
+  }
 
-  // Auto-create core profile (if role is core and profile absent)
-  await ensureCoreProfileForUser(user, role);
+  // Update dashboard (UI only)
+  if (dashboard) {
+    user.dashboard = dashboard;
+  }
+
+  // Auto-create core profiles based on roles
+  for (const role of roles) {
+    await ensureCoreProfileForUser(user, role);
+  }
+
   await user.save();
 
-  // Rebuild permissions cache
-  await rebuildUserPermissions(userId);
-
-  return assignment;
+  return user;
 }
+
 
 /**
  * Assign multiple roles to a user in one call.
@@ -220,45 +211,32 @@ export async function bulkAssignRoleService({ roleId, users = [], scope = "compa
 
 export const getRolesAndPermissionsById = async (userId) => {
   try {
-    if (!userId)
+    if (!userId) {
       throw new AppError("User ID is required", 400);
-
-    // One optimized query → JOIN roles directly
-    const assignments = await RoleAssignment.find({ userId, active: true })
-      .populate("roleId", "key permissions")
-      .lean();
-
-    // No roles? Return empty values
-    if (!assignments || assignments.length === 0) {
-      return { roles: [], permissions: [] };
     }
 
-    const roles = [];
-    const permSet = new Set();
+    const user = await User.findById(userId)
+      .select("roles permissions dashboard")
+      .lean();
 
-    // Process assignments
-    for (const a of assignments) {
-      if (!a.roleId) continue;
-
-      roles.push(a.roleId.key);
-
-      // Add permissions into Set (avoid duplicates)
-      for (const p of a.roleId.permissions) {
-        permSet.add(p);
-      }
+    if (!user) {
+      throw new AppError("User not found", 404);
     }
 
     return {
-      roles,
-      permissions: [...permSet] // flatten unique permissions
+      roles: user.roles || [],
+      permissions: user.permissions || [],
+      dashboard: user.dashboard || "user",
     };
-
   } catch (err) {
     console.error("Error fetching roles/permissions:", err);
-    throw new AppError(
-      "Internal server error while fetching roles & permissions",
-      500
-    );
+    throw err instanceof AppError
+      ? err
+      : new AppError(
+          "Internal server error while fetching roles & permissions",
+          500
+        );
   }
 };
+
 

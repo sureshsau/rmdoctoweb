@@ -2,50 +2,24 @@ import mongoose from "mongoose";
 
 const RoleSchema = new mongoose.Schema(
   {
-
-    // Machine readable unique key (VERY IMPORTANT)
     key: {
       type: String,
       required: true,
       unique: true,
-      lowercase: true,    // "doctor", "receptionist", "lab_manager"
-      trim: true
+      lowercase: true,
+      trim: true,
     },
 
-    // Human readable name
-    name: { type: String, required: true, trim: true },
-
-    description: { type: String, default: "" },
-
-    // ALL permissions
-    permissions: [{ type: String, required: true }],
-
-    // December: Role Category
-    roleType: {
+    name: {
       type: String,
-      enum: ["core", "custom"],
-      default: "custom"
+      required: true,
+      trim: true,
     },
 
-    // ⭐ NEW: Tell backend which profile to create
-    coreProfile: {
-      type: String,
-      enum: [
-        "doctor",
-        "employee",
-        "agent",
-        "marketing_agent",
-        "receptionist",
-        "patient",
-        "lab_owner",
-        null
-      ],
-      default: null
+    permissions: {
+      type: [String],
+      required: true,
     },
-
-    isDefault: { type: Boolean, default: false },
-
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
   { timestamps: true }
 );

@@ -31,23 +31,26 @@ const router = express.Router();
       router.post(
             "/mark",
             authenticate,
-            authorize(["Attendance:mark"]),
+            authorize("Attendance:mark"),
             upload.single("faceImage"),
             markAttendanceByFaceController
       )
 
   .get('/settings',
         authenticate,
-        authorize([
+        authorize(
           "Attendance.settings:view:self",
           "Attendance.settings:view:all"
-        ]),
+        ),
         getAttendanceSettingsController)
 
-  .post('/setAttendanceSettings',
-        authenticate,
-      //   authorize(["Attendance.settings:update:all"]),
-        setAttendanceSettingsForAllUsersController)
+ .post(
+  "/setAttendanceSettings",
+  authenticate,
+  authorize("attendance.settings.update"),
+  setAttendanceSettingsForAllUsersController
+)
+
 
 
 

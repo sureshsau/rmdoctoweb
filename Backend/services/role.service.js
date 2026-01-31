@@ -4,94 +4,30 @@ import AppError from "../utils/AppError.js";
 // --------------------------------------
 // CREATE ROLE
 // --------------------------------------
-export async function createRoleService({
-  key,
-  name,
-  description,
-  permissions,
-  roleType,
-  coreProfile,
-  createdBy,
-  companyId = null
-}) {
-
-  // -----------------------------
-  // VALIDATION
-  // -----------------------------
-  if (!key) {
-    throw new AppError("Role key is required (e.g., doctor, receptionist)", 400);
-  }
-
-  if (!name) {
-    throw new AppError("Role name is required", 400);
-  }
-
-  if (!permissions || permissions.length === 0) {
-    throw new AppError("At least one permission is required", 400);
-  }
-  // Normalize key
+export async function createRoleService({ key, name, permissions }) {
   key = key.trim().toLowerCase();
 
-  // -----------------------------
-  // CHECK DUPLICATE ROLE (KEY)
-  // Each company can define roles with same key
-  // but global keys in core roles should be unique
-  // -----------------------------
-  const exists = await ROLE.findOne({
-    key
-  });
-
+  const exists = await ROLE.findOne({ key });
   if (exists) {
     throw new AppError("Role with this key already exists", 409);
   }
 
-  // -----------------------------
-  // VALIDATE coreProfile
-  // ONLY core roles should have coreProfile
-  // -----------------------------
-  const VALID_CORE_PROFILES = [
-    "doctor",
-    "employee",
-    "agent",
-    "marketing_agent",
-    "receptionist",
-    "patient",
-    "lab_owner"
-  ];
-
-  if (coreProfile) {
-    if (!VALID_CORE_PROFILES.includes(key)) {
-      throw new AppError("Invalid coreProfile value", 400);
-    }
-    // auto enforce core roleType
-    roleType = "core";
-  }
-
-
-  // -----------------------------
-  // CREATE ROLE
-  // -----------------------------
   try {
     const role = await ROLE.create({
       key,
-      name,
-      description,
+      name: name.trim(),
       permissions,
-      roleType: roleType || "custom",
-      coreProfile:key,
-      createdBy
     });
 
     return role;
-
   } catch (err) {
-    console.log(err);
     if (err.code === 11000) {
-      throw new AppError("Duplicate key found", 409);
+      throw new AppError("Duplicate role key", 409);
     }
-    throw new AppError("Database error creating role", 500);
+    throw new AppError("Error creating role", 500);
   }
 }
+
 
 
 
@@ -100,13 +36,17 @@ export async function createRoleService({
 // GET ALL ROLES
 // --------------------------------------
 export async function getAllRolesService() {
-  try{
-    const rolesData=await ROLE.find().select("key coreProfile roleType permissions").lean();
+  try {
+    const rolesData = await ROLE.find()
+      .select("key name permissions")
+      .lean();
+
     return rolesData;
-  }catch(err){
-    throw new AppError("Internal server error",)
+  } catch (err) {
+    throw new AppError("Internal server error", 500);
   }
 }
+
 
 // --------------------------------------
 // GET ROLE BY ID

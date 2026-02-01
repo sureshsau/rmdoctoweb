@@ -1,38 +1,41 @@
-import USER from "../models/user.model.js";
-import bcrypt from "bcryptjs";
-import AppError from "../utils/AppError.js";
+import User from "../models/user.model.js";
 
-export const createUserService = async ({ name, phone, email = null }) => {
-  const existing = await USER.findOne({ phone });
-  if (existing) {
-    throw new AppError("User with this phone already exists", 409);
+export const createUserService = async ({
+  name,
+  email,
+  phone,
+  passwordHash,
+  roles = [],
+  permissions = [],
+  dashboard,
+  isActive = false,
+}) => {
+  if (!name || !phone) {
+    throw new Error("Name and phone are required");
   }
 
-  const plainPassword = Math.random().toString(36).slice(-8);
-  const passwordHash = await bcrypt.hash(plainPassword, 10);
+  const phoneExists = await User.findOne({ phone });
+  if (phoneExists) {
+    throw new Error("Phone number already exists");
+  }
 
-  const user = await USER.create({
+  if (email) {
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      throw new Error("Email already exists");
+    }
+  }
+
+  const user = await User.create({
     name,
+    email: email || undefined,
     phone,
-    email,
     passwordHash,
-
-    dashboard: "user",
-    role: [],
-    permissions: [],
-
-    isActive: true,
-    isBlocked: false,
-    kycStatus: "none",
+    roles,
+    permissions,
+    dashboard,
+    isActive,
   });
 
-  return {
-    userId: user._id,
-    phone: user.phone,
-    email: user.email,
-    credentials: {
-      phone: user.phone,
-      password: plainPassword, // send once only
-    },
-  };
+  return user;
 };

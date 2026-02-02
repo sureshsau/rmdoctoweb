@@ -8,6 +8,7 @@ import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
 
 import AppError from "../utils/AppError.js";
 import { createAttendanceSetting } from "./attendance.service.js";
+import agentProfile from "../models/agentProfile.model.js";
 
 /**
  * Merge permissions from RoleAssignments + userSpecificPermissions
@@ -59,17 +60,26 @@ async function ensureCoreProfileForUser(user, role) {
   const profileKey = map[role];
   if (!profileKey) return;
 
-  if (!user.profiles[profileKey]) {
-    const ModelMap = {
-      doctorId: DoctorProfile,
-      employeeId: EmployeeProfile,
-      agentId: AgentProfile,
-      marketing_agentId: MarketingAgentProfile,
-      receptionistId: ReceptionistProfile,
-      patientId: PatientProfile,
-    };
+  // ✅ Ensure profiles object exists
+  if (!user.profiles) {
+    user.profiles = {};
+  }
 
-    const profile = await ModelMap[profileKey].create({ userId: user._id });
+  // ✅ Model map (keys MUST match profileKey)
+  const ModelMap = {
+    doctorId: DoctorProfile,
+    agentId: agentProfile,
+    marketing_agentId: MarketingAgentProfile,
+  };
+
+  const ProfileModel = ModelMap[profileKey];
+  if (!ProfileModel) return;
+
+  if (!user.profiles[profileKey]) {
+    const profile = await ProfileModel.create({
+      userId: user._id,
+    });
+
     user.profiles[profileKey] = profile._id;
   }
 }

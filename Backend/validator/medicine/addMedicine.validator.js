@@ -38,12 +38,12 @@ export const addMedicineValidationRules = [
     .isFloat({ min: 0 })
     .withMessage("mrp must be >= 0"),
 
-  body("pricing.normalUserPrice")
+  body("pricing.price")
     .exists().withMessage("pricing.normalUserPrice is required")
     .isFloat({ min: 0 })
     .withMessage("normalUserPrice must be >= 0"),
 
-  body("pricing.marketingAgentPrice")
+  body("pricing.specialPrice")
     .exists().withMessage("pricing.marketingAgentPrice is required")
     .isFloat({ min: 0 })
     .withMessage("marketingAgentPrice must be >= 0"),

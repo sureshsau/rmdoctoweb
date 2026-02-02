@@ -75,11 +75,11 @@ const medicineSchema = new mongoose.Schema(
         type: Number,
         required: true
       },
-      normalUserPrice: {
+      price: {
         type: Number,
         required: true
       },
-      marketingAgentPrice: {
+      specialPrice: {
         type: Number,
         required: true
       }
@@ -132,17 +132,17 @@ const medicineSchema = new mongoose.Schema(
 
     // MEDIA
     images: [
-      {
-        url: {
-          type: String,
-          required: true
-        },
-        isPrimary: {
-          type: Boolean,
-          default: false
-        }
-      }
-    ],
+  {
+    url: {
+      type: String,
+      required: true
+    },
+    key: {
+      type: String,
+      required: true
+    }
+  }
+],
 
     // STATUS
     isActive: {

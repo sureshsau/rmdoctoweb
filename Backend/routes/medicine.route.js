@@ -1,7 +1,7 @@
 import express from 'express'
 import {authenticate, authorize} from '../middlewares/auth.middlewire.js'
 import { parseAddMedicinePayload, validateAddMedicine } from '../validator/medicine/addMedicine.validator.js';
-import { addMedicineController, getMedicineByIdController, getMedicinesController } from '../controllers/medicine.controller.js';
+import { addMedicineController, deleteMedicineController, editMedicineController, getMedicineByIdController, getMedicinesController } from '../controllers/medicine.controller.js';
 import { upload } from '../utils/multer.js';
 
 const router=express.Router()
@@ -18,4 +18,14 @@ router.post(
 .get("/", getMedicinesController)
 .get("/:medicineId", getMedicineByIdController)
 
+.put(
+  "/:medicineId",
+  authenticate,
+  authorize("medicine.update"),
+  editMedicineController
+)
+.delete('/:medicineId',
+  authorize("medicine.delete"),
+  deleteMedicineController
+)
 export default router;

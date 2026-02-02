@@ -1,53 +1,57 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
-import express from 'express';
+
+import express from "express";
+import cors from "cors";
+
 import connectdb from "./config/mongoDB.config.js";
-import authRouter from './routes/auth.route.js'
-import {app, io,  server} from './sockets/socket.js';
-import attendanceRouter from './routes/attendance.route.js'
-import rolesRoute from './routes/role.route.js'
-import roleAssignmentsRoute from './routes/roleAssignments.route.js'
-import userRoute from './routes/user.route.js'
-import permissionRoute from './routes/permission.route.js'
-import AppError from './utils/AppError.js';
-import cors from 'cors';
-import { ensureRekognitionCollection } from './services/aws.service.js';
-import agentRoute from './routes/agent.route.js'
-import medicineRouter from './routes/medicine.route.js'
+import { app, server } from "./sockets/socket.js";
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(cors({
-    origin:["http://localhost:3000"],
-    credentials:true
-}))
+import authRouter from "./routes/auth.route.js";
+import attendanceRouter from "./routes/attendance.route.js";
+import rolesRoute from "./routes/role.route.js";
+import roleAssignmentsRoute from "./routes/roleAssignments.route.js";
+import userRoute from "./routes/user.route.js";
+import permissionRoute from "./routes/permission.route.js";
+import agentRoute from "./routes/agent.route.js";
+import medicineRouter from "./routes/medicine.route.js";
 
-app.get("/",(req,res)=>{
-  res.json({
-    message:"working backend"
+import AppError from "./utils/AppError.js";
+import { ensureRekognitionCollection } from "./services/aws.service.js";
+
+/* ================= CORS ================= */
+
+app.use(
+  cors({
+    origin: ["http://localhost:3000"],
+    credentials: true,
   })
-})
+);
 
-app.use('/auth', authRouter);
-app.use('/attendance',attendanceRouter)
-app.use('/roles',rolesRoute);
-app.use('/role-assignments',roleAssignmentsRoute);
-app.use('/user',userRoute);
-app.use('/permission',permissionRoute);
-app.use('/agent',agentRoute)
-app.use('/medicines',medicineRouter)
+/* ================= HEALTH ================= */
 
-const port = process.env.PORT || 3000;
-server.listen(port,()=>{
-    connectdb();
-    console.log(`app is listing on port ${port}`);
-})
+app.get("/", (req, res) => {
+  res.json({ message: "working backend" });
+});
 
-try{
-  ensureRekognitionCollection()
-}catch(err){
+/* ================= ROUTES WITHOUT FILE UPLOAD ================= */
 
-}
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/auth", authRouter);
+app.use("/attendance", attendanceRouter);
+app.use("/roles", rolesRoute);
+app.use("/role-assignments", roleAssignmentsRoute);
+app.use("/user", userRoute);
+app.use("/permission", permissionRoute);
+app.use("/agent", agentRoute);
+
+/* ================= ROUTES WITH FILE UPLOAD ================= */
+// ❗ multer must receive raw stream → NO body parser before this
+app.use("/medicines", medicineRouter);
+
+/* ================= ERROR HANDLER ================= */
 
 app.use((err, req, res, next) => {
   console.error("ERROR:", err);
@@ -55,12 +59,27 @@ app.use((err, req, res, next) => {
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 
   return res.status(500).json({
     success: false,
-    message: "Internal Server Error"
+    message: "Internal Server Error",
   });
 });
+
+/* ================= START ================= */
+
+const port = process.env.PORT || 3000;
+
+server.listen(port, () => {
+  connectdb();
+  console.log(`app is listening on port ${port}`);
+});
+
+try {
+  ensureRekognitionCollection();
+} catch (err) {
+  console.error("Rekognition error", err);
+}

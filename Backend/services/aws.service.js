@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {  IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand } from "@aws-sdk/client-rekognition";
 import { rekognition, s3 } from "../config/aws.config.js";
 
@@ -257,6 +257,17 @@ export const uploadMedicineImageToS3 = async ({
   };
 };
 
+
+export const deleteMedicineImageFromS3 = async (key) => {
+  if (!key) return;
+
+  await s3.send(
+    new DeleteObjectCommand({
+      Bucket: process.env.MEDICINE_BUCKET,
+      Key: key,
+    })
+  );
+};
 
 
 

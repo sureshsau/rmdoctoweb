@@ -83,7 +83,6 @@ export const getMedicineByIdController = async (req, res) => {
 };
 
 
-import { editMedicineService } from "../services/medicine.service.js";
 
 export const editMedicineController = async (req, res) => {
   try {
@@ -143,3 +142,7 @@ export const deleteMedicineController = async (req, res) => {
     });
   }
 };
+
+
+
+

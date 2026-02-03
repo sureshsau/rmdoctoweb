@@ -293,6 +293,7 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
 
 export const login = async ({ email, phone, password, ip, device }) => {
   try {
+    
     if ((!email && !phone) || !password) {
       return {
         status: 400,
@@ -328,7 +329,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     }
 
     // 3️⃣ Validate password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid =await  bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return {
         status: 401,
@@ -358,11 +359,6 @@ export const login = async ({ email, phone, password, ip, device }) => {
     user.lastLoginDevice = device;
     user.lastLoginAt = new Date();
 
-    user.devices.push({
-      ip,
-      device,
-      loggedInAt: new Date(),
-    });
 
     await user.save();
 

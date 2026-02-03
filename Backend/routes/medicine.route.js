@@ -25,6 +25,7 @@ router.post(
   editMedicineController
 )
 .delete('/:medicineId',
+  authenticate,
   authorize("medicine.delete"),
   deleteMedicineController
 )

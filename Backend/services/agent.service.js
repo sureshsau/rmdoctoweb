@@ -4,6 +4,7 @@ import AgentProfile from "../models/agentProfile.model.js";
 import ROLE from "../models/role.model.js";
 import RoleAssignment from '../models/roleAssignment.model.js'
 import { hashPassword } from "../utils/password.js";
+import { uploadAgreementToS3 } from "./aws.service.js";
 
 
 const validateAgentPayload = ({
@@ -177,6 +178,57 @@ export const registerAgentByMarketingAgentService = async ({
 };
 
 
+
+export const uploadAgentAgreementService = async ({
+  agentProfileId,
+  uploadedByUserId,
+  fileBuffer,
+  mimeType,
+  documentType // "AGREEMENT" | "LICENSE"
+}) => {
+  if (!agentProfileId || !uploadedByUserId || !fileBuffer || !documentType) {
+    throw new Error("Missing required parameters");
+  }
+
+  // 1️⃣ Fetch agent profile
+  const agentProfile = await AgentProfile.findById(agentProfileId);
+
+  if (!agentProfile) {
+    throw new Error("Agent profile not found");
+  }
+
+  // 2️⃣ Upload to S3 FIRST (no DB mutation yet)
+  const uploadResult = await uploadAgreementToS3({
+    userId: agentProfile.userId.toString(),
+    documentType: documentType.toLowerCase(), // agreement | license
+    fileBuffer,
+    mimeType
+  });
+
+  // 3️⃣ Update agreement section (atomic document update)
+  agentProfile.agreement = {
+    documentType,
+    document: {
+      url: uploadResult.url,
+      key: uploadResult.key
+    },
+    uploadedAt: new Date(),
+    verificationStatus: "PENDING",
+    verifiedBy: null,
+    verifiedAt: null,
+    rejectionReason: null
+  };
+
+  // 4️⃣ Agent must go inactive until approved
+  agentProfile.status = "INACTIVE";
+
+  await agentProfile.save();
+
+  return {
+    message: "Agreement uploaded successfully and pending verification",
+    agreement: agentProfile.agreement
+  };
+};
 
 
 

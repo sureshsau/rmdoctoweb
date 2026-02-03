@@ -50,24 +50,36 @@ export const getMedicinesService = async ({
   page = 1,
   limit = 10,
   search = "",
-  dosageForm = "",
+  dosageForm = ""
 }) => {
+  page = Number(page);
+  limit = Number(limit);
+
   const skip = (page - 1) * limit;
 
   const query = {
-    isActive: true,
+    isActive: true
   };
 
-  // 🔍 Text search
-  if (search) {
-    query.$text = { $search: search };
+  /* 🔍 SEARCH (name, brandName, tags, therapeuticUse, composition) */
+  if (search && search.trim() !== "") {
+    const regex = new RegExp(search.trim(), "i");
+
+    query.$or = [
+      { name: regex },
+      { brandName: regex },
+      { therapeuticUse: regex },
+      { tags: regex },
+      { "composition.ingredient": regex }
+    ];
   }
 
-  // 💊 Dosage form filter (Tablet / Capsule / etc.)
-  if (dosageForm) {
+  /* 💊 DOSAGE FORM FILTER */
+  if (dosageForm && dosageForm.trim() !== "") {
     query.dosageForm = dosageForm;
   }
 
+  /* 📦 FETCH DATA */
   const medicines = await Medicine.find(query)
     .select(
       "name brandName dosageForm pricing.price pricing.mrp pricing.specialPrice images isActive"
@@ -79,26 +91,28 @@ export const getMedicinesService = async ({
 
   const total = await Medicine.countDocuments(query);
 
+  /* 🔄 FORMAT RESPONSE */
   return {
-    data: medicines.map((med) => ({
+    data: medicines.map(med => ({
       _id: med._id,
       name: med.name,
       brandName: med.brandName,
       dosageForm: med.dosageForm,
-      price: med.pricing?.normalUserPrice,
+
+      price: med.pricing?.price,
       mrp: med.pricing?.mrp,
       specialPrice: med.pricing?.specialPrice,
+
       image:
-        med.images?.find((img) => img.isPrimary)?.url ||
-        med.images?.[0]?.url ||
-        null,
+        med.images?.[0]?.url || null
     })),
+
     pagination: {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
-    },
+      totalPages: Math.ceil(total / limit)
+    }
   };
 };
 

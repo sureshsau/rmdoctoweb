@@ -16,30 +16,54 @@ export const createUserService = async ({
     throw new Error("Name and phone are required");
   }
 
-  const phoneExists = await User.findOne({ phone });
-  if (phoneExists) {
-    throw new Error("Phone number already exists");
-  }
-
-  if (email) {
-    const emailExists = await User.findOne({ email });
-    if (emailExists) {
-      throw new Error("Email already exists");
-    }
-  }
+  // 1️⃣ Find existing user (phone is primary identity)
+  let user = await User.findOne({ phone });
 
   const passwordHash = password ? await hashPassword(password) : undefined;
 
-  // 1️⃣ Create base user (NO roles here)
-  const user = await User.create({
-    name,
-    email: email || undefined,
-    phone,
-    passwordHash,
-    isActive,
-  });
+  if (user) {
+    // 🔁 UPDATE FLOW
 
-  // 2️⃣ Assign roles & permissions (RBAC + profile creation)
+    // Email uniqueness check (only if changed)
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: user._id },
+      });
+      if (emailExists) {
+        throw new Error("Email already exists");
+      }
+      user.email = email;
+    }
+
+    user.name = name;
+    user.isActive = isActive;
+
+    if (passwordHash) {
+      user.passwordHash = passwordHash;
+    }
+
+    await user.save();
+  } else {
+    // 🆕 CREATE FLOW
+
+    if (email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        throw new Error("Email already exists");
+      }
+    }
+
+    user = await User.create({
+      name,
+      email: email || undefined,
+      phone,
+      passwordHash,
+      isActive,
+    });
+  }
+
+  // 2️⃣ Assign roles & permissions (idempotent inside service)
   if (roles.length || permissions.length || dashboard) {
     await assignRoleService({
       userId: user._id,
@@ -49,10 +73,11 @@ export const createUserService = async ({
     });
   }
 
-  // 3️⃣ Return fresh user with updated roles
+  // 3️⃣ Return fresh user
   const updatedUser = await User.findById(user._id)
-    .select("_id name email phone roles permissions dashboard isActive")
+    .select("_id name email phone roles permissions dashboard isActive profiles")
     .lean();
 
   return updatedUser;
 };
+

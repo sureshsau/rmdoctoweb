@@ -20,7 +20,6 @@ export const verifyOtp = async (req, res) => {
 };
 export const login = async (req, res) => {
   try {
-    console.log('login hit');
     const response = await AuthService.login({
       ...req.body,
       ip: req.ip,
@@ -29,6 +28,7 @@ export const login = async (req, res) => {
 
     return res.status(response.status).json(response.body);
   } catch (err) {
+    console.log(err);
     return res.status(500).json({ success:false, message: "Server error" });
   }
 };

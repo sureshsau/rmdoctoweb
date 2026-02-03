@@ -15,7 +15,7 @@ import userRoute from "./routes/user.route.js";
 import permissionRoute from "./routes/permission.route.js";
 import agentRoute from "./routes/agent.route.js";
 import medicineRouter from "./routes/medicine.route.js";
-
+import medicineOrderRoute from './routes/medicineOrder.route.js'
 import AppError from "./utils/AppError.js";
 import { ensureRekognitionCollection } from "./services/aws.service.js";
 
@@ -46,6 +46,7 @@ app.use("/role-assignments", roleAssignmentsRoute);
 app.use("/user", userRoute);
 app.use("/permission", permissionRoute);
 app.use("/agent", agentRoute);
+app.use("/medicine/order",medicineOrderRoute);
 
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this

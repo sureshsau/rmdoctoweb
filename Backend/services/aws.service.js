@@ -270,4 +270,57 @@ export const deleteMedicineImageFromS3 = async (key) => {
 };
 
 
+export const uploadAgreementToS3 = async ({
+  userId,
+  documentType,   // "agreement" | "license"
+  fileBuffer,
+  mimeType
+}) => {
+  console.log("👉 uploadAgreementToS3 called");
+
+  try {
+    const bucketName = process.env.AGREEMENT_BUCKET || process.env.KYC_BUCKET;
+    const region = process.env.AWS_REGION;
+
+    if (!userId || !documentType || !fileBuffer || !bucketName) {
+      throw new Error("Missing required parameters for Agreement upload");
+    }
+
+    // 🗂️ Structured S3 key (audit + easy cleanup)
+    const key = `agents/${userId}/agreement/${documentType}.pdf`;
+
+    console.log("⏫ Uploading agreement to S3...", key);
+
+    const uploadResult = await s3.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: mimeType,
+        ACL: "private" // 🔒 Legal document → MUST be private
+      })
+    );
+
+    console.log("✅ Agreement upload success:", uploadResult);
+
+    const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+
+    console.log("🔹 Agreement S3 URL:", s3Url);
+
+    return {
+      bucket: bucketName,
+      key,
+      url: s3Url,
+      documentType
+    };
+
+  } catch (error) {
+    console.error("❌ Agreement upload failed");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Full error:", error);
+    throw error;
+  }
+};
+
 

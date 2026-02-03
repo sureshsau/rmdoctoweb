@@ -79,7 +79,8 @@ const marketingAgentProfileSchema = new mongoose.Schema(
     },
     lastActiveAt: {
       type: Date
-    }
+    },
+    
   },
   { timestamps: true }
 );

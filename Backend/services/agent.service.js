@@ -5,7 +5,8 @@ import ROLE from "../models/role.model.js";
 import RoleAssignment from '../models/roleAssignment.model.js'
 import { hashPassword } from "../utils/password.js";
 import { uploadAgreementToS3 } from "./aws.service.js";
-
+import AppError from "../utils/AppError.js";
+import marketingAgentProfile from "../models/marketingAgentProfile.model.js";
 
 const validateAgentPayload = ({
   agentName,
@@ -62,7 +63,7 @@ export const registerAgentByMarketingAgentService = async ({
 
       if (existingAgentProfile) {
         if (existingAgentProfile.marketingAgentId) {
-          throw new Error("Agent is already allocated to a marketing agent");
+          throw AppError("Agent is already allocated to a marketing agent",400);
         }
 
         // Assign if unallocated
@@ -113,12 +114,18 @@ export const registerAgentByMarketingAgentService = async ({
       user = await User.create({
         name: agentName,
         phone,
-
-        // ✅ NEW RBAC FIELDS
+        address,
+        city,
+        state,
+        pincode,
+        location: {
+          type: "Point",
+          coordinates: [longitude, latitude]
+        },
+        // NEW RBAC FIELDS
         dashboard: "agent",
         role: ["agent"],
         permissions: [],
-
         isActive: false,
         isBlocked: false,
         passwordHash,
@@ -129,17 +136,6 @@ export const registerAgentByMarketingAgentService = async ({
     // 🔹 4. Create agent profile
     const agentProfile = await AgentProfile.create({
       userId: user._id,
-      agentName,
-      phone,
-      address,
-      city,
-      state,
-      pincode,
-      location: {
-        type: "Point",
-        coordinates: [longitude, latitude]
-      },
-      parentAgentId,
       level,
       directDownlineCount: 0,
       totalDownlineCount: 0,
@@ -161,11 +157,19 @@ export const registerAgentByMarketingAgentService = async ({
           dashboard: "agent",
           role: ["agent"],
           permissions: role?.permissions ||[],
-          "profiles.agentId": agentProfileId
+          "profiles.agentId": agentProfileId,
+
         }
       }
     );
-
+    //update marketing agentid
+    await marketingAgentProfile.updateOne({
+      userId:marketingAgentId
+    },{
+    $addToSet: {
+      directAgentIds: agentProfileId
+    }
+    })
     return {
       userId: user._id,
       agentProfileId,

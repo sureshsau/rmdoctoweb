@@ -11,6 +11,7 @@ const medicineOrderSchema = new mongoose.Schema(
     deliveryAgentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+        default:null,
         index: true
     },
 
@@ -143,6 +144,9 @@ const medicineOrderSchema = new mongoose.Schema(
     otpVerified: {
       type: Boolean,
       default: false
+    },
+    otp:{
+      type:Number
     },
 
     cancelledReason: String

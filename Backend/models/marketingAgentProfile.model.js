@@ -9,11 +9,13 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       required: true,
       unique: true
     },
-
-    // 🧑‍💼 Employment Info
-    employeeCode: {
-      type: String,
-    },
+    directAgentIds: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "AgentProfile",
+    index: true
+  }
+],
     joiningDate: {
       type: Date,
 
@@ -53,10 +55,6 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       default: 0
     },
     totalVisitsCompletedThisMonth: {
-      type: Number,
-      default: 0
-    },
-    completionPercentage: {
       type: Number,
       default: 0
     },

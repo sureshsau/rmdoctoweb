@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import { useAuthContext } from "@/state/AuthContext";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function ForgotVerifyOtpPage() {
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const { sendForgotPasswordOtp, verifyForgotPasswordOtp } = useAuthContext();
 
   const params = useSearchParams();
   const email = params.get("email");
@@ -21,7 +22,7 @@ export default function ForgotVerifyOtpPage() {
   const [errors, setErrors] = useState<string>("");
 
   const [timer, setTimer] = useState<number>(60);
-  const [canResend, setCanResend] = useState<boolean>(false);
+  const canResend = timer === 0;
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -34,12 +35,10 @@ export default function ForgotVerifyOtpPage() {
   }, [errors]);
 
   useEffect(() => {
-    if (!canResend && timer > 0) {
-      const interval = setInterval(() => setTimer((t) => t - 1), 1000);
-      return () => clearInterval(interval);
-    }
-    if (timer === 0) setCanResend(true);
-  }, [timer, canResend]);
+    if (timer <= 0) return;
+    const interval = setInterval(() => setTimer((t) => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleChange = (i: number, value: string) => {
     if (value && !/^\d$/.test(value)) return;
@@ -74,16 +73,12 @@ export default function ForgotVerifyOtpPage() {
     if (!canResend) return;
 
     try {
-      await axios.post(`${API_URL}/auth/forgot-password/send-otp`, {
-        identifier,
-        type,
-      });
+      await sendForgotPasswordOtp({ identifier, type });
 
       setOtp(["", "", "", ""]);
       setTimer(60);
-      setCanResend(false);
-    } catch (err: any) {
-      setErrors(err.response?.data?.error || "Failed to resend OTP");
+    } catch (err: unknown) {
+      setErrors(getApiErrorMessage(err, "Failed to resend OTP"));
     }
   };
 
@@ -98,17 +93,10 @@ export default function ForgotVerifyOtpPage() {
     }
 
     try {
-      const res = await axios.post(`${API_URL}/auth/forgot-password/verify-otp`, {
-        identifier,
-        type,
-        otp: code,
-      });
-
-      if (res.status === 200) {
-        router.push(`/auth/resetPassword?identifier=${identifier}&type=${type}`);
-      }
-    } catch (err: any) {
-      setErrors(err.response?.data?.error || "Invalid OTP");
+      await verifyForgotPasswordOtp({ identifier, type, otp: code });
+      router.push(`/auth/resetPassword?identifier=${identifier}&type=${type}`);
+    } catch (err: unknown) {
+      setErrors(getApiErrorMessage(err, "Invalid OTP"));
     }
   };
 
@@ -120,7 +108,7 @@ export default function ForgotVerifyOtpPage() {
         </div>
       )}
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-cyan-50 to-blue-50 p-4">
         <div className="max-w-md w-full bg-white rounded-xl p-8 shadow-xl">
 
           <h2 className="text-3xl font-bold text-center">Verify OTP</h2>

@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
+import { useAuthContext } from "@/state/AuthContext";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
 export default function VerifyOTPPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const { verifyRegisterOtp } = useAuthContext();
 
   // ---------------------------------------------------
   // STATES
@@ -18,7 +22,7 @@ export default function VerifyOTPPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const [timer, setTimer] = useState(60);
-  const [canResend, setCanResend] = useState(false);
+  const canResend = timer === 0;
 
   const [errors, setErrors] = useState<string>("");
 
@@ -33,15 +37,10 @@ export default function VerifyOTPPage() {
   // TIMER COUNTDOWN FOR RESEND
   // ---------------------------------------------------
   useEffect(() => {
-    if (!canResend && timer > 0) {
-      const interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-
-    if (timer === 0) setCanResend(true);
-  }, [timer, canResend]);
+    if (timer <= 0) return;
+    const interval = setInterval(() => setTimer((prev) => Math.max(0, prev - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [timer]);
 
   // ---------------------------------------------------
   // INVALID SESSION CHECK
@@ -108,44 +107,39 @@ export default function VerifyOTPPage() {
     }
 
     try {
-      const res = await axios.post(
-        `${API_URL}/auth/verifyotp`,
-        { identifier: phone, otp: otpValue },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      await verifyRegisterOtp({ identifier: phone, otp: otpValue });
+      setOtp(["", "", "", ""]);
+    } catch (error: unknown) {
+      const msg = getApiErrorMessage(error);
 
-      if (res.status === 201) {
-        setOtp(["", "", "", ""]);
-        // ✅ Store auth session
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const data: unknown = error.response?.data;
 
-        // ✅ ALWAYS redirect to home after OTP
-        router.push("/");
+        if (isRecord(data) && Array.isArray(data.errors) && data.errors.length > 0 && isRecord(data.errors[0])) {
+          const first = data.errors[0].message;
+          if (typeof first === "string" && first.trim()) {
+            setErrors(first);
+            return;
+          }
+        }
+
+        switch (status) {
+          case 410:
+            setErrors("OTP expired. Please request a new one.");
+            return;
+          case 401:
+            setErrors("Invalid OTP. Try again.");
+            return;
+          case 500:
+            setErrors("Server error. Try again later.");
+            return;
+          default:
+            break;
+        }
       }
-    } catch (error: any) {
-      const status = error.response?.status;
-      const msg = error.response?.data?.error;
 
-      const serverErrors = error.response?.data?.errors;
-      if (Array.isArray(serverErrors)) {
-        setErrors(serverErrors[0].message);
-        return;
-      }
-
-      switch (status) {
-        case 410:
-          setErrors("OTP expired. Please request a new one.");
-          break;
-        case 401:
-          setErrors("Invalid OTP. Try again.");
-          break;
-        case 500:
-          setErrors("Server error. Try again later.");
-          break;
-        default:
-          setErrors(msg || "Something went wrong");
-      }
+      setErrors(msg || "Something went wrong");
     }
   };
 
@@ -156,11 +150,9 @@ export default function VerifyOTPPage() {
     if (!canResend) return;
 
     try {
-      await axios.post(
-        `${API_URL}/auth/resend-otp`,
-        { phone },
-        { headers: { "Content-Type": "application/json" } }
-      );
+      // backend expects { identifier }
+      const { authService } = await import("@/services/auth.service");
+      await authService.resendOtp(phone as string);
 
       setOtp(["", "", "", ""]);
       inputRefs.current[0]?.focus();
@@ -168,13 +160,12 @@ export default function VerifyOTPPage() {
       setTimer(60);
       setCanResend(false);
       setErrors("");
-    } catch (err: any) {
-      if (err.response?.status === 429) {
-        setErrors(err.response.data.error);
-      } else {
-        console.log(err);
-        setErrors("Something went wrong! Try again.");
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        setErrors(getApiErrorMessage(err));
+        return;
       }
+      setErrors(getApiErrorMessage(err, "Something went wrong! Try again."));
     }
   };
 
@@ -189,7 +180,7 @@ export default function VerifyOTPPage() {
         </div>
       )}
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-cyan-50 to-blue-50 p-4">
         <div className="max-w-md w-full bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-8 space-y-6">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">Verify OTP</h2>

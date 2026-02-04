@@ -1,33 +1,25 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { User } from 'lucide-react';
+import { useState } from 'react';
+import { useAuthContext } from '@/state/AuthContext';
+import { getDashboardPathForUser } from '@/lib/roleRoutes';
+import { usePathname } from 'next/navigation';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
- const [isLoggedIn, setIsLoggedIn] = useState(false);
-const [role, setRole] = useState<string | null>(null);
+  usePathname();
+  const { isAuthenticated, user, logout } = useAuthContext();
 
-useEffect(() => {
-  const token = localStorage.getItem("token");
-  const user = localStorage.getItem("user");
-
-  if (token && user) {
-    const parsedUser = JSON.parse(user);
-    setIsLoggedIn(true);
-    setRole(parsedUser.role); // doctor, admin, user, etc.
-  }
-}, []);
+// no-op: menu is closed via click handlers
   
-  const navigationItems = [
+    const navigationItems = [
     { name: "Home", link: "/" },
     { name: "About Us", link: "/about" },
     { name: "Services", link: "/services" },
-    { name: "Doctors", link: "/doctor" },
+    { name: "Medicine Store", link: "/medicine-store" },
     { name: "Lab Test", link: "/lab-test" },
     { name: "Contact", link: "/contact" },
   ];
-
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -36,21 +28,7 @@ useEffect(() => {
     setIsMenuOpen(false);
   };
 
-
-  const getDashboardLink = () => {
-  if (!role) return "/dashboard";
-
-  switch (role) {
-    case "doctor":
-      return "/doctor/dashboard";
-    case "admin":
-      return "/admin/dashboard";
-    case "hms":
-      return "/hms/dashboard";
-    default:
-      return "/user/dashboard"; // normal users
-  }
-};
+  const getDashboardLink = () => getDashboardPathForUser(user);
 
   return (
     <>
@@ -74,7 +52,7 @@ useEffect(() => {
 
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <Link href="/" className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">
+              <Link href="/" className="text-xl sm:text-2xl font-extrabold bg-linear-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">
                 RMDocto
               </Link>
             </div>
@@ -93,20 +71,9 @@ useEffect(() => {
             </div>
 
            {/* Desktop Right Buttons */}
-<div className="hidden lg:flex items-center gap-4">
-
-  {/* Show Book Appointment only for visitors + normal users */}
-  {(!isLoggedIn || role === "user") && (
-    <Link
-      href="/book-appointment"
-      className="text-sm font-semibold px-5 py-2.5 rounded-full text-white bg-gradient-to-r from-cyan-600 to-blue-600 backdrop-blur-xl hover:shadow-xl hover:scale-105 transition-all duration-300"
-    >
-      Book Appointment
-    </Link>
-  )}
-
+<div className="hidden md:flex items-center gap-4">
   {/* If not logged in → show login/signup */}
-  {!isLoggedIn ? (
+  {!isAuthenticated ? (
     <div className="flex items-center gap-3">
       <Link
         href="/auth/login"
@@ -136,10 +103,7 @@ useEffect(() => {
       {/* Logout */}
       <button
         onClick={() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setIsLoggedIn(false);
-          setRole(null);
+          logout({ redirectTo: "/" });
         }}
         className="text-sm font-semibold px-4 py-2 rounded-full text-red-600 bg-red-100 hover:bg-red-200 transition-all"
       >
@@ -226,25 +190,13 @@ useEffect(() => {
               
               {/* Mobile Action Buttons */}
                   <div className="mt-6 px-4 space-y-3">
-                    {/* Book Appointment */}
-                    <Link
-                      href="/#"
-                      className="block w-full text-center font-semibold px-4 py-3 rounded-lg 
-                                text-white bg-cyan-600 
-                                hover:bg-cyan-700 hover:shadow-lg 
-                                transition-all duration-300 
-                                hover:scale-105 active:scale-95 transform hover:-translate-y-1"
-                    >
-                      Book Appointment
-                    </Link>
-
                     {/* Login / Sign Up */}
                     <Link
-                      href="/auth"
+                      href="/auth/login"
                       onClick={closeMenu}
                       className="block w-full text-center font-semibold px-4 py-3 rounded-lg 
              text-white 
-             bg-gradient-to-r from-rose-500 to-red-600
+             bg-linear-to-r from-rose-500 to-red-600
              hover:from-red-600 hover:to-rose-600
              hover:shadow-lg 
              transition-all duration-300 

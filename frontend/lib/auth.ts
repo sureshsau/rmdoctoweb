@@ -1,29 +1,42 @@
 import { jwtDecode } from "jwt-decode";
 
-export type DecodedUser = {
-  id: string;
-  role: "admin" | "doctor" | "receptionist" | "agent" | "user";
+export type DecodedToken = {
+  id?: string;
   exp: number;
+  deviceType?: "web" | "app";
+  version?: number;
 };
 
-export const getUserFromToken = (): DecodedUser | null => {
+export function getValidToken(): string | null {
   if (typeof window === "undefined") return null;
 
   const token = localStorage.getItem("token");
   if (!token) return null;
 
   try {
-    const decoded: DecodedUser = jwtDecode(token);
+    const decoded = jwtDecode<DecodedToken>(token);
 
-    // ✅ Auto logout on expiry
-    if (decoded.exp * 1000 < Date.now()) {
-      localStorage.clear();
+    // Auto logout on expiry
+    if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       return null;
     }
 
-    return decoded;
+    return token;
   } catch {
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     return null;
   }
-};
+}
+
+export function getDecodedToken(): DecodedToken | null {
+  const token = getValidToken();
+  if (!token) return null;
+  try {
+    return jwtDecode<DecodedToken>(token);
+  } catch {
+    return null;
+  }
+}

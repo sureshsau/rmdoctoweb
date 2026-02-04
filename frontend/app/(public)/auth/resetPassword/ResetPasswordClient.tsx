@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Eye, EyeOff } from "lucide-react";
-import axios from "axios";
+import { useAuthContext } from "@/state/AuthContext";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function ResetPasswordPage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const router = useRouter();
   const params = useSearchParams();
+  const { resetPassword } = useAuthContext();
 
   const identifier: string = (params.get("identifier") || "").trim();
   const type = params.get("type") as "email" | "phone";
@@ -45,19 +46,11 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const res = await axios.post(`${API_URL}/auth/forgot-password/reset`, {
-        identifier,
-        type,
-        newPassword: password,
-      });
-
-      if (res.status === 200) {
-        setSuccess("Password reset successfully!");
-
-        setTimeout(() => router.push("/auth/login"), 2000);
-      }
-    } catch (err: any) {
-      setErrors(err.response?.data?.error || "Something went wrong");
+      await resetPassword({ identifier, type, newPassword: password });
+      setSuccess("Password reset successfully!");
+      setTimeout(() => router.push("/auth/login"), 2000);
+    } catch (err: unknown) {
+      setErrors(getApiErrorMessage(err, "Something went wrong"));
     }
   };
 
@@ -81,7 +74,7 @@ export default function ResetPasswordPage() {
         </div>
       )}
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-cyan-50 to-blue-50 px-4">
         <div className="max-w-sm w-full bg-white rounded-xl p-6 shadow-xl space-y-6">
 
           <h2 className="text-3xl font-extrabold text-center">Reset Password</h2>

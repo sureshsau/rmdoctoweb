@@ -1,0 +1,174 @@
+﻿
+> frontend@0.1.0 lint
+> eslint
+
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\about\page.tsx
+   2:8  warning  'Image' is defined but never used       @typescript-eslint/no-unused-vars
+   3:8  warning  'Link' is defined but never used        @typescript-eslint/no-unused-vars
+   4:8  warning  'Button' is defined but never used      @typescript-eslint/no-unused-vars
+  13:3  warning  'Star' is defined but never used        @typescript-eslint/no-unused-vars
+  14:3  warning  'ArrowRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\auth\login\page.tsx
+  5:22  warning  'User' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\auth\register\page.tsx
+  7:10  warning  'motion' is defined but never used           @typescript-eslint/no-unused-vars
+  7:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\contact\page.tsx
+   2:8  warning  'Image' is defined but never used       @typescript-eslint/no-unused-vars
+  16:3  warning  'ArrowRight' is defined but never used  @typescript-eslint/no-unused-vars
+  17:3  warning  'Building' is defined but never used    @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\medicine-store\[id]\page.tsx
+   36:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  250:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  250:45  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\medicine-store\cart\page.tsx
+    4:21  warning  'Trash2' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   12:20  warning  'totalPrice' is assigned a value but never used                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   40:29  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  162:57  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  162:57  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+  272:57  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\medicine-store\page.tsx
+  24:6  warning  React Hook useEffect has a missing dependency: 'loadMedicines'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\(public)\services\page.jsx
+   4:8  warning  'Link' is defined but never used   @typescript-eslint/no-unused-vars
+  17:3  warning  'Users' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\agents\page.tsx
+   4:20  warning  'Save' is defined but never used             @typescript-eslint/no-unused-vars
+  11:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\dashboard\page.tsx
+   6:10  warning  'AuthUser' is defined but never used      @typescript-eslint/no-unused-vars
+  27:59  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\doctors\page.tsx
+    4:10  warning  'Stethoscope' is defined but never used   @typescript-eslint/no-unused-vars
+    4:37  warning  'Shield' is defined but never used        @typescript-eslint/no-unused-vars
+  124:35  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:58  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\medicine\page.tsx
+    7:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   40:32  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   41:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  150:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\patients\page.tsx
+    4:10  warning  'User' is defined but never used          @typescript-eslint/no-unused-vars
+  117:39  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:62  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\roles\create\page.tsx
+  5:27  warning  'Shield' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\roles\page.tsx
+  4:24  warning  'Lock' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\admin\users\add\page.tsx
+  5:20  warning  'Save' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\dashboard\medicine\[id]\page.tsx
+   8:34  warning  'ShoppingBag' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   8:62  warning  'CheckCircle' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  10:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  68:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  68:29  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+  96:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  96:37  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\dashboard\medicine\cart\page.tsx
+   4:21  warning  'Trash2' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  10:48  warning  'removeMedicine' is assigned a value but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  15:29  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  54:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  54:49  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\dashboard\medicine\page.tsx
+  22:8  warning  React Hook useEffect has a missing dependency: 'loadMedicines'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\doctor\dashboard\page.tsx
+   5:29  warning  'AttendanceLog' is defined but never used  @typescript-eslint/no-unused-vars
+   6:18  warning  'MapPin' is defined but never used         @typescript-eslint/no-unused-vars
+  12:36  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\layout.tsx
+  3:15  warning  'Metadata' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\app\page.tsx
+   14:10   warning  'ArrowRight' is defined but never used      @typescript-eslint/no-unused-vars
+   14:22   warning  'Users' is defined but never used           @typescript-eslint/no-unused-vars
+   14:36   warning  'UserCheck' is defined but never used       @typescript-eslint/no-unused-vars
+   14:47   warning  'TrendingUp' is defined but never used      @typescript-eslint/no-unused-vars
+   15:3    warning  'Linkedin' is defined but never used        @typescript-eslint/no-unused-vars
+   15:13   warning  'Instagram' is defined but never used       @typescript-eslint/no-unused-vars
+   15:24   warning  'Twitter' is defined but never used         @typescript-eslint/no-unused-vars
+   15:33   warning  'Facebook' is defined but never used        @typescript-eslint/no-unused-vars
+   15:43   warning  'Mail' is defined but never used            @typescript-eslint/no-unused-vars
+   15:57   warning  'Pill' is defined but never used            @typescript-eslint/no-unused-vars
+   15:63   warning  'Heart' is defined but never used           @typescript-eslint/no-unused-vars
+   16:3    warning  'Baby' is defined but never used            @typescript-eslint/no-unused-vars
+   16:9    warning  'Activity' is defined but never used        @typescript-eslint/no-unused-vars
+   16:19   warning  'Leaf' is defined but never used            @typescript-eslint/no-unused-vars
+   16:25   warning  'Stethoscope' is defined but never used     @typescript-eslint/no-unused-vars
+   16:38   warning  'Droplets' is defined but never used        @typescript-eslint/no-unused-vars
+   16:48   warning  'BarChart3' is defined but never used       @typescript-eslint/no-unused-vars
+   16:59   warning  'TestTube' is defined but never used        @typescript-eslint/no-unused-vars
+   17:3    warning  'Zap' is defined but never used             @typescript-eslint/no-unused-vars
+   17:8    warning  'Sun' is defined but never used             @typescript-eslint/no-unused-vars
+   17:13   warning  'Shield' is defined but never used          @typescript-eslint/no-unused-vars
+   17:21   warning  'Brain' is defined but never used           @typescript-eslint/no-unused-vars
+   17:28   warning  'Radio' is defined but never used           @typescript-eslint/no-unused-vars
+   17:35   warning  'Eye' is defined but never used             @typescript-eslint/no-unused-vars
+   17:40   warning  'MonitorSpeaker' is defined but never used  @typescript-eslint/no-unused-vars
+   17:56   warning  'Bone' is defined but never used            @typescript-eslint/no-unused-vars
+   18:3    warning  'FlaskConical' is defined but never used    @typescript-eslint/no-unused-vars
+   18:17   warning  'Calendar' is defined but never used        @typescript-eslint/no-unused-vars
+   18:27   warning  'FileText' is defined but never used        @typescript-eslint/no-unused-vars
+   18:37   warning  'PhoneCall' is defined but never used       @typescript-eslint/no-unused-vars
+   18:48   warning  'ArrowUpRight' is defined but never used    @typescript-eslint/no-unused-vars
+   18:62   warning  'ArrowDownRight' is defined but never used  @typescript-eslint/no-unused-vars
+   20:10   warning  'StatCard' is defined but never used        @typescript-eslint/no-unused-vars
+  223:157  warning  'i' is defined but never used               @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\SkeletonLoader.tsx
+  17:47  warning  'delay' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\common\SkeletonLoader.tsx
+   5:7   warning  'shimmer' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  17:47  warning  'delay' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\landing\FeatureGrid.tsx
+   2:10  warning  'cva' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   2:20  warning  'VariantProps' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  35:7   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\landing\Testimonials.tsx
+  40:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\layout\AdminSidebar.tsx
+  10:5  warning  'CalendarCheck' is defined but never used  @typescript-eslint/no-unused-vars
+  13:5  warning  'Settings' is defined but never used       @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\components\store\MedicineCard.tsx
+   6:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   8:16  warning  'Trash2' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  25:11  warning  'effectivePrice' is assigned a value but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  45:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+E:\RMDOCTO\rmdoctoweb\frontend\lib\face.ts
+  4:3  warning  'capturedImage' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\RMDOCTO\rmdoctoweb\frontend\services\medicine.service.ts
+  98:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 107 problems (13 errors, 94 warnings)
+

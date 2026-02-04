@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MailCheck, Mail, Lock, User, Phone, EyeOff, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthContext } from "@/state/AuthContext";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
-export default function page() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuthContext();
   const [showOtpSend, setShowOtpSend] = useState<boolean>(false);
 
   //From data State 
@@ -27,7 +28,7 @@ export default function page() {
     
   // Error Handling state
 
-  let [errors, setErrors] = useState<{
+  const [errors, setErrors] = useState<{
     name?: string;
     phone?: string;
     password?: string;
@@ -76,6 +77,11 @@ export default function page() {
       setErrors({ name: "Please enter your name" });
       return;
     }
+
+    if (!email || email.trim() === "") {
+      setErrors({ email: "Please enter your email" });
+      return;
+    }
     if (!phone) {
       setErrors({ phone: "Please enter your phone number" });
       return;
@@ -101,32 +107,19 @@ export default function page() {
     // 2. SEND DATA TO BACKEND
     // ==========================
     try {
-      const res = await axios.post(`${API_URL}/auth/register`, formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const { identifier } = await register({
+        name,
+        email,
+        phone,
+        password,
       });
 
-      // SUCCESS
-      if (res.status === 200) {
-        setErrors({});
-        setShowOtpSend(true);
-        router.push(`/auth/verifyOtp?phone=${phone}`);
-        return;
-      }
-    } catch (error: any) {
-      // ==========================
-      // 3. HANDLE BACKEND ERRORS
-      // ==========================
-      if (error.response) {
-        const msg = error.response.data?.message;
-
-        // Show backend message directly
-        setErrors({ all: msg || "Something went wrong. Try again." });
-        return;
-      }
-      console.log(error);
-      setErrors({ all: "Network error. Please try again." });
+      setErrors({});
+      setShowOtpSend(true);
+      router.push(`/auth/verifyOtp?phone=${identifier}`);
+      return;
+    } catch (error: unknown) {
+      setErrors({ all: getApiErrorMessage(error, "Network error. Please try again.") });
     }
   };
 

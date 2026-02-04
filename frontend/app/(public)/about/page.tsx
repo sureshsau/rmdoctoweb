@@ -1,7 +1,7 @@
 'use client';
 import Image from "next/image";
 import Link from "next/link";
-import Button from "@/components/Button";
+import Button from "@/components/shared/Button";
 import Footer from "@/components/layout/Footer";
 import { 
   Heart, 
@@ -20,112 +20,69 @@ import {
 
 export default function AboutUs() {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
       
       {/* Hero Section */}
       <section className="pt-16 pb-12 lg:pt-20 lg:pb-16">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-12 -mt-6 md:-mt-8">
             <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 leading-tight mb-4">
               About <span className="bg-gradient-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Your trusted healthcare partner providing exceptional medical care with compassion and innovation.
+              A digital healthcare platform built to make medical services more accessible, reliable, and convenient for everyone.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-8 items-start">
-            {/* Left Content */}
-            <div className="lg:col-span-3 space-y-8">
-              <div>
-                <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-3">
-                  Leading Healthcare Excellence Since 2010
-                </h2>
-                <p className="text-gray-600 leading-relaxed">
-                  At RMDocto, we believe that quality healthcare should be accessible to everyone. 
-                  Our state-of-the-art facilities and experienced medical professionals ensure 
-                  you receive the best possible care.
+          <div className="max-w-6xl mx-auto">
+            <div className="space-y-12">
+              <div className="text-center">
+                <p className="text-gray-600 leading-relaxed mb-6 max-w-4xl mx-auto">
+                  RMDocto is a digital healthcare platform built to make medical services more accessible, reliable, and convenient for everyone. Designed with a patient-first approach, RMDocto helps users connect with healthcare services through a simple and secure digital experience.
+                </p>
+                <p className="text-gray-600 leading-relaxed mb-6 max-w-4xl mx-auto">
+                  As a brand of RMIA Health Care OPC Private Limited, RMDocto enables users to book medicines online, schedule doctor appointments, and manage essential healthcare needs from one platform. Our goal is to reduce the everyday challenges people face while accessing medical services by bringing trusted healthcare solutions closer to them.
+                </p>
+                <p className="text-gray-600 leading-relaxed mb-6 max-w-4xl mx-auto">
+                  RMDocto focuses on creating a seamless connection between patients, doctors, pharmacies, and healthcare providers. By using modern technology, we ensure that users can easily find, book, and manage their healthcare requirements without unnecessary delays.
+                </p>
+                <p className="text-gray-600 leading-relaxed max-w-4xl mx-auto">
+                  We believe healthcare should be efficient, transparent, and easy to use. RMDocto is committed to improving healthcare accessibility while maintaining trust, security, and quality in every interaction.
                 </p>
               </div>
 
               {/* Key Features */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
-                  <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Heart className="w-6 h-6 text-cyan-600" />
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="flex flex-col items-center text-center p-8 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="w-16 h-16 bg-cyan-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Heart className="w-8 h-8 text-cyan-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Compassionate Care</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">Patient-centered approach with empathy</p>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Online Medicine Booking</h3>
+                  <p className="text-gray-600 leading-relaxed text-sm">Easy access to medicines through our secure digital platform</p>
                 </div>
 
-                <div className="flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Shield className="w-6 h-6 text-purple-600" />
+                <div className="flex flex-col items-center text-center p-8 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Shield className="w-8 h-8 text-purple-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Advanced Technology</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">Cutting-edge medical equipment</p>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Secure Platform</h3>
+                  <p className="text-gray-600 leading-relaxed text-sm">Safe and secure digital healthcare experience you can trust</p>
                 </div>
 
-                <div className="flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Award className="w-6 h-6 text-blue-600" />
+                <div className="flex flex-col items-center text-center p-8 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Award className="w-8 h-8 text-blue-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Expert Specialists</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">Board-certified doctors</p>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Doctor Appointments</h3>
+                  <p className="text-gray-600 leading-relaxed text-sm">Easy scheduling with qualified healthcare professionals</p>
                 </div>
 
-                <div className="flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition">
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Clock className="w-6 h-6 text-green-600" />
+                <div className="flex flex-col items-center text-center p-8 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Clock className="w-8 h-8 text-green-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">24/7 Availability</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">Round-the-clock emergency care</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Content - Image */}
-            <div className="relative lg:col-span-2">
-              <div className="bg-gradient-to-br from-cyan-50 to-blue-100 rounded-2xl overflow-hidden shadow-lg sticky top-8">
-                <Image
-                  src="/d.jpg"
-                  alt="Medical Professional"
-                  width={400}
-                  height={500}
-                  className="w-full h-96 object-cover"
-                />
-                
-                {/* Compact Statistics */}
-                <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-md">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-cyan-100 rounded-full flex items-center justify-center">
-                      <Users className="w-4 h-4 text-cyan-600" />
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">150+</div>
-                      <div className="text-xs text-gray-600">Doctors</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-md">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <Star className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">4.9★</div>
-                      <div className="text-xs text-gray-600">Rating</div>
-                    </div>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Convenient Access</h3>
+                  <p className="text-gray-600 leading-relaxed text-sm">Healthcare services available at your fingertips anytime</p>
                 </div>
               </div>
             </div>
@@ -138,10 +95,10 @@ export default function AboutUs() {
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Our Mission & Vision
+              Our Vision & Mission
             </h2>
             <p className="text-gray-600 text-lg max-w-3xl mx-auto">
-              Driven by our commitment to excellence and innovation in healthcare
+              Building a trusted digital healthcare ecosystem for everyone
             </p>
           </div>
 
@@ -154,22 +111,24 @@ export default function AboutUs() {
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h3>
                 <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                  To provide comprehensive, compassionate, and accessible healthcare services that improve 
-                  the health and wellbeing of our community through excellence in medical care, education, 
-                  and innovation.
+                  To build a trusted digital healthcare ecosystem that simplifies medical access and supports healthier communities.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-cyan-600 shrink-0" />
-                    <span className="text-gray-700">Patient-centered care approach</span>
+                    <span className="text-gray-700">Enable easy online medicine booking</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-cyan-600 shrink-0" />
-                    <span className="text-gray-700">Continuous medical excellence</span>
+                    <span className="text-gray-700">Simplify doctor appointment scheduling</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-cyan-600 shrink-0" />
-                    <span className="text-gray-700">Community health improvement</span>
+                    <span className="text-gray-700">Improve access to reliable healthcare services</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-cyan-600 shrink-0" />
+                    <span className="text-gray-700">Provide a secure and user-friendly digital platform</span>
                   </li>
                 </ul>
               </div>
@@ -184,22 +143,20 @@ export default function AboutUs() {
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-6">Our Vision</h3>
                 <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                  To be the leading healthcare provider recognized for exceptional patient outcomes, 
-                  innovative treatments, and setting the standard for quality medical care in our region 
-                  and beyond.
+                  To build a trusted digital healthcare ecosystem that simplifies medical access and supports healthier communities.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
-                    <span className="text-gray-700">Healthcare innovation leadership</span>
+                    <span className="text-gray-700">Accessible healthcare for everyone</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
-                    <span className="text-gray-700">Regional healthcare excellence</span>
+                    <span className="text-gray-700">Seamless digital healthcare experience</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
-                    <span className="text-gray-700">Advanced medical research</span>
+                    <span className="text-gray-700">Building healthier communities</span>
                   </li>
                 </ul>
               </div>
@@ -332,15 +289,16 @@ export default function AboutUs() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Commitment</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                We are dedicated to our patients' wellbeing and providing accessible, high-quality healthcare.
+                We are dedicated to our patients&apos; wellbeing and providing accessible, high-quality healthcare.
               </p>
             </div>
           </div>
         </div>
       </section>
 
+
       {/* Call to Action Section */}
-      <section className="py-12 bg-gradient-to-r from-cyan-600 to-blue-700">
+      {/* <section className="py-12 bg-gradient-to-r from-cyan-600 to-blue-700">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">
@@ -362,7 +320,7 @@ export default function AboutUs() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* FOOTER */}
       <Footer />

@@ -5,6 +5,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/layout/Navbar";
 import { usePathname } from 'next/navigation';
+import { AuthProvider } from "@/state/AuthContext";
+import { AuthGate } from "@/state/AuthGate";
+import { MedicineCartProvider } from "@/context/MedicineCartContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,13 +27,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthRoute = pathname?.startsWith('/auth');
   const isCheckInOut = pathname?.startsWith('/ChekInOut');
+  const isMedicineStore = pathname?.startsWith('/medicine-store');
+
   return (
     <>
       {/* Show navbar only for non-admin routes */}
-      {(!isAdminRoute && !isAuthRoute && !isCheckInOut ) && <Navbar />}
-      
+      {(!isAdminRoute && !isAuthRoute && !isCheckInOut && !isMedicineStore) && <Navbar />}
+
       {/* Content wrapper: add top padding for regular pages, none for auth or admin */}
-      <div className={isAdminRoute || isAuthRoute || isCheckInOut ? "" : "pt-20"}>
+      <div className={isAdminRoute || isAuthRoute || isCheckInOut || isMedicineStore ? "" : "pt-20"}>
         {children}
       </div>
     </>
@@ -47,7 +52,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LayoutContent>{children}</LayoutContent>
+        <AuthProvider>
+          <AuthGate>
+            <MedicineCartProvider>
+              <LayoutContent>{children}</LayoutContent>
+            </MedicineCartProvider>
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

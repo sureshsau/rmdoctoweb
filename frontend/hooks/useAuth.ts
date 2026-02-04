@@ -1,15 +1,6 @@
-import { useEffect, useState } from "react";
-import { getUserFromToken, DecodedUser } from "@/lib/auth";
+import { useAuthContext } from "@/state/AuthContext";
 
 export const useAuth = () => {
-  const [user, setUser] = useState<DecodedUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const decoded = getUserFromToken();
-    setUser(decoded);
-    setLoading(false);
-  }, []);
-
-  return { user, loading, isAuthenticated: !!user };
+  const { user, loading, isAuthenticated } = useAuthContext();
+  return { user, loading, isAuthenticated };
 };

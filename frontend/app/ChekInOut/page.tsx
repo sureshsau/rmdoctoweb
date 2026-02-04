@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import axios from "axios";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { attendanceService } from "@/services/attendance.service";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 // -------------------------------------------
 // Elegant UI Components
@@ -135,36 +134,21 @@ export default function CheckInOutPage() {
       setSending(true);
       setStatus("Verifying with server…");
 
-      const token = localStorage.getItem("token");
+      const imageBase64 = canvasRef.current?.toDataURL("image/jpeg");
 
-      if (!token) {
-        setStatus("Authentication missing. Please login again ❌");
+      if (!imageBase64) {
+        setStatus("Failed to capture image ❌");
         return;
       }
 
-      const imageBase64 = canvasRef.current?.toDataURL("image/jpeg");
+      const data = await attendanceService.checkInFace({
+        lat: coords.lat,
+        lng: coords.lng,
+        imageUrl: imageBase64,
+        deviceInfo: navigator.userAgent,
+      });
 
-      const res = await axios.post(
-        `${API_URL}/attendance/checkIn/face`,
-        {
-          lat: coords.lat,
-          lng: coords.lng,
-          imageUrl: imageBase64,          // ✅ backend expects this
-          deviceInfo: navigator.userAgent,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const {
-        faceMatched,
-        locationValid,
-        confidence,
-        fraud,
-      } = res.data;
+      const { faceMatched, locationValid, confidence } = data;
 
       if (!faceMatched) {
         setStatus("Face verification failed ❌");
@@ -177,10 +161,8 @@ export default function CheckInOutPage() {
       }
 
       setStatus(`Checked In Successfully ✅ (Confidence: ${confidence})`);
-    } catch (err: any) {
-      setStatus(
-        err?.response?.data?.message || "Check-in failed due to server error ❌"
-      );
+    } catch (err: unknown) {
+      setStatus(getApiErrorMessage(err, "Check-in failed due to server error ❌"));
     } finally {
       setSending(false);
     }

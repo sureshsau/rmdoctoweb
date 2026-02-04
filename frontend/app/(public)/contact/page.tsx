@@ -67,7 +67,7 @@ export default function ContactUs() {
               Contact <span className="bg-gradient-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              We're here to help you with all your healthcare needs. Get in touch with our friendly team 
+              We&apos;re here to help you with all your healthcare needs. Get in touch with our friendly team 
               for appointments, inquiries, or emergency assistance.
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function ContactUs() {
                   Send Us a Message
                 </h2>
                 <p className="text-gray-600">
-                  Fill out the form below and we'll get back to you as soon as possible.
+                  Fill out the form below and we&apos;ll get back to you as soon as possible.
                 </p>
               </div>
 
@@ -262,7 +262,7 @@ export default function ContactUs() {
                   Get in Touch
                 </h2>
                 <p className="text-gray-600">
-                  Visit us, call us, or connect with us online. We're always here to help.
+                  Visit us, call us, or connect with us online. We&apos;re always here to help.
                 </p>
               </div>
 
@@ -487,7 +487,7 @@ export default function ContactUs() {
               Ready to Get Started?
             </h2>
             <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-              Don't wait when it comes to your health. Contact us today and let our expert medical team 
+              Don&apos;t wait when it comes to your health. Contact us today and let our expert medical team 
               take care of you and your family.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

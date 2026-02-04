@@ -7,6 +7,27 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, lowercase: true, index: true, sparse: true },
     phone: { type: String, required: true, index: true },
 
+
+    address: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    pincode: { type: String, default: null },
+
+    /* ==========================
+       📍 LOCATION
+    ========================== */
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point"
+      },
+      coordinates: {
+        type: [Number],
+        default: null
+      }
+    },
+
     // AUTHENTICATION
     passwordHash: { type: String },
 

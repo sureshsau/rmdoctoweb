@@ -117,9 +117,11 @@ export const addMedicineValidationRules = [
 /* 🔐 VALIDATION RESULT */
 export const validateAddMedicine = (req, res, next) => {
   const errors = validationResult(req);
-
+  console.log("validation middlewire called")
   if (!errors.isEmpty()) {
     cleanupUploadedFile(req);
+
+    console.log(errors);
 
     return res.status(422).json({
       success: false,

@@ -2,7 +2,9 @@ import mongoose from "mongoose";
 
 const agentProfileSchema = new mongoose.Schema(
   {
-    // 🔗 OWNER
+    /* ==========================
+       🔗 OWNER
+    ========================== */
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -11,109 +13,94 @@ const agentProfileSchema = new mongoose.Schema(
       index: true
     },
 
-    // 🧑 BASIC INFO
-    agentName: {
-      type: String,
-      trim: true
+    /* ==========================
+       🌳 MLM HIERARCHY
+    ========================== */
+    parentAgentId:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AgentProfile",
+      default: null,
+      index: true
+    },
+    // Immediate parent (can be marketing_agent or agent)
+    childAgentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AgentProfile",
+      default: null,
+      index: true
     },
 
-    phone: {
-      type: String,
+    // Root marketing agent of this tree
+    marketingAgentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true
+    },
+    // Depth in tree (root = 0)
+    level: {
+      type: Number,
+      default: 0,
+      index: true
     },
 
-    // 📍 ADDRESS
-    address: { type: String, default: null },
-    city: { type: String, default: null },
-    state: { type: String, default: null },
-    pincode: { type: String, default: null },
+    // Cached counts (for fast queries)
+    directDownlineCount: {
+      type: Number,
+      default: 0
+    },
 
-    // 📍 LOCATION
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point"
-      },
-      coordinates: {
-        type: [Number],
-        default: null
+    totalDownlineCount: {
+      type: Number,
+      default: 0
+    },
+
+
+
+    /* ==========================
+       🪪 KYC (AWS STORED)
+    ========================== */
+    kycDocuments: [
+      {
+        documentType: { type: String, required: true },
+        documentNumber: { type: String, default: null },
+        file: {
+          url: { type: String, required: true },
+          key: { type: String, required: true }
+        },
+        status: {
+          type: String,
+          enum: ["UPLOADED", "PENDING", "VERIFIED", "REJECTED"],
+          default: "PENDING"
+        },
+        uploadedAt: { type: Date, default: Date.now },
+        verifiedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null
+        },
+        verifiedAt: { type: Date, default: null },
+        rejectionReason: { type: String, default: null }
       }
-    },
+    ],
 
-    // 🪪 KYC (AWS STORED)
-    kyc: {
-      aadhaarNumber: { type: String, default: null },
 
-      aadhaarFront: {
-        url: { type: String, default: null },
-        key: { type: String, default: null }
-      },
 
-      aadhaarBack: {
-        url: { type: String, default: null },
-        key: { type: String, default: null }
-      },
-
-      panNumber: { type: String, default: null },
-
-      panImage: {
-        url: { type: String, default: null },
-        key: { type: String, default: null }
-      },
-
-      status: {
-        type: String,
-        enum: ["NOT_SUBMITTED", "PENDING", "VERIFIED", "REJECTED"],
-        default: "NOT_SUBMITTED"
-      },
-
-      verifiedAt: { type: Date, default: null },
-      rejectedReason: { type: String, default: null }
-    },
-
-    // 📄 AGREEMENT / LICENSE (AWS STORED)
-    agreement: {
-      documentType: {
-        type: String,
-        enum: ["AGREEMENT", "LICENSE"],
-        default: null
-      },
-
-      document: {
-        url: { type: String, default: null },
-        key: { type: String, default: null }
-      },
-
-      uploadedAt: { type: Date, default: null },
-
-      verificationStatus: {
-        type: String,
-        enum: ["NOT_UPLOADED", "PENDING", "APPROVED", "REJECTED"],
-        default: "NOT_UPLOADED"
-      },
-
-      verifiedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        default: null
-      },
-
-      verifiedAt: { type: Date, default: null },
-      rejectionReason: { type: String, default: null }
-    },
-
-    // 🔗 ONBOARDING
+    /* ==========================
+       🔗 ONBOARDING
+    ========================== */
     registeredBy: {
       type: String,
-      enum: ["admin", "subadmin", "marketing_agent"],
+      enum: ["admin", "subadmin", "marketing_agent", "agent"],
       required: true
     },
 
-    // 🚦 STATUS
+    /* ==========================
+    ========================== */
     status: {
       type: String,
-      enum: ["ACTIVE", "INACTIVE", "SUSPENDED"],
-      default: "INACTIVE"
+      enum: ["VERIFIED","NOTVERIFIED"],
+      default: "VERIFIED"
     },
 
     lastVisitedAt: { type: Date, default: null }
@@ -121,7 +108,7 @@ const agentProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// GEO INDEX
+// Indexes
 agentProfileSchema.index({ location: "2dsphere" });
 
 export default mongoose.model("AgentProfile", agentProfileSchema);

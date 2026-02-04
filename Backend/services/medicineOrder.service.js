@@ -3,6 +3,8 @@ import Medicine from "../models/medicine.model.js";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import AppError from "../utils/AppError.js";
 import crypto from "crypto";
+import AgentProfile from '../models/agentProfile.model.js'
+import User from "../models/user.model.js";
 
 export const createMedicineOrder = async ({
   user,
@@ -10,7 +12,6 @@ export const createMedicineOrder = async ({
   items,
   deliveryAddress,
   paymentMode,
-  // SIMPLE FLAG
   allowSpecialPrice = false
 }) => {
   const session = await mongoose.startSession();
@@ -31,20 +32,12 @@ export const createMedicineOrder = async ({
         throw new AppError("Medicine not found or inactive", 400);
       }
 
-      // PRICE DECISION (ROLE ARRAY + FLAG)
-      let unitPrice;
-
       const canUseSpecialPrice =
-        allowSpecialPrice === true ||
         user.roles?.includes("agent");
 
-      if (canUseSpecialPrice) {
-        unitPrice =
-          medicine.pricing.specialPrice ??
-          medicine.pricing.price;
-      } else {
-        unitPrice = medicine.pricing.price;
-      }
+      const unitPrice = canUseSpecialPrice
+        ? medicine.pricing.specialPrice ?? medicine.pricing.price
+        : medicine.pricing.price;
 
       const itemSubtotal = unitPrice * item.quantity;
       const gstPercentage = medicine.gstPercentage || 0;
@@ -64,12 +57,68 @@ export const createMedicineOrder = async ({
       });
     }
 
+    // 🔗 Find delivery (marketing) agent
+    let marketingAgentId = null;
+
+    // CASE 1: User is agent
+    if (user.roles.includes("agent")) {
+      const agentProfile = await AgentProfile
+        .findOne({ userId })
+        .select("marketingAgentId")
+        .lean();
+
+      // If linked → use it
+      if (agentProfile?.marketingAgentId) {
+        marketingAgentId = agentProfile.marketingAgentId;
+      }
+    }
+
+    // CASE 2: Not linked OR not an agent → pick random
+    if (!marketingAgentId) {
+      const [{ _id } = {}] = await User.aggregate([
+        {
+          $match: {
+            roles: { $in: ["marketing_agent"] },
+            isActive: true,
+            isBlocked: false
+          }
+        },
+        { $project: { _id: 1 } },
+        { $sample: { size: 1 } }
+      ]);
+
+      if (!_id) {
+        throw new AppError("No marketing agent available", 400);
+      }
+
+      marketingAgentId = _id;
+    } else {
+      const [{ _id } = {}] = await User.aggregate([
+        {
+          $match: {
+            roles: { $in: ["marketing_agent"] },
+            isActive: true,
+            isBlocked: false
+          }
+        },
+        { $project: { _id: 1 } },
+        { $sample: { size: 1 } }
+      ]);
+
+      if (!_id) {
+        throw new AppError("No marketing agent available", 400);
+      }
+
+      marketingAgentId = _id;
+    }
+
     const payableAmount = subtotal + gstTotal;
 
-    const order = await MedicineOrder.create(
+    const [createdOrder] = await MedicineOrder.create(
       [
         {
           userId,
+          deliveryAgentId: marketingAgentId,
           items: processedItems,
           pricing: {
             subtotal,
@@ -85,8 +134,6 @@ export const createMedicineOrder = async ({
       { session }
     );
 
-    const createdOrder = order[0];
-
     let paymentResponse;
 
     switch (paymentMode) {
@@ -95,11 +142,9 @@ export const createMedicineOrder = async ({
         break;
 
       case "ONLINE":
-        // paymentResponse = await handleRazorpay(createdOrder, session);
         break;
 
       case "RM_CREDIT":
-        // paymentResponse = await handleRMCredit(createdOrder, user, session);
         break;
 
       default:
@@ -117,6 +162,7 @@ export const createMedicineOrder = async ({
     throw error;
   }
 };
+
 
 export const getUserMedicineOrdersOverview = async ({ userId }) => {
   const orders = await MedicineOrder.find({
@@ -151,32 +197,28 @@ export const getUserMedicineOrdersOverview = async ({ userId }) => {
 
       medicine: firstItem
         ? {
-            name: firstItem.medicineId?.name || "",
-            image:
-              firstItem.medicineId?.images?.[0]?.url || null,
-            quantity: firstItem.quantity
-          }
+          name: firstItem.medicineId?.name || "",
+          image:
+            firstItem.medicineId?.images?.[0]?.url || null,
+          quantity: firstItem.quantity
+        }
         : null
     };
   });
 };
+
 export const getMedicineOrderDetails = async ({
   orderId,
   requester // { id, roles }
 }) => {
-  const order = await MedicineOrder.findById(
-    new mongoose.Types.ObjectId(orderId)
-  )
+  const order = await MedicineOrder.findById(orderId)
     .populate({
       path: "items.medicineId",
       select: "name brandName dosageForm images"
     })
     .populate({
       path: "deliveryAgentId",
-      populate: {
-        path: "userId",
-        select: "name phone"
-      }
+      select: "name phone"
     })
     .lean();
 
@@ -192,7 +234,7 @@ export const getMedicineOrderDetails = async ({
 
   /* 🔐 OTP VISIBILITY RULE */
   if (!isOwner && !isAdmin) {
-    delete order.codOtp;
+    delete order.otp;
   }
 
   /* 🔐 NEVER EXPOSE PAYMENT SECRETS */
@@ -200,17 +242,14 @@ export const getMedicineOrderDetails = async ({
     delete order.razorpay.signature;
   }
 
-  /* 🧑‍✈️ SAFE DELIVERY AGENT EXTRACTION */
+  /* 🧑‍✈️ DELIVERY AGENT DETAILS (USER MODEL) */
   let deliveryAgent = null;
 
-  if (
-    order.deliveryAgentId &&
-    order.deliveryAgentId.userId
-  ) {
+  if (order.deliveryAgentId) {
     deliveryAgent = {
       id: order.deliveryAgentId._id,
-      name: order.deliveryAgentId.userId.name || null,
-      phone: order.deliveryAgentId.userId.phone || null
+      name: order.deliveryAgentId.name || null,
+      phone: order.deliveryAgentId.phone || null
     };
   }
 
@@ -241,13 +280,16 @@ export const getMedicineOrderDetails = async ({
       totalPrice: item.totalPrice
     })),
 
-    otp: order.codOtp || null,
+    otp: order.otp || null,
     otpVerified: order.otpVerified,
 
     createdAt: order.createdAt,
     updatedAt: order.updatedAt
   };
 };
+
+
+
 export const verifyOtpAndUpdateOrderStatus = async ({
   orderId,
   otp,
@@ -396,19 +438,19 @@ export const getAllMedicineOrdersOverview = async ({
 
       medicine: firstItem
         ? {
-            name: firstItem.medicineId?.name || null,
-            image:
-              firstItem.medicineId?.images?.[0]?.url || null,
-            quantity: firstItem.quantity
-          }
+          name: firstItem.medicineId?.name || null,
+          image:
+            firstItem.medicineId?.images?.[0]?.url || null,
+          quantity: firstItem.quantity
+        }
         : null,
 
       deliveryAgent: order.deliveryAgentId
         ? {
-            id: order.deliveryAgentId._id,
-            name: order.deliveryAgentId.userId?.name || null,
-            phone: order.deliveryAgentId.userId?.phone || null
-          }
+          id: order.deliveryAgentId._id,
+          name: order.deliveryAgentId.userId?.name || null,
+          phone: order.deliveryAgentId.userId?.phone || null
+        }
         : null
     };
   });
@@ -423,10 +465,11 @@ const generateOTP = () => {
 
 export const handleCOD = async (order, session) => {
   const otp = generateOTP();
+  console.log(otp);
 
   order.paymentStatus = "PENDING";     // COD not paid yet
   order.orderStatus = "CONFIRMED";     // Order accepted
-  order.codOtp = otp;                  // 🔥 save OTP
+  order.otp = otp;                  // 🔥 save OTP
   order.otpVerified = false;           // delivery pending
 
   await order.save({ session });

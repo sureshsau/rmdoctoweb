@@ -16,7 +16,8 @@
       "medicine.create": "Add medicine",
       "medicine.read": "View medicines",
       "medicine.update": "Update medicine",
-      "medicine.delete": "Delete medicine"
+      "medicine.delete": "Delete medicine",
+      "medicineOrder.view.all":"view all users medicine order"
     }
   },
 
@@ -34,7 +35,8 @@
     "permissions": {
       "agent.create": "Create agent",
       "agent.read": "View agents",
-      "agent.update": "Update agent"
+      "agent.update": "Update agent",
+      "agent.agreement.upload":"upload agreement"
     }
   }
 }

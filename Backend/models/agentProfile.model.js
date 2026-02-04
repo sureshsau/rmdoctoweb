@@ -2,45 +2,32 @@ import mongoose from "mongoose";
 
 const agentProfileSchema = new mongoose.Schema(
   {
-    // 🔗 Agent reference
+    // 🔗 OWNER
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true
-    },
-
-    // Basic Agent Info
-    agentName: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    phone: {
-      type: String,
-      required: true,
+      unique: true,
       index: true
     },
 
-    // 📍 Business Address
-    address: {
+    // 🧑 BASIC INFO
+    agentName: {
       type: String,
-      default: null
-    },
-    city: {
-      type: String,
-      default: null
-    },
-    state: {
-      type: String,
-      default: null
-    },
-    pincode: {
-      type: String,
-      default: null
+      trim: true
     },
 
-    // 📍 GEO LOCATION (for attendance / visits)
+    phone: {
+      type: String,
+    },
+
+    // 📍 ADDRESS
+    address: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    pincode: { type: String, default: null },
+
+    // 📍 LOCATION
     location: {
       type: {
         type: String,
@@ -48,91 +35,93 @@ const agentProfileSchema = new mongoose.Schema(
         default: "Point"
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        required: true
+        type: [Number],
+        default: null
       }
     },
 
-    // 🪪 KYC DETAILS (handled via separate API)
-    aadhaarNumber: {
-      type: String,
-      default: null
-    },
-    aadhaarFrontImage: {
-      type: String,
-      default: null
-    },
-    aadhaarBackImage: {
-      type: String,
-      default: null
+    // 🪪 KYC (AWS STORED)
+    kyc: {
+      aadhaarNumber: { type: String, default: null },
+
+      aadhaarFront: {
+        url: { type: String, default: null },
+        key: { type: String, default: null }
+      },
+
+      aadhaarBack: {
+        url: { type: String, default: null },
+        key: { type: String, default: null }
+      },
+
+      panNumber: { type: String, default: null },
+
+      panImage: {
+        url: { type: String, default: null },
+        key: { type: String, default: null }
+      },
+
+      status: {
+        type: String,
+        enum: ["NOT_SUBMITTED", "PENDING", "VERIFIED", "REJECTED"],
+        default: "NOT_SUBMITTED"
+      },
+
+      verifiedAt: { type: Date, default: null },
+      rejectedReason: { type: String, default: null }
     },
 
-    panNumber: {
-      type: String,
-      default: null
-    },
-    panImage: {
-      type: String,
-      default: null
-    },
-    kycStatus: {
-      type: String,
-      enum: ["NOT SUBMITTED","PENDING", "VERIFIED", "REJECTED"],
-      default: "NOT SUBMITTED"
-    },
-    kycVerifiedAt: {
-      type: Date,
-      default: null
-    },
-    kycRejectedReason: {
-      type: String,
-      default: null
-    },
-    //MLM FIELDS
-    parentAgentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null
-    },
-    level: {
-      type: Number,
-      default: 0
-    },
-    directDownlineCount: {
-      type: Number,
-      default: 0
-    },
-    totalDownlineCount: {
-      type: Number,
-      default: 0
+    // 📄 AGREEMENT / LICENSE (AWS STORED)
+    agreement: {
+      documentType: {
+        type: String,
+        enum: ["AGREEMENT", "LICENSE"],
+        default: null
+      },
+
+      document: {
+        url: { type: String, default: null },
+        key: { type: String, default: null }
+      },
+
+      uploadedAt: { type: Date, default: null },
+
+      verificationStatus: {
+        type: String,
+        enum: ["NOT_UPLOADED", "PENDING", "APPROVED", "REJECTED"],
+        default: "NOT_UPLOADED"
+      },
+
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+      },
+
+      verifiedAt: { type: Date, default: null },
+      rejectionReason: { type: String, default: null }
     },
 
-    // 🔗 Ownership
-    marketingAgentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+    // 🔗 ONBOARDING
+    registeredBy: {
+      type: String,
+      enum: ["admin", "subadmin", "marketing_agent"],
+      required: true
     },
 
-    // 🚦 Agent Status
+    // 🚦 STATUS
     status: {
       type: String,
       enum: ["ACTIVE", "INACTIVE", "SUSPENDED"],
       default: "INACTIVE"
     },
 
-    // 🧠 Meta
-    registeredBy: {
-      type: String,
-      enum: ["MARKETING_AGENT", "AGENT"],
-      required: true
-    },
-    lastVisitedAt: {
-      type: Date,
-      default: null
-    }
+    lastVisitedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
+// GEO INDEX
+agentProfileSchema.index({ location: "2dsphere" });
 
 export default mongoose.model("AgentProfile", agentProfileSchema);

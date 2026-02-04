@@ -8,7 +8,7 @@ import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
 
 import AppError from "../utils/AppError.js";
 import { createAttendanceSetting } from "./attendance.service.js";
-import agentProfile from "../models/agentProfile.model.js";
+import AgentProfile from "../models/agentProfile.model.js";
 
 /**
  * Merge permissions from RoleAssignments + userSpecificPermissions
@@ -40,49 +40,81 @@ export async function rebuildUserPermissions(userId) {
   return { roles: rolesCached, permissions: [...permSet] };
 }
 
-/**
- * Helper to create core profile if role.coreProfile is defined and
- * the user doesn't already have that profile.
- * Returns created profileId or null if none created.
- *
- * NOTE: keep minimal fields; HR/admin will update profile later.
- */
-async function ensureCoreProfileForUser(user, role) {
-  const map = {
-    doctor: "doctorId",
-    employee: "employeeId",
-    agent: "agentId",
-    marketing_agent: "marketing_agentId",
-    receptionist: "receptionistId",
-    patient: "patientId",
+
+export async function ensureCoreProfileForUser(user, role) {
+  const profileMap = {
+    doctor: {
+      key: "doctorId",
+      model: DoctorProfile,
+      build: () => ({
+        userId: user._id,
+        doctorName: user.name,
+        phone: user.phone,
+        registeredBy: "admin",
+      }),
+    },
+
+    agent: {
+      key: "agentId",
+      model: AgentProfile,
+      build: () => ({
+        userId: user._id,
+        agentName: user.name,
+        phone: user.phone,
+        registeredBy: "admin",
+      }),
+    },
+
+    marketing_agent: {
+      key: "marketing_agentId",
+      model: MarketingAgentProfile,
+      build: () => ({
+        userId: user._id,
+        agentName: user.name,
+        phone: user.phone,
+        registeredBy: "admin",
+      }),
+    },
   };
 
-  const profileKey = map[role];
-  if (!profileKey) return;
+  const config = profileMap[role];
+  if (!config) return;
 
-  // ✅ Ensure profiles object exists
-  if (!user.profiles) {
-    user.profiles = {};
+  const { key, model: ProfileModel, build } = config;
+
+  if (!user.profiles) user.profiles = {};
+
+  // ✅ Already linked → done
+  if (user.profiles[key]) return;
+
+  let profile;
+
+  try {
+    // 1️⃣ Try finding existing profile
+    profile = await ProfileModel.findOne({ userId: user._id });
+
+    // 2️⃣ Create only if not exists
+    if (!profile) {
+      profile = await ProfileModel.create(build());
+    }
+  } catch (err) {
+    // 3️⃣ Handle race-condition duplicate key
+    if (err.code === 11000) {
+      profile = await ProfileModel.findOne({ userId: user._id });
+    } else {
+      throw err;
+    }
   }
 
-  // ✅ Model map (keys MUST match profileKey)
-  const ModelMap = {
-    doctorId: DoctorProfile,
-    agentId: agentProfile,
-    marketing_agentId: MarketingAgentProfile,
-  };
+  if (!profile) return;
 
-  const ProfileModel = ModelMap[profileKey];
-  if (!ProfileModel) return;
+  // 4️⃣ Attach profile safely
+  user.profiles[key] = profile._id;
 
-  if (!user.profiles[profileKey]) {
-    const profile = await ProfileModel.create({
-      userId: user._id,
-    });
-
-    user.profiles[profileKey] = profile._id;
-  }
+  await user.save();
 }
+
+
 
 
 /**

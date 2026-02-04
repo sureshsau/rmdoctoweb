@@ -24,7 +24,6 @@ const UserSchema = new mongoose.Schema(
         "agent",
         "marketing_agent",
         "receptionist",
-        "patient",
         "user",
       ],
       default: "user",
@@ -67,14 +66,6 @@ const UserSchema = new mongoose.Schema(
     lastLoginDevice: { type: String },
     firstLoginIP: { type: String },
     firstDevice: { type: String },
-
-    devices: [
-      {
-        ip: String,
-        device: String,
-        loggedInAt: { type: Date, default: Date.now },
-      },
-    ],
 
     // KYC
     kycStatus: {

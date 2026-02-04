@@ -106,8 +106,10 @@ export default function VerifyOTPPage() {
       return;
     }
 
+    const redirect = searchParams.get("redirect") || "";
+
     try {
-      await verifyRegisterOtp({ identifier: phone, otp: otpValue });
+      await verifyRegisterOtp({ identifier: phone, otp: otpValue }, redirect);
       setOtp(["", "", "", ""]);
     } catch (error: unknown) {
       const msg = getApiErrorMessage(error);
@@ -158,7 +160,6 @@ export default function VerifyOTPPage() {
       inputRefs.current[0]?.focus();
 
       setTimer(60);
-      setCanResend(false);
       setErrors("");
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 429) {

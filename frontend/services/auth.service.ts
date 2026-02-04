@@ -9,6 +9,8 @@ export type AuthUser = {
   roles?: string[];
   permissions?: string[];
   identifier?: string;
+  isActive?: boolean;
+  kycStatus?: "none" | "pending" | "verified" | "rejected";
 };
 
 export type LoginRequest = {

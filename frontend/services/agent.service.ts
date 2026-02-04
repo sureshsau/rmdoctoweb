@@ -1,17 +1,54 @@
 import { apiClient } from "@/lib/apiClient";
 
 export type RegisterAgentRequest = {
-    name: string;
+    agentName: string;
     phone: string;
-    email?: string;
     password?: string;
-    panCard?: string;
-    aadhaarCard?: string;
+    latitude: number;
+    longitude: number;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    pincode?: string | null;
+    parentAgentId?: string | null;
 };
+
+export interface AgentProfile {
+    _id: string;
+    userId: string;
+    agentName: string;
+    phone: string;
+    status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+    kyc: {
+        status: "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED";
+        aadhaarNumber?: string;
+        panNumber?: string;
+    };
+    agreement: {
+        verificationStatus: "NOT_UPLOADED" | "PENDING" | "APPROVED" | "REJECTED";
+    };
+}
+
+export interface HierarchyData {
+    type: "AGENT" | "MARKETING_AGENT";
+    totalAgents: number;
+    agents: any[];
+    roots?: any[];
+}
 
 export const agentService = {
     async registerAgent(payload: RegisterAgentRequest) {
         const res = await apiClient.post("/agent/register", payload);
         return res.data;
     },
+    async getHierarchy(userId: string): Promise<{ success: boolean; data: HierarchyData }> {
+        const res = await apiClient.get(`/agent/hierarchy/${userId}`);
+        return res.data;
+    },
+    async uploadAgreement(formData: FormData) {
+        const res = await apiClient.post("/agent/agreement/upload", formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return res.data;
+    }
 };

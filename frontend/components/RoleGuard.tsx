@@ -4,7 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
-type UserRole = "admin" | "doctor" | "receptionist" | "agent" | "user";
+type UserRole = "admin" | "doctor" | "receptionist" | "agent" | "marketing_agent" | "employee" | "user";
 
 type RoleGuardProps = {
   allowed: UserRole[];

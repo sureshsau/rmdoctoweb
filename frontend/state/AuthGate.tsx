@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthContext } from "@/state/AuthContext";
 import { getDashboardPathForUser } from "@/lib/roleRoutes";
+// import { setTimeout } from "timers/promises";
 
 const PUBLIC_PREFIXES = [
   "/auth", // login/register/otp/forgot/reset
@@ -28,6 +29,7 @@ function roleFromPath(pathname: string) {
   if (pathname.startsWith("/admin")) return "admin";
   if (pathname.startsWith("/doctor")) return "doctor";
   if (pathname.startsWith("/agent")) return "agent";
+  if (pathname.startsWith("/marketing-agent")) return "marketing_agent";
   if (pathname.startsWith("/reception")) return "reception";
   if (pathname.startsWith("/dashboard")) return "user";
   if (pathname.startsWith("/ChekInOut")) return "staff";
@@ -72,7 +74,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       // If trying to open a dashboard not matching their dashboard, redirect.
       if (routeRole && routeRole !== expected && !(routeRole === "reception" && expected === "receptionist")) {
-        // If they are a normal user, allow /dashboard.
         router.replace(getDashboardPathForUser(user));
       }
     }

@@ -14,9 +14,9 @@ type AuthState = {
   loading: boolean;
   isAuthenticated: boolean;
 
-  login: (payload: LoginRequest) => Promise<void>;
+  login: (payload: LoginRequest, redirectTo?: string) => Promise<void>;
   register: (payload: RegisterRequest) => Promise<{ identifier: string }>;
-  verifyRegisterOtp: (payload: { identifier: string; otp: string }) => Promise<void>;
+  verifyRegisterOtp: (payload: { identifier: string; otp: string }, redirectTo?: string) => Promise<void>;
 
   sendForgotPasswordOtp: (payload: { identifier: string; type: ForgotType }) => Promise<void>;
   verifyForgotPasswordOtp: (payload: { identifier: string; type: ForgotType; otp: string }) => Promise<void>;
@@ -82,13 +82,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const login = useCallback(
-    async (payload: LoginRequest) => {
+    async (payload: LoginRequest, redirectTo?: string) => {
       const data = await authService.login(payload);
       persistSession(data.token, data.user);
       setToken(data.token);
       setUser(data.user);
 
-      const target = getDashboardPathForUser(data.user);
+      const target = redirectTo || getDashboardPathForUser(data.user);
       router.replace(target);
     },
     [router]
@@ -102,13 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const verifyRegisterOtp = useCallback(
-    async (payload: { identifier: string; otp: string }) => {
+    async (payload: { identifier: string; otp: string }, redirectTo?: string) => {
       const data = await authService.verifyOtp(payload);
       persistSession(data.token, data.user);
       setToken(data.token);
       setUser(data.user);
 
-      const target = getDashboardPathForUser(data.user);
+      const target = redirectTo || getDashboardPathForUser(data.user);
       router.replace(target);
     },
     [router]

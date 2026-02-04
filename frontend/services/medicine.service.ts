@@ -105,16 +105,13 @@ export const medicineService = {
             name: item.name,
             brandName: item.brandName,
             dosageForm: item.dosageForm,
-            // Map flat price to nested pricing
             pricing: {
-                price: item.price || item.mrp || 0,
+                price: item.price || 0,
                 mrp: item.mrp || 0,
                 specialPrice: item.specialPrice || 0
             },
-            // Map flat image to array
+            gstPercentage: (item as any).gstPercentage || 0, // Map GST from backend
             images: item.image ? [{ url: item.image, key: "backend" }] : [],
-            // Default empty values
-            stock: { totalQuantity: 100, minAlertQuantity: 10 },
             isActive: true
         }));
 
@@ -124,9 +121,20 @@ export const medicineService = {
         };
     },
 
-    async getMedicineById(id: string) {
-        const res = await apiClient.get<{ success: boolean; data: Medicine }>(`/medicines/${id}`);
+    async getMedicineById(id: string): Promise<Medicine> {
+        const res = await apiClient.get<any>(`/medicines/${id}`);
         return res.data.data;
+    },
+
+    async getRelatedMedicines(medicine: Medicine): Promise<Medicine[]> {
+        // Find medicines with same therapeuticUse or dosageForm
+        const search = medicine.therapeuticUse || medicine.dosageForm || "";
+        const res = await this.getAllMedicines({
+            search,
+            limit: 11 // Fetch 11 to exclude current one if it appears
+        });
+
+        return res.data.filter(m => m._id !== medicine._id).slice(0, 10);
     },
 
     async addMedicine(formData: FormData) {

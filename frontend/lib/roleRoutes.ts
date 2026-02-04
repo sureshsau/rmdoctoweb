@@ -4,6 +4,7 @@ export const DASHBOARD_ROUTE_MAP: Record<string, string> = {
   receptionist: "/reception/dashboard",
   reception: "/reception/dashboard",
   agent: "/agent/dashboard",
+  marketing_agent: "/marketing-agent/dashboard",
   user: "/dashboard",
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, User, Phone, EyeOff, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuthContext } from "@/state/AuthContext";
@@ -10,13 +10,16 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "";
+
   const { login, sendForgotPasswordOtp } = useAuthContext();
   const [formData, setFormData] = useState<{
     email?: string,
     phone: string,
     password: string
   }>({
-    email: "",
+    // email: "",
     phone: "",
     password: "",
   });
@@ -78,7 +81,7 @@ export default function LoginPage() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-      });
+      }, redirectTo);
 
       // clear password after success
       setFormData((prev) => ({ ...prev, password: "" }));

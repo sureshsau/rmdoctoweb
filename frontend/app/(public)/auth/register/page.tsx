@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MailCheck, Mail, Lock, User, Phone, EyeOff, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +10,9 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "";
+
   const { register } = useAuthContext();
   const [showOtpSend, setShowOtpSend] = useState<boolean>(false);
 
@@ -19,13 +22,15 @@ export default function RegisterPage() {
     email?: string;
     phone: string;
     password: string;
-  }>({name: "",
+  }>({
+    name: "",
     email: "",
     phone: "",
-    password: "",});
-    
+    password: "",
+  });
 
-    
+
+
   // Error Handling state
 
   const [errors, setErrors] = useState<{
@@ -53,7 +58,7 @@ export default function RegisterPage() {
 
 
   // Regex for password format validation
-  const passwordRegex =/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 
@@ -116,7 +121,7 @@ export default function RegisterPage() {
 
       setErrors({});
       setShowOtpSend(true);
-      router.push(`/auth/verifyOtp?phone=${identifier}`);
+      router.push(`/auth/verifyOtp?phone=${identifier}&redirect=${encodeURIComponent(redirect)}`);
       return;
     } catch (error: unknown) {
       setErrors({ all: getApiErrorMessage(error, "Network error. Please try again.") });
@@ -163,7 +168,7 @@ export default function RegisterPage() {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M12 9v4m0 4h.01M4.93 4.93a10 10 0 1114.14 14.14A10 10 0 014.93 4.93z"/>
+              d="M12 9v4m0 4h.01M4.93 4.93a10 10 0 1114.14 14.14A10 10 0 014.93 4.93z" />
           </svg>
           {/* Text */}
           <div className="text-left text-sm font-medium leading-tight">
@@ -205,7 +210,7 @@ export default function RegisterPage() {
                   value={formData.name}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-cyan-500"
-                              ${errors.name ? " border-red-500 focus:ring-red-500 outline-none" : "focus:ring-cyan-500 outline-none"}`} placeholder="Enter your full name"/>
+                              ${errors.name ? " border-red-500 focus:ring-red-500 outline-none" : "focus:ring-cyan-500 outline-none"}`} placeholder="Enter your full name" />
               </div>
             </div>
 
@@ -226,11 +231,10 @@ export default function RegisterPage() {
                   value={formData.email}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-cyan-500"
-        ${
-          errors.email
-            ? "border-red-500 focus:ring-red-500 outline-none"
-            : "focus:ring-cyan-500 outline-none"
-        }
+        ${errors.email
+                      ? "border-red-500 focus:ring-red-500 outline-none"
+                      : "focus:ring-cyan-500 outline-none"
+                    }
       `}
                   placeholder="Enter your email"
                 />
@@ -255,11 +259,10 @@ export default function RegisterPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-cyan-500"
-        ${
-          errors.phone
-            ? " border-red-500 focus:ring-red-500 outline-none"
-            : "focus:ring-cyan-500 outline-none"
-        }
+        ${errors.phone
+                      ? " border-red-500 focus:ring-red-500 outline-none"
+                      : "focus:ring-cyan-500 outline-none"
+                    }
       `}
                   placeholder="Enter your phone number"
                 />
@@ -297,11 +300,10 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   className={`w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-cyan-500"
-        ${
-          errors.password
-            ? " border-red-500 focus:ring-red-500 outline-none"
-            : "focus:ring-cyan-500 outline-none"
-        }
+        ${errors.password
+                      ? " border-red-500 focus:ring-red-500 outline-none"
+                      : "focus:ring-cyan-500 outline-none"
+                    }
       `}
                   placeholder="Create a password"
                 />

@@ -48,7 +48,7 @@ app.use("/user", userRoute);
 app.use("/permission", permissionRoute);
 app.use("/agent", agentRoute);
 app.use("/medicine/order",medicineOrderRoute);
-app.use("/marketingAgent",marketingAgentRoute)
+app.use("/marketing-agent",marketingAgentRoute)
 
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this

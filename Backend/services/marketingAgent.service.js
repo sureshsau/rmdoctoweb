@@ -190,10 +190,11 @@ export const getMarketingAgentTree = async ({
 }) => {
   try {
     /* =========================
-       FETCH ALL AGENTS
+       1️⃣ FETCH ROOT AGENTS (LEVEL 0)
     ========================= */
-    const agents = await AgentProfile.find({
-      marketingAgentId: marketingAgentUserId
+    const rootAgents = await AgentProfile.find({
+      marketingAgentId: marketingAgentUserId,
+      level: 0
     })
       .populate({
         path: "userId",
@@ -201,54 +202,81 @@ export const getMarketingAgentTree = async ({
       })
       .lean();
 
-    if (!agents.length) {
+    if (!rootAgents.length) {
       return { success: true, tree: [] };
     }
 
     /* =========================
-       MAP FOR O(1) LOOKUP
+       2️⃣ PREPARE MAP & QUEUE
     ========================= */
     const agentMap = new Map();
+    const queue = [];
 
-    agents.forEach(agent => {
-      agentMap.set(agent._id.toString(), {
+    // Initialize roots
+    for (const agent of rootAgents) {
+      const node = {
         id: agent._id,
         name: agent.userId?.name || "",
         phone: agent.userId?.phone || "",
         level: agent.level,
         children: []
-      });
-    });
+      };
+
+      agentMap.set(agent._id.toString(), node);
+      queue.push(agent); // push full agent doc for traversal
+    }
 
     /* =========================
-       BUILD TREE
+       3️⃣ BFS TRAVERSAL
     ========================= */
-    const roots = [];
+    while (queue.length > 0) {
+      const currentAgent = queue.shift();
+      const currentNode = agentMap.get(
+        currentAgent._id.toString()
+      );
 
-    agents.forEach(agent => {
-      const node = agentMap.get(agent._id.toString());
+      if (
+        currentAgent.childAgentIds &&
+        currentAgent.childAgentIds.length > 0
+      ) {
+        const children = await AgentProfile.find({
+          _id: { $in: currentAgent.childAgentIds }
+        })
+          .populate({
+            path: "userId",
+            select: "name phone"
+          })
+          .lean();
 
-      if (agent.parentAgentId) {
-        const parentNode = agentMap.get(
-          agent.parentAgentId.toString()
-        );
+        for (const child of children) {
+          const childNode = {
+            id: child._id,
+            name: child.userId?.name || "",
+            phone: child.userId?.phone || "",
+            level: child.level,
+            children: []
+          };
 
-        if (parentNode) {
-          parentNode.children.push(node);
+          agentMap.set(child._id.toString(), childNode);
+          currentNode.children.push(childNode);
+          queue.push(child);
         }
-      } else {
-        // no parent => root agent
-        roots.push(node);
       }
-    });
+    }
 
+    /* =========================
+       4️⃣ RETURN TREE
+    ========================= */
     return {
       success: true,
-      tree: roots
+      tree: Array.from(agentMap.values()).filter(
+        node => node.level === 0
+      )
     };
-
   } catch (error) {
-    console.error(error);
+    console.error("getMarketingAgentTree error:", error);
     throw error;
   }
 };
+
+

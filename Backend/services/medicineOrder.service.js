@@ -252,7 +252,7 @@ export const getMedicineOrderDetails = async ({
       phone: order.deliveryAgentId.phone || null
     };
   }
-
+  
   return {
     orderId: order._id,
 
@@ -465,7 +465,6 @@ const generateOTP = () => {
 
 export const handleCOD = async (order, session) => {
   const otp = generateOTP();
-  console.log(otp);
 
   order.paymentStatus = "PENDING";     // COD not paid yet
   order.orderStatus = "CONFIRMED";     // Order accepted

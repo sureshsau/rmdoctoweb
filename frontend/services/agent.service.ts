@@ -42,8 +42,23 @@ export const agentService = {
         return res.data;
     },
     async getHierarchy(userId: string): Promise<{ success: boolean; data: HierarchyData }> {
-        const res = await apiClient.get(`/agent/hierarchy/${userId}`);
-        return res.data;
+        try {
+            const res = await apiClient.get(`/agent/hierarchy/${userId}`);
+            return res.data;
+        } catch (err: any) {
+            if (err?.response?.status === 404) {
+                return {
+                    success: true,
+                    data: {
+                        type: "AGENT",
+                        totalAgents: 0,
+                        agents: [],
+                        roots: []
+                    }
+                };
+            }
+            throw err;
+        }
     },
     async uploadAgreement(formData: FormData) {
         const res = await apiClient.post("/agent/agreement/upload", formData, {

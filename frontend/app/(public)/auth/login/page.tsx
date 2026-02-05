@@ -15,11 +15,11 @@ export default function LoginPage() {
 
   const { login, sendForgotPasswordOtp } = useAuthContext();
   const [formData, setFormData] = useState<{
-    email?: string,
+    email: string,
     phone: string,
     password: string
   }>({
-    // email: "",
+    email: "",
     phone: "",
     password: "",
   });
@@ -78,7 +78,7 @@ export default function LoginPage() {
     // ==========================
     try {
       await login({
-        email: formData.email,
+        email: formData.email || undefined,
         phone: formData.phone,
         password: formData.password,
       }, redirectTo);

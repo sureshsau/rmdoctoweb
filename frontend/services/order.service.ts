@@ -91,5 +91,20 @@ export const orderService = {
     async getOrderDetails(orderId: string): Promise<{ success: boolean; data: OrderDetails }> {
         const res = await apiClient.get(`/medicine/order/${orderId}`);
         return res.data;
+    },
+    async getAllOrders(params?: Record<string, string | number | undefined>): Promise<{ success: boolean; data: OrderOverview[] }> {
+        // Prefer full admin view; if it fails (400/403/404), fall back to user-scoped overview.
+        try {
+            const res = await apiClient.get("/medicine/order/view/all", { params });
+            return res.data;
+        } catch (err) {
+            try {
+                const res = await apiClient.get("/medicine/order", { params });
+                return res.data;
+            } catch (innerErr) {
+                console.error("Failed to load orders", innerErr);
+                return { success: false, data: [] };
+            }
+        }
     }
 };

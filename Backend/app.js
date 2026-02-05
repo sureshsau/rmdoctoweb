@@ -18,6 +18,7 @@ import medicineRouter from "./routes/medicine.route.js";
 import medicineOrderRoute from './routes/medicineOrder.route.js'
 import AppError from "./utils/AppError.js";
 import { ensureRekognitionCollection } from "./services/aws.service.js";
+import marketingAgentRoute from './routes/marketingAgent.route.js'
 
 /* ================= CORS ================= */
 
@@ -47,6 +48,7 @@ app.use("/user", userRoute);
 app.use("/permission", permissionRoute);
 app.use("/agent", agentRoute);
 app.use("/medicine/order",medicineOrderRoute);
+app.use("/marketingAgent",marketingAgentRoute)
 
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this

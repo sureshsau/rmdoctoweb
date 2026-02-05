@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
-import { registerAgentController, uploadAgreementEnsureProfileController } from "../controllers/agent.controller.js";
+import { agetNetworkController, registerAgentController, uploadAgreementEnsureProfileController } from "../controllers/agent.controller.js";
 import { upload } from "../utils/multer.js";
 
 const router = express.Router();
@@ -10,6 +10,11 @@ router.post(
   authenticate,
   authorize("agent.create"),
   registerAgentController
+)
+router.get(
+  "/myNetwok",
+  authenticate,
+  agetNetworkController
 )
 .post(
   "/agreement/upload",

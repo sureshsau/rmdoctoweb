@@ -146,7 +146,8 @@ const medicineOrderSchema = new mongoose.Schema(
       default: false
     },
     otp:{
-      type:Number
+      type:Number,
+      
     },
 
     cancelledReason: String

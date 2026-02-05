@@ -7,6 +7,7 @@ import { hashPassword } from "../utils/password.js";
 import { uploadAgreementToS3 } from "./aws.service.js";
 import AppError from "../utils/AppError.js";
 import marketingAgentProfile from "../models/marketingAgentProfile.model.js";
+import { error } from "console";
 
 const validateAgentPayload = ({
   agentName,
@@ -27,160 +28,75 @@ const validateAgentPayload = ({
 };
 
 
-export const registerAgentByMarketingAgentService = async ({
-  marketingAgentId,
-  payload
+
+//only for admin 
+export const assignMarketingAgentToAgent = async ({
+  agentUserId,
+  marketingAgentUserId
 }) => {
-  console.log("creating agent");
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    const {
-      agentName,
-      phone,
-      password,
+    /* =========================
+       FIND ROOT AGENT
+    ========================= */
+    const rootAgent = await AgentProfile.findOne(
+      { userId: agentUserId },
+      null,
+      { session }
+    );
 
-      latitude,
-      longitude,
+    if (!rootAgent) {
+      throw new Error("Agent not found");
+    }
 
-      address = null,
-      city = null,
-      state = null,
-      pincode = null,
+    /* =========================
+       BFS OVER SUBTREE
+    ========================= */
+    const queue = [rootAgent._id];
 
-      parentAgentId = null
-    } = payload;
+    while (queue.length > 0) {
+      const agentId = queue.shift();
 
-    validateAgentPayload({ agentName, phone, latitude, longitude });
-
-    // 🔍 1. Find user by phone
-    let user = await User.findOne({ phone });
-
-    // 🔍 2. If agent profile already exists
-    if (user?.profiles?.agentId) {
-      const existingAgentProfile = await AgentProfile.findById(
-        user.profiles.agentId
+      const agent = await AgentProfile.findById(
+        agentId,
+        null,
+        { session }
       );
 
-      if (existingAgentProfile) {
-        if (existingAgentProfile.marketingAgentId) {
-          throw AppError("Agent is already allocated to a marketing agent",400);
-        }
+      if (!agent) continue;
 
-        // Assign if unallocated
-        await AgentProfile.updateOne(
-          { _id: existingAgentProfile._id },
-          {
-            $set: {
-              marketingAgentId,
-              registeredBy: "MARKETING_AGENT",
-              status: "INACTIVE",
-              agentName,
-              address,
-              city,
-              state,
-              pincode,
-              location: {
-                type: "Point",
-                coordinates: [longitude, latitude]
-              }
-            }
-          }
-        );
+      // Update marketing agent
+      await AgentProfile.updateOne(
+        { _id: agent._id },
+        { marketingAgentId: marketingAgentUserId },
+        { session }
+      );
 
-        return {
-          userId: user._id,
-          agentProfileId: existingAgentProfile._id,
-          message: "Existing agent assigned under marketing agent successfully"
-        };
-      }
-    }
-
-    // 🌳 MLM level
-    let level = 0;
-    if (parentAgentId) {
-      const parentAgent = await AgentProfile.findById(parentAgentId);
-
-      if (!parentAgent) {
-        throw new Error("Parent agent not found");
-      }
-
-      level = parentAgent.level + 1;
-    }
-
-    // 🔹 3. Create user if not exists
-    if (!user) {
-      const passwordHash = await hashPassword(password);
-
-      user = await User.create({
-        name: agentName,
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-        location: {
-          type: "Point",
-          coordinates: [longitude, latitude]
-        },
-        // NEW RBAC FIELDS
-        dashboard: "agent",
-        role: ["agent"],
-        permissions: [],
-        isActive: false,
-        isBlocked: false,
-        passwordHash,
-        kycStatus: "none"
-      });
-    }
-
-    // 🔹 4. Create agent profile
-    const agentProfile = await AgentProfile.create({
-      userId: user._id,
-      level,
-      directDownlineCount: 0,
-      totalDownlineCount: 0,
-      marketingAgentId,
-      status: "INACTIVE",
-      registeredBy: "MARKETING_AGENT"
-    });
-
-    const agentProfileId = agentProfile._id;
-
-    // 🔗 5. Link agent profile + RBAC update
-    const role = await ROLE.findOne({ key: "agent" }).select("permissions").lean();
-    
-
-    await User.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          dashboard: "agent",
-          role: ["agent"],
-          permissions: role?.permissions ||[],
-          "profiles.agentId": agentProfileId,
-
+      // Push children into queue
+      if (agent.childAgentIds?.length > 0) {
+        for (const childId of agent.childAgentIds) {
+          queue.push(childId);
         }
       }
-    );
-    //update marketing agentid
-    await marketingAgentProfile.updateOne({
-      userId:marketingAgentId
-    },{
-    $addToSet: {
-      directAgentIds: agentProfileId
     }
-    })
+
+    await session.commitTransaction();
+    session.endSession();
+
     return {
-      userId: user._id,
-      agentProfileId,
-      message: "New agent registered successfully"
+      success: true,
+      message: "Marketing agent updated for entire downline tree"
     };
 
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error(error);
     throw error;
   }
 };
-
 
 
 export const uploadAgentAgreementService = async ({
@@ -235,105 +151,316 @@ export const uploadAgentAgreementService = async ({
 };
 
 
+//register agent by agent
+export const registerAgentByAgentService = async ({
+  parentAgentUserId,
+  payload
+}) => {
+  try {
+    const {
+      agentName,
+      phone,
+      password,
 
+      latitude,
+      longitude,
 
-export const getHierarchyByUserService = async ({ userId }) => {
-  // 1️⃣ Fetch user
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
+      address = null,
+      city = null,
+      state = null,
+      pincode = null
+    } = payload;
 
-  // ==========================
-  // CASE A: USER IS AGENT
-  // ==========================
-  if (user.userType === "agent") {
-    const agentProfileId = user.profiles?.agentId;
-    if (!agentProfileId) {
-      throw new Error("Agent profile not found");
+    validateAgentPayload({ agentName, phone, latitude, longitude });
+
+    /* =========================
+       1. FIND PARENT AGENT
+    ========================= */
+    const parentAgent = await AgentProfile.findOne({
+      userId: parentAgentUserId
+    });
+
+    if (!parentAgent) {
+      throw new AppError("Parent agent profile not found", 404);
     }
 
-    return await buildAgentDownline(agentProfileId);
-  }
+    /* =========================
+       2. FIND USER
+    ========================= */
+    let user = await User.findOne({ phone });
 
-  // ==========================
-  // CASE B: USER IS MARKETING AGENT
-  // ==========================
-  if (user.userType === "marketing_agent") {
-    return await buildMarketingAgentHierarchy(user._id);
-  }
-
-  throw new Error("Hierarchy not available for this user type");
-};
-const buildMarketingAgentHierarchy = async (marketingAgentId) => {
-  // 1️⃣ Fetch all agents under this marketing agent
-  const agents = await AgentProfile.find({
-    marketingAgentId
-  }).lean();
-
-  if (!agents.length) {
-    return {
-      type: "MARKETING_AGENT",
-      totalAgents: 0,
-      roots: [],
-      agents: []
-    };
-  }
-
-  // 2️⃣ Build in-memory tree
-  const map = {};
-  agents.forEach(a => {
-    map[a._id.toString()] = { ...a, children: [] };
-  });
-
-  const roots = [];
-
-  agents.forEach(agent => {
-    if (
-      agent.parentAgentId &&
-      map[agent.parentAgentId.toString()]
-    ) {
-      map[agent.parentAgentId.toString()].children.push(
-        map[agent._id.toString()]
+    /* =========================
+       3. EXISTING AGENT PROFILE
+    ========================= */
+    if (user?.profiles?.agentId) {
+      const existingAgent = await AgentProfile.findById(
+        user.profiles.agentId
       );
-    } else {
-      // root agent for this marketing agent
-      roots.push(map[agent._id.toString()]);
-    }
-  });
 
-  return {
-    type: "MARKETING_AGENT",
-    totalAgents: agents.length,
-    roots,
-    agents
-  };
+      if (!existingAgent) {
+        throw new AppError("Agent profile corrupted", 500);
+      }
+
+      // ❌ already belongs to a network
+      if (existingAgent.parentAgentId) {
+        throw new AppError(
+          "Agent already belongs to a network. Contact admin for transfer.",
+          400
+        );
+      }
+
+      // ❌ already linked to marketing agent
+      if (existingAgent.marketingAgentId) {
+        throw new AppError(
+          "Agent already assigned to a marketing agent",
+          400
+        );
+      }
+
+      //  SAFE TO LINK
+      await AgentProfile.updateOne(
+        { _id: existingAgent._id },
+        {
+          $set: {
+            parentAgentId: parentAgent._id,
+            marketingAgentId: parentAgent.marketingAgentId,
+            level: parentAgent.level + 1,
+            registeredBy: "AGENT",
+           
+            agentName,
+            address,
+            city,
+            state,
+            pincode,
+            location: {
+              type: "Point",
+              coordinates: [longitude, latitude]
+            }
+          }
+        }
+      );
+
+      // ✅ PUSH INTO PARENT CHILDREN
+      await AgentProfile.updateOne(
+        { _id: parentAgent._id },
+        {
+          $addToSet: { childAgentIds: existingAgent._id },
+          $inc: { directDownlineCount: 1 }
+        }
+      );
+
+      return {
+        userId: user._id,
+        agentProfileId: existingAgent._id,
+        message: "Existing agent linked under parent agent successfully"
+      };
+    }
+
+    /* =========================
+       4. CREATE USER IF NEEDED
+    ========================= */
+    if (!user) {
+      const passwordHash = await hashPassword(password);
+
+      user = await User.create({
+        name: agentName,
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        location: {
+          type: "Point",
+          coordinates: [longitude, latitude]
+        },
+        dashboard: "agent",
+        role: ["agent"],
+        permissions: [],
+        isActive: true,
+        isBlocked: false,
+        passwordHash,
+        kycStatus: "none"
+      });
+    }
+
+    /* =========================
+       5. CREATE AGENT PROFILE
+    ========================= */
+    const agentProfile = await AgentProfile.create({
+      userId: user._id,
+      parentAgentId: parentAgent._id,
+      marketingAgentId: parentAgent.marketingAgentId,
+      level: parentAgent.level + 1,
+      registeredBy: "AGENT",
+      directDownlineCount: 0,
+      totalDownlineCount: 0
+    });
+
+    /* =========================
+       6. LINK PARENT → CHILD
+    ========================= */
+    await AgentProfile.updateOne(
+      { _id: parentAgent._id },
+      {
+        $addToSet: { childAgentIds: agentProfile._id },
+        $inc: { directDownlineCount: 1 }
+      }
+    );
+
+    /* =========================
+       7. RBAC UPDATE
+    ========================= */
+    const role = await ROLE.findOne({ key: "agent" })
+      .select("permissions")
+      .lean();
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          dashboard: "agent",
+          role: ["agent"],
+          permissions: role?.permissions || [],
+          "profiles.agentId": agentProfile._id
+        }
+      }
+    );
+
+    return {
+      userId: user._id,
+      agentProfileId: agentProfile._id,
+      message: "New agent registered under parent agent successfully"
+    };
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 };
-const buildAgentDownline = async (agentProfileId) => {
-  const result = await AgentProfile.aggregate([
-    {
-      $match: { _id: new mongoose.Types.ObjectId(agentProfileId) }
-    },
-    {
-      $graphLookup: {
-        from: "agentprofiles",
-        startWith: "$_id",
-        connectFromField: "_id",
-        connectToField: "parentAgentId",
-        as: "downline",
-        depthField: "level"
+
+
+//view his network
+export const getAgentVisibleNetwork = async ({
+  agentUserId
+}) => {
+  try {
+    /* =========================
+       FIND SELF AGENT
+    ========================= */
+    const selfAgent = await AgentProfile.findOne({
+      userId: agentUserId
+    })
+      .populate({
+        path: "userId",
+        select: "name phone"
+      })
+      .lean();
+
+    if (!selfAgent) {
+      throw new AppError("Agent profile not found", 404);
+    }
+
+    /* =========================
+       FETCH PARENT (ONLY ONE)
+    ========================= */
+    let parentAgent = null;
+
+    if (selfAgent.parentAgentId) {
+      parentAgent = await AgentProfile.findById(
+        selfAgent.parentAgentId
+      )
+        .populate({
+          path: "userId",
+          select: "name phone"
+        })
+        .lean();
+    }
+
+    /* =========================
+       FETCH MARKETING AGENT
+    ========================= */
+    let marketingAgent = null;
+
+    if (selfAgent.marketingAgentId) {
+      marketingAgent = await User.findById(
+        selfAgent.marketingAgentId
+      ).select("name phone");
+    }
+
+    /* =========================
+       BUILD DOWNLINE TREE
+    ========================= */
+    const buildDownlineTree = async (agentId) => {
+      const agent = await AgentProfile.findById(agentId)
+        .populate({
+          path: "userId",
+          select: "name phone"
+        })
+        .lean();
+
+      if (!agent) return null;
+
+      const node = {
+        id: agent._id,
+        name: agent.userId?.name || "",
+        phone: agent.userId?.phone || "",
+        level: agent.level,
+        children: []
+      };
+
+      if (agent.childAgentIds?.length > 0) {
+        for (const childId of agent.childAgentIds) {
+          const childNode = await buildDownlineTree(childId);
+          if (childNode) {
+            node.children.push(childNode);
+          }
+        }
+      }
+
+      return node;
+    };
+
+    let downlineTree = [];
+
+    if (selfAgent.childAgentIds?.length > 0) {
+      for (const childId of selfAgent.childAgentIds) {
+        const childTree = await buildDownlineTree(childId);
+        if (childTree) {
+          downlineTree.push(childTree);
+        }
       }
     }
-  ]);
 
-  if (!result.length) {
-    throw new Error("Agent hierarchy not found");
+    return {
+      success: true,
+      data: {
+        self: {
+          id: selfAgent._id,
+          name: selfAgent.userId?.name,
+          phone: selfAgent.userId?.phone,
+          level: selfAgent.level
+        },
+        parentAgent: parentAgent
+          ? {
+              id: parentAgent._id,
+              name: parentAgent.userId?.name,
+              phone: parentAgent.userId?.phone,
+              level: parentAgent.level
+            }
+          : null,
+        marketingAgent: marketingAgent
+          ? {
+              id: marketingAgent._id,
+              name: marketingAgent.name,
+              phone: marketingAgent.phone
+            }
+          : null,
+        downlineTree
+      }
+    };
+
+  } catch (error) {
+    console.error(error);
+    throw error;
   }
-
-  return {
-    type: "AGENT",
-    rootAgentId: result[0]._id,
-    totalAgents: result[0].downline.length,
-    agents: result[0].downline
-  };
 };

@@ -32,7 +32,7 @@ const UserSchema = new mongoose.Schema(
     passwordHash: { type: String },
 
     // ACCOUNT STATUS
-    isActive: { type: Boolean, default: false },
+    isActive: { type: Boolean, default:true },
     isBlocked: { type: Boolean, default: false },
 
     // DASHBOARD TYPE (UI routing only)

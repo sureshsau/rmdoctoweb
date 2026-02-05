@@ -20,14 +20,14 @@ import {
 
 export default function AboutUs() {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
+    <div className="flex flex-col min-h-screen bg-linear-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
       
       {/* Hero Section */}
       <section className="pt-16 pb-12 lg:pt-20 lg:pb-16">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12 -mt-6 md:-mt-8">
             <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 leading-tight mb-4">
-              About <span className="bg-gradient-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
+              About <span className="bg-linear-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               A digital healthcare platform built to make medical services more accessible, reliable, and convenient for everyone.
@@ -104,7 +104,7 @@ export default function AboutUs() {
 
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Mission */}
-            <div className="relative p-8 lg:p-12 bg-gradient-to-br from-cyan-50 to-blue-100 rounded-3xl overflow-hidden">
+            <div className="relative p-8 lg:p-12 bg-linear-to-br from-cyan-50 to-blue-100 rounded-3xl overflow-hidden">
               <div className="relative z-10">
                 <div className="w-16 h-16 bg-cyan-600 rounded-2xl flex items-center justify-center mb-6">
                   <Target className="w-8 h-8 text-white" />
@@ -136,7 +136,7 @@ export default function AboutUs() {
             </div>
 
             {/* Vision */}
-            <div className="relative p-8 lg:p-12 bg-gradient-to-br from-purple-50 to-pink-100 rounded-3xl overflow-hidden">
+            <div className="relative p-8 lg:p-12 bg-linear-to-br from-purple-50 to-pink-100 rounded-3xl overflow-hidden">
               <div className="relative z-10">
                 <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
                   <Activity className="w-8 h-8 text-white" />
@@ -228,7 +228,7 @@ export default function AboutUs() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Value 1 */}
-            <div className="group p-6 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-cyan-50 to-blue-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-cyan-600 rounded-lg flex items-center justify-center mb-4">
                 <Heart className="w-6 h-6 text-white" />
               </div>
@@ -239,7 +239,7 @@ export default function AboutUs() {
             </div>
 
             {/* Value 2 */}
-            <div className="group p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-4">
                 <Award className="w-6 h-6 text-white" />
               </div>
@@ -250,7 +250,7 @@ export default function AboutUs() {
             </div>
 
             {/* Value 3 */}
-            <div className="group p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-green-50 to-emerald-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-white" />
               </div>
@@ -261,7 +261,7 @@ export default function AboutUs() {
             </div>
 
             {/* Value 4 */}
-            <div className="group p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-white" />
               </div>
@@ -272,7 +272,7 @@ export default function AboutUs() {
             </div>
 
             {/* Value 5 */}
-            <div className="group p-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-yellow-50 to-orange-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center mb-4">
                 <Activity className="w-6 h-6 text-white" />
               </div>
@@ -283,13 +283,13 @@ export default function AboutUs() {
             </div>
 
             {/* Value 6 */}
-            <div className="group p-6 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl hover:shadow-lg transition-all duration-300">
+            <div className="group p-6 bg-linear-to-br from-red-50 to-rose-50 rounded-xl hover:shadow-lg transition-all duration-300">
               <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Commitment</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                We are dedicated to our patients&apos; wellbeing and providing accessible, high-quality healthcare.
+                We are dedicated to our patients' wellbeing and providing accessible, high-quality healthcare.
               </p>
             </div>
           </div>
@@ -298,7 +298,7 @@ export default function AboutUs() {
 
 
       {/* Call to Action Section */}
-      {/* <section className="py-12 bg-gradient-to-r from-cyan-600 to-blue-700">
+      {/* <section className="py-12 bg-linear-to-r from-cyan-600 to-blue-700">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">

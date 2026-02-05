@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Footer from '@/components/layout/Footer';
 
 export default function LabTestPage() {
@@ -22,7 +22,7 @@ export default function LabTestPage() {
 
   const categories = ["all", ...new Set(allTests.map((t) => t.category))];
 
-  const filteredAndSortedTests = (() => {
+  const filteredAndSortedTests = useMemo(() => {
     let filtered = allTests;
 
     if (searchQuery) {
@@ -43,14 +43,14 @@ export default function LabTestPage() {
       if (sortBy === "price-high") return b.price - a.price;
       return 0;
     });
-  })();
+  }, [searchQuery, filterCategory, sortBy]);
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Main Content */}
       <div className="flex-grow pt-20 pb-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background with glassmorphism effect */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-gray-100 to-slate-200 -z-10"></div>
+      <div className="fixed inset-0 bg-linear-to-br from-slate-50 via-gray-100 to-slate-200 -z-10"></div>
       <div className="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djItaDJ2LTJoLTJ6bTAgNGgtMnYyaDJ2LTJ6bTIgMHYyaDJ2LTJoLTJ6bTItMmgtMnYyaDJ2LTJ6bTItMnYyaDJ2LTJoLTJ6bS0yIDBoLTJ2Mmgydi0yem0wLTJoMnYtMmgtMnYyem0tNCAwaC0ydjJoMnYtMnptMi0yaC0ydjJoMnYtMnptMC0yaC0ydjJoMnYtMnptMiAydi0yaDJ2MmgtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40 -z-10"></div>
 
       <div className="max-w-7xl mx-auto text-center mb-6 sm:mb-8">

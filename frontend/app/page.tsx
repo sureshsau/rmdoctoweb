@@ -88,7 +88,7 @@ export default function Home() {
       {/* Skeleton Overlay - fades out smoothly */}
       {showSkeleton && (
         <div 
-          className={`fixed inset-0 z-40 bg-gradient-to-br from-purple-50 via-blue-50 to-white transition-opacity duration-700 ease-out ${
+          className={`fixed inset-0 z-40 bg-linear-to-br from-purple-50 via-blue-50 to-white transition-opacity duration-700 ease-out ${
             isLoading ? 'opacity-100' : 'opacity-0'
           }`}
         >
@@ -97,10 +97,10 @@ export default function Home() {
       )}
 
       {/* Main Content - always rendered underneath */}
-      <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white text-gray-900">
+      <div className="flex flex-col min-h-screen bg-linear-to-br from-purple-50 via-blue-50 to-white text-gray-900">
 
       {/* HERO */}
-      <header className="pt-16 pb-10 md:pt-20 md:pb-16 bg-gradient-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
+      <header className="pt-16 pb-10 md:pt-20 md:pb-16 bg-linear-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
         <div className="max-w-7xl mx-auto px-4 md:px-12">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
 
@@ -131,13 +131,6 @@ export default function Home() {
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 gap-4">
                 <BookAppointmentButton variant="landing" />
-
-                <Link
-                  href="/auth/register"
-                  className="inline-flex items-center justify-center px-8 py-3 rounded-full font-semibold bg-blue-600 text-white shadow-md hover:bg-blue-700 hover:scale-105 transition"
-                >
-                  Get Started
-                </Link>
 
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -170,7 +163,7 @@ export default function Home() {
 
             {/* right */}
             <div className="relative">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-teal-50 to-blue-50 ">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-linear-to-br from-teal-50 to-blue-50 ">
                 <Image src="/landing11.png" alt="Professional Doctor" width={900} height={700} className="w-full h-auto object-cover rounded-xl" />
 
                 {/* Recent Visit */}
@@ -214,7 +207,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 md:px-12">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-bold">Let&apos;s know about our main goal</h2>
+              <h2 className="text-3xl md:text-4xl font-bold">Let's know about our main goal</h2>
               <p className="text-gray-600 max-w-xl">
                 We aim to offer clear and comprehensive information about our services, conditions treated, and treatment options. This ensures that patients can make informed decisions about their healthcare.
               </p>
@@ -230,7 +223,7 @@ export default function Home() {
             </div>
 
             <div className="relative">
-              <div className="rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-teal-50 to-blue-100">
+              <div className="rounded-2xl overflow-hidden shadow-2xl bg-linear-to-br from-teal-50 to-blue-100">
                 <Image src="/landing.jpeg" alt="Doctor" width={700} height={700} className="w-full h-auto object-cover rounded-xl" />
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-full px-6 py-3 shadow-lg flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
@@ -475,7 +468,7 @@ export default function Home() {
           )}
 
           {/* Quick Actions
-          <div className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-3xl p-8 text-center">
+          <div className="bg-linear-to-r from-cyan-600 to-blue-600 rounded-3xl p-8 text-center">
             <h4 className="text-2xl font-bold text-white mb-4">Need Immediate Medical Assistance?</h4>
             <p className="text-blue-100 mb-6">Get instant access to our medical services with just a few clicks</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

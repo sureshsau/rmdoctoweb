@@ -4,18 +4,21 @@ import { usePathname } from 'next/navigation';
 import Navbar from '../layout/Navbar';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith('/admin-dashboard');
-  const isReceptionRoute = pathname?.startsWith('/reception-dashboard');
-  const isAuthRoute = pathname?.startsWith('/auth');
+  const pathname = usePathname() ?? '';
+
+  // Hide navbar on auth pages and any dashboard-like routes.
+  // Examples: /auth/*, /admin-dashboard/*, /reception-dashboard/*, /dashboard/*
+  const isAuthRoute = pathname.startsWith('/auth');
+  const isDashboardRoute = /^\/[^/]*dashboard(\/|$)/.test(pathname);
+  const showNavbar = pathname === '/' && !isAuthRoute && !isDashboardRoute;
 
   return (
     <>
-      {/* Show navbar only for regular pages (not admin, reception, or auth) */}
-      {!isAdminRoute && !isReceptionRoute && <Navbar />}
+      {/* Navbar is only for landing page */}
+      {showNavbar && <Navbar />}
       
-      {/* Content wrapper: add top padding for regular pages, none for auth, admin, or reception */}
-      <div className={isAdminRoute || isAuthRoute || isReceptionRoute ? "" : "pt-20"}>
+      {/* Content wrapper: add top padding only when navbar is shown */}
+      <div className={showNavbar ? "pt-20" : ""}>
         {children}
       </div>
     </>

@@ -28,7 +28,16 @@ export default function MedicineCard({ medicine }: { medicine: Medicine }) {
     //     : 0;
 
     // Image handling
-    const imageUrl = medicine.images && medicine.images.length > 0 ? medicine.images[0].url : null;
+    const imageUrl = (() => {
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+        const rawSource = (medicine as any).image || (medicine.images && medicine.images[0]);
+        if (!rawSource) return null;
+        const raw = (rawSource as any).url ?? (rawSource as any).path ?? (rawSource as any).location ?? (rawSource as any).src ?? rawSource;
+        if (!raw || typeof raw !== "string") return null;
+        if (raw.startsWith("http")) return raw;
+        const normalized = raw.startsWith("/") ? raw : `/${raw}`;
+        return `${apiBase}${normalized}`;
+    })();
 
     // Cart State
     const cartItem = items.find((i) => i._id === medicine._id);
@@ -73,7 +82,7 @@ export default function MedicineCard({ medicine }: { medicine: Medicine }) {
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate mb-3">{medicine.manufacturer?.name || "Generic"}</p>
+                    <p className="text-xs text-gray-500 truncate mb-3">{medicine.manufacturer?.name || (medicine as any).manufacturerName || (medicine as any).manufacturer || medicine.brandName || ""}</p>
                 </div>
             </Link>
 

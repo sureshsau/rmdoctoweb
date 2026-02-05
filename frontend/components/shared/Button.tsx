@@ -28,7 +28,7 @@ export default function Button({
   
   const variantStyles = {
     primary: 'bg-cyan-600 text-white hover:bg-cyan-700 hover:shadow-xl hover:scale-105',
-    secondary: 'bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-700 hover:to-blue-800 hover:shadow-xl hover:scale-105',
+    secondary: 'bg-linear-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-700 hover:to-blue-800 hover:shadow-xl hover:scale-105',
     outline: 'border-2 border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white',
     ghost: 'text-gray-900 hover:text-cyan-600 hover:bg-cyan-50',
   };

@@ -97,28 +97,10 @@ export const medicineService = {
         // NOTE: app.js mounts at "/medicines", so that is correct.
         const res = await apiClient.get<any>(`/medicines?${query.toString()}`);
 
-        const rawData: BackendMedicineSummary[] = res.data.data || [];
+        const data: Medicine[] = res.data.data || [];
         const pagination = res.data.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 };
 
-        const transformedData: Medicine[] = rawData.map(item => ({
-            _id: item._id,
-            name: item.name,
-            brandName: item.brandName,
-            dosageForm: item.dosageForm,
-            pricing: {
-                price: item.price || 0,
-                mrp: item.mrp || 0,
-                specialPrice: item.specialPrice || 0
-            },
-            gstPercentage: (item as any).gstPercentage || 0, // Map GST from backend
-            images: item.image ? [{ url: item.image, key: "backend" }] : [],
-            isActive: true
-        }));
-
-        return {
-            data: transformedData,
-            pagination
-        };
+        return { data, pagination };
     },
 
     async getMedicineById(id: string): Promise<Medicine> {
@@ -138,9 +120,7 @@ export const medicineService = {
     },
 
     async addMedicine(formData: FormData) {
-        const res = await apiClient.post("/medicines", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
+        const res = await apiClient.post("/medicines", formData); // let axios set multipart boundary
         return res.data;
     },
 

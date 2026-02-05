@@ -22,7 +22,6 @@ export default function AdminSidebar() {
 
     const links = [
         { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-        { name: "Patients", href: "/admin/patients", icon: Users },
         { name: "Doctors", href: "/admin/doctors", icon: Stethoscope },
         { name: "Medicine", href: "/admin/medicine", icon: Pill },
         { name: "Roles", href: "/admin/roles", icon: Shield },

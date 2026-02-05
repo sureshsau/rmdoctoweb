@@ -1,7 +1,8 @@
 'use client';
 import Image from "next/image";
-import Button from "@/components/Button";
+import Button from "@/components/shared/Button";
 import Footer from "@/components/layout/Footer";
+import { useRouter } from 'next/navigation';
 import { 
   Phone, 
   Mail, 
@@ -22,6 +23,8 @@ import {
 import { useState } from 'react';
 
 export default function ContactUs() {
+  const router = useRouter();
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -57,17 +60,17 @@ export default function ContactUs() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white">
+    <div className="flex flex-col min-h-screen bg-linear-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40">
       
       {/* Hero Section */}
       <section className="pt-16 pb-12 lg:pt-20 lg:pb-16">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-12 -mt-6 md:-mt-8">
             <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 leading-tight mb-4">
-              Contact <span className="bg-gradient-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
+              Contact <span className="bg-linear-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">RMDocto</span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              We&apos;re here to help you with all your healthcare needs. Get in touch with our friendly team 
+              We're here to help you with all your healthcare needs. Get in touch with our friendly team 
               for appointments, inquiries, or emergency assistance.
             </p>
           </div>
@@ -100,7 +103,7 @@ export default function ContactUs() {
                   <p className="text-cyan-600 text-xs">8 AM - 6 PM</p>
                 </div>
               </div>
-              <p className="text-lg sm:text-xl font-bold text-cyan-800 mb-1">(+91) 9876543210</p>
+              <p className="text-lg sm:text-xl font-bold text-cyan-800 mb-1">(+91) 9144919150</p>
               <p className="text-cyan-600 text-xs">For appointments & general questions</p>
             </div>
 
@@ -134,7 +137,7 @@ export default function ContactUs() {
                   Send Us a Message
                 </h2>
                 <p className="text-gray-600">
-                  Fill out the form below and we&apos;ll get back to you as soon as possible.
+                  Fill out the form below and we'll get back to you as soon as possible.
                 </p>
               </div>
 
@@ -262,23 +265,25 @@ export default function ContactUs() {
                   Get in Touch
                 </h2>
                 <p className="text-gray-600">
-                  Visit us, call us, or connect with us online. We&apos;re always here to help.
+                  Visit us, call us, or connect with us online. We're always here to help.
                 </p>
               </div>
 
               {/* Contact Details */}
               <div className="space-y-4">
                 {/* Location */}
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl">
+                <div className="flex items-start gap-3 p-4 bg-linear-to-br from-gray-50 to-blue-50 rounded-xl">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-1">
                     <MapPin className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-gray-900 mb-1">Our Location</h3>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      123 Medical Center Drive,<br />
+                      {/* 123 Medical Center Drive,<br />
                       Health District, Mumbai - 400001<br />
-                      Maharashtra, India
+                      Maharashtra, India */}
+
+                      RMDocto Office: Ground Square Apartment, 50/G/2, <br/>Churaman Chowdhury Lane, Berhampore <br/> Murshidabad, West Bengal – 742101, India
                     </p>
                     <button className="text-blue-600 font-semibold mt-2 flex items-center gap-1 hover:text-blue-700 transition text-sm">
                       <Navigation className="w-3 h-3" />
@@ -288,7 +293,7 @@ export default function ContactUs() {
                 </div>
 
                 {/* Operating Hours */}
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                <div className="flex items-start gap-3 p-4 bg-linear-to-br from-green-50 to-emerald-50 rounded-xl">
                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center shrink-0 mt-1">
                     <Clock className="w-5 h-5 text-green-600" />
                   </div>
@@ -304,7 +309,7 @@ export default function ContactUs() {
                 </div>
 
                 {/* Services */}
-                <div className="flex items-start gap-3 p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                <div className="flex items-start gap-3 p-4 bg-linear-to-br from-purple-50 to-pink-50 rounded-xl">
                   <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0 mt-1">
                     <Stethoscope className="w-5 h-5 text-purple-600" />
                   </div>
@@ -313,28 +318,28 @@ export default function ContactUs() {
                     <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-                        <span>General Medicine</span>
+                        <span>Roll</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-                        <span>Cardiology</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-                        <span>Orthopedics</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-                        <span>Pediatrics</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-                        <span>Emergency Care</span>
+                        <span>Medicine Store</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
                         <span>Lab Services</span>
                       </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
+                        <span>Employee Management</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
+                        <span>Emergency Care</span>
+                      </div>
+                      {/* <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
+                        <span>Lab Services</span>
+                      </div> */}
                     </div>
                   </div>
                 </div>
@@ -344,8 +349,15 @@ export default function ContactUs() {
               <div className="space-y-3">
                 <h3 className="text-lg font-bold text-gray-900">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <Button icon={Calendar} iconPosition="left" size="sm" variant="primary" className="rounded-lg">
-                    Book Appointment
+                  <Button 
+                    icon={Calendar} 
+                    iconPosition="left" 
+                    size="sm" 
+                    variant="primary" 
+                    className="rounded-lg"
+                    onClick={() => router.push('/medicine-store')}
+                  >
+                    Buy Medicine
                   </Button>
                   <Button icon={MessageCircle} iconPosition="left" size="sm" variant="outline" className="rounded-lg">
                     Live Chat
@@ -371,7 +383,7 @@ export default function ContactUs() {
 
           {/* Responsive Google Maps Container */}
           <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl sm:shadow-2xl">
-            <div className="aspect-[4/3] sm:aspect-[16/10] lg:aspect-video bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center p-4">
+            <div className="aspect-[4/3] sm:aspect-[16/10] lg:aspect-video bg-linear-to-br from-blue-100 to-cyan-100 flex items-center justify-center p-4">
               <div className="text-center max-w-sm">
                 <MapPin className="w-12 h-12 sm:w-16 sm:h-16 text-cyan-600 mx-auto mb-3 sm:mb-4" />
                 <h3 className="text-lg sm:text-2xl font-bold text-gray-800 mb-2">Interactive Map</h3>
@@ -388,7 +400,7 @@ export default function ContactUs() {
             {/* Mobile-friendly overlay with contact info */}
             <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-auto sm:w-80 bg-white/95 backdrop-blur-sm rounded-xl p-3 sm:p-4 shadow-lg">
               <h4 className="font-bold text-gray-900 text-sm sm:text-base mb-2">RMDocto Medical Center</h4>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">123 Medical Center Drive, Health District</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">RMDocto Office: Ground Square Apartment, 50/G/2, Churaman Chowdhury Lane, Berhampore, Murshidabad, West Bengal – 742101, India</p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <button className="flex items-center justify-center gap-1 bg-cyan-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-cyan-700 transition">
                   <Phone className="w-3 h-3" />
@@ -409,7 +421,7 @@ export default function ContactUs() {
                 <MapPin className="w-5 h-5 text-cyan-600" />
                 <h4 className="font-semibold text-gray-900 text-sm">Address</h4>
               </div>
-              <p className="text-xs text-gray-600">123 Medical Center Drive, Health District, Mumbai - 400001</p>
+              <p className="text-xs text-gray-600">RMDocto Office: Ground Square Apartment, 50/G/2, Churaman Chowdhury Lane, Berhampore, Murshidabad, West Bengal – 742101, India</p>
             </div>
             
             <div className="bg-white p-4 rounded-xl shadow-sm border">
@@ -445,7 +457,7 @@ export default function ContactUs() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center group">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 bg-linear-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Expert Team</h3>
@@ -453,7 +465,7 @@ export default function ContactUs() {
             </div>
 
             <div className="text-center group">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 bg-linear-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Award className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Quality Care</h3>
@@ -461,7 +473,7 @@ export default function ContactUs() {
             </div>
 
             <div className="text-center group">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 bg-linear-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Advanced Technology</h3>
@@ -469,7 +481,7 @@ export default function ContactUs() {
             </div>
 
             <div className="text-center group">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <HeartHandshake className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Compassionate Care</h3>
@@ -480,14 +492,14 @@ export default function ContactUs() {
       </section>
 
       {/* Call to Action Section */}
-      <section className="py-12 bg-gradient-to-r from-cyan-600 to-blue-700">
+      {/* <section className="py-12 bg-linear-to-r from-cyan-600 to-blue-700">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">
               Ready to Get Started?
             </h2>
             <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-              Don&apos;t wait when it comes to your health. Contact us today and let our expert medical team 
+              Don't wait when it comes to your health. Contact us today and let our expert medical team 
               take care of you and your family.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -500,7 +512,7 @@ export default function ContactUs() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* FOOTER */}
       <Footer />

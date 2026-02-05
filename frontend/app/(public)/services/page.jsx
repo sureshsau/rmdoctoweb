@@ -76,7 +76,7 @@ export default function Services() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40 pb-20">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 via-blue-50 to-white -mt-20 pt-36 md:pt-40 pb-20">
         {/* HERO SECTION */}
         <section className="text-center px-4 sm:px-6 max-w-3xl mx-auto">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-cyan-700">

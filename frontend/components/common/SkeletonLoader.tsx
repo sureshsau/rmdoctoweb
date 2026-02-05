@@ -20,7 +20,7 @@ export const SkeletonBox = ({ className = '', delay = 0 }: { className?: string;
       // variants={shimmer}
       initial="hidden"
       animate="visible"
-      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+      className="absolute inset-0 bg-linear-to-r from-transparent via-white/60 to-transparent"
     />
   </div>
 );
@@ -64,7 +64,7 @@ export const HeroSkeleton = () => (
 );
 
 export const StatsSkeleton = () => (
-  <section className="py-10 bg-gradient-to-b from-gray-50 to-purple-50/30">
+  <section className="py-10 bg-linear-to-b from-gray-50 to-purple-50/30">
     <div className="max-w-7xl mx-auto px-4 md:px-12">
       <div className="grid gap-4 md:grid-cols-3">
         {[1,2,3].map((i) => (

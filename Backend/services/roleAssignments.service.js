@@ -61,7 +61,7 @@ export async function ensureCoreProfileForUser(user, role) {
         userId: user._id,
         agentName: user.name,
         phone: user.phone,
-        registeredBy: "admin",
+        registeredBy: "ADMIN",
       }),
     },
 

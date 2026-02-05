@@ -9,13 +9,6 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       required: true,
       unique: true
     },
-    directAgentIds: [
-  {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "AgentProfile",
-    index: true
-  }
-],
     joiningDate: {
       type: Date,
 

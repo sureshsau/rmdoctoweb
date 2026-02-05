@@ -75,7 +75,7 @@ export default function OrderDetailsPage() {
                             </div>
                             <h2 className="text-xs font-black uppercase tracking-[0.3em] text-cyan-400 mb-2">Delivery Verification PIN</h2>
                             <div className="flex gap-2 my-4">
-                                {order.otp.split('').map((char, i) => (
+                                {String(order.otp).split('').map((char, i) => (
                                     <div key={i} className="w-12 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-3xl font-black border border-white/20 backdrop-blur-xl shadow-inner">
                                         {char}
                                     </div>
@@ -151,6 +151,10 @@ export default function OrderDetailsPage() {
                             <span>GST (Healthcare)</span>
                             <span>₹{order.pricing.gstTotal.toFixed(2)}</span>
                         </div>
+                        <div className="flex justify-between items-center text-sm font-bold text-gray-500">
+                            <span>Delivery Charge</span>
+                            <span>₹{order.pricing.deliveryCharge.toFixed(2)}</span>
+                        </div>
                         <div className="flex justify-between items-center bg-gray-50 px-6 py-4 rounded-3xl mt-4">
                             <span className="text-sm font-black uppercase tracking-widest text-gray-900">Grand Total</span>
                             <span className="text-xl font-black text-cyan-600 tracking-tight">₹{order.pricing.payableAmount.toFixed(2)}</span>
@@ -166,7 +170,13 @@ export default function OrderDetailsPage() {
                             <MapPin size={20} className="text-cyan-600 shrink-0" />
                             <div>
                                 <p className="text-sm font-black text-gray-900">{order.deliveryAddress.fullName}</p>
-                                <p className="text-xs text-gray-500 font-medium leading-relaxed mt-1">{order.deliveryAddress.addressLine1}, {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.pincode}</p>
+                                <p className="text-xs text-gray-500 font-medium leading-relaxed mt-1">
+                                    {order.deliveryAddress.addressLine1}
+                                    {order.deliveryAddress.addressLine2 && `, ${order.deliveryAddress.addressLine2}`}
+                                    {order.deliveryAddress.city && `, ${order.deliveryAddress.city}`}
+                                    {order.deliveryAddress.state && `, ${order.deliveryAddress.state}`}
+                                    {" "} - {order.deliveryAddress.pincode}
+                                </p>
                             </div>
                         </div>
                     </div>

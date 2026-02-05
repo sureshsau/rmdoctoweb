@@ -44,6 +44,7 @@ export interface OrderDetails {
     pricing: {
         subtotal: number;
         gstTotal: number;
+        deliveryCharge: number;
         payableAmount: number;
     };
     deliveryAddress: {
@@ -51,8 +52,8 @@ export interface OrderDetails {
         phone: string;
         addressLine1: string;
         addressLine2?: string;
-        city: string;
-        state: string;
+        city?: string;
+        state?: string;
         pincode: string;
     };
     deliveryAgent: {
@@ -69,9 +70,11 @@ export interface OrderDetails {
         };
         quantity: number;
         unitPrice: number;
+        gstPercentage: number;
+        gstAmount: number;
         totalPrice: number;
     }[];
-    otp: string | null;
+    otp: string | number | null;
     otpVerified: boolean;
     createdAt: string;
 }

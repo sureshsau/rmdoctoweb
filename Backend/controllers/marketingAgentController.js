@@ -27,9 +27,9 @@ export const registerAgentByMarketingAgentController = async (req, res) => {
 export const marketingAgentNetworkController = async (req, res) => {
   try {
     const { id } = req.user;
-    console.log("hit this ")
 
-    const data = await getMarketingAgentTree({marketingAgentUserId:id});
+     const data = await getMarketingAgentTree({marketingAgentUserId:id});
+   
 
     return res.status(200).json({
       success: true,

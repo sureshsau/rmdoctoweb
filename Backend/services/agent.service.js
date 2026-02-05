@@ -345,7 +345,7 @@ export const getAgentVisibleNetwork = async ({
 }) => {
   try {
     /* =========================
-       FIND SELF AGENT
+       1️⃣ FETCH SELF AGENT
     ========================= */
     const selfAgent = await AgentProfile.findOne({
       userId: agentUserId
@@ -361,7 +361,7 @@ export const getAgentVisibleNetwork = async ({
     }
 
     /* =========================
-       FETCH PARENT (ONLY ONE)
+       2️⃣ FETCH PARENT AGENT (ONE LEVEL ONLY)
     ========================= */
     let parentAgent = null;
 
@@ -377,60 +377,84 @@ export const getAgentVisibleNetwork = async ({
     }
 
     /* =========================
-       FETCH MARKETING AGENT
+       3️⃣ FETCH MARKETING AGENT (EMPLOYEE)
     ========================= */
     let marketingAgent = null;
 
     if (selfAgent.marketingAgentId) {
       marketingAgent = await User.findById(
         selfAgent.marketingAgentId
-      ).select("name phone");
+      )
+        .select("name phone")
+        .lean();
     }
 
     /* =========================
-       BUILD DOWNLINE TREE
+       4️⃣ FETCH ALL DOWNLINE AGENTS (ONCE)
     ========================= */
-    const buildDownlineTree = async (agentId) => {
-      const agent = await AgentProfile.findById(agentId)
-        .populate({
-          path: "userId",
-          select: "name phone"
-        })
-        .lean();
+    const allAgents = await AgentProfile.find({
+      marketingAgentId: selfAgent.marketingAgentId
+    })
+      .populate({
+        path: "userId",
+        select: "name phone"
+      })
+      .lean();
 
-      if (!agent) return null;
+    /* =========================
+       5️⃣ BUILD MAP FOR BFS
+    ========================= */
+    const agentMap = new Map();
 
-      const node = {
+    allAgents.forEach(agent => {
+      agentMap.set(agent._id.toString(), {
         id: agent._id,
         name: agent.userId?.name || "",
         phone: agent.userId?.phone || "",
         level: agent.level,
         children: []
-      };
+      });
+    });
 
-      if (agent.childAgentIds?.length > 0) {
-        for (const childId of agent.childAgentIds) {
-          const childNode = await buildDownlineTree(childId);
-          if (childNode) {
-            node.children.push(childNode);
-          }
-        }
-      }
-
-      return node;
-    };
-
-    let downlineTree = [];
+    /* =========================
+       6️⃣ BFS BUILD DOWNLINE TREE
+    ========================= */
+    const queue = [];
+    const downlineTree = [];
 
     if (selfAgent.childAgentIds?.length > 0) {
-      for (const childId of selfAgent.childAgentIds) {
-        const childTree = await buildDownlineTree(childId);
-        if (childTree) {
-          downlineTree.push(childTree);
+      selfAgent.childAgentIds.forEach(childId => {
+        const childNode = agentMap.get(childId.toString());
+        if (childNode) {
+          downlineTree.push(childNode);
+          queue.push(childId.toString());
+        }
+      });
+    }
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      const currentAgent = allAgents.find(
+        a => a._id.toString() === currentId
+      );
+
+      if (!currentAgent?.childAgentIds?.length) continue;
+
+      for (const childId of currentAgent.childAgentIds) {
+        const childNode = agentMap.get(childId.toString());
+        if (childNode) {
+          agentMap
+            .get(currentId)
+            .children.push(childNode);
+
+          queue.push(childId.toString());
         }
       }
     }
 
+    /* =========================
+       7️⃣ RETURN VISIBLE NETWORK
+    ========================= */
     return {
       success: true,
       data: {
@@ -440,6 +464,7 @@ export const getAgentVisibleNetwork = async ({
           phone: selfAgent.userId?.phone,
           level: selfAgent.level
         },
+
         parentAgent: parentAgent
           ? {
               id: parentAgent._id,
@@ -448,6 +473,7 @@ export const getAgentVisibleNetwork = async ({
               level: parentAgent.level
             }
           : null,
+
         marketingAgent: marketingAgent
           ? {
               id: marketingAgent._id,
@@ -455,12 +481,13 @@ export const getAgentVisibleNetwork = async ({
               phone: marketingAgent.phone
             }
           : null,
+
         downlineTree
       }
     };
 
   } catch (error) {
-    console.error(error);
+    console.error("getAgentVisibleNetwork error:", error);
     throw error;
   }
 };

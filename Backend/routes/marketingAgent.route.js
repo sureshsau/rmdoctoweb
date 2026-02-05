@@ -13,7 +13,6 @@ router
     )
     .get("/network",
         authenticate,
-        authorize,
         marketingAgentNetworkController
     )
 

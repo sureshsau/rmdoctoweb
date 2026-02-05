@@ -1,4 +1,4 @@
-import { addMedicineService, deleteMedicineService, getMedicineByIdService, getMedicinesService } from "../services/medicine.service.js";
+import { addMedicineService, deleteMedicineService, editMedicineService, getMedicineByIdService, getMedicinesService } from "../services/medicine.service.js";
 
 
 export const addMedicineController = async (req, res) => {

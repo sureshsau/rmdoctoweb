@@ -70,11 +70,13 @@ export const createMedicineOrder = async ({
       // If linked → use it
       if (agentProfile?.marketingAgentId) {
         marketingAgentId = agentProfile.marketingAgentId;
+        console.log("marketing agent id found",marketingAgentId);
       }
-    }
+    } 
 
     // CASE 2: Not linked OR not an agent → pick random
     if (!marketingAgentId) {
+      console.log("marketing agent not found assign rendom")
       const [{ _id } = {}] = await User.aggregate([
         {
           $match: {

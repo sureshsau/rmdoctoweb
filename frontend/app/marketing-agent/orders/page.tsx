@@ -2,8 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useAuthContext } from "@/state/AuthContext";
-import { orderService, type OrderDetails, type OrderOverview } from "@/services/order.service";
+import { orderService, type MarketingAgentOrdersResponse } from "@/services/order.service";
 import {
   Search,
   Package,
@@ -16,10 +15,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-type MarketingAgentOrder = OrderOverview & {
-  orderedBy?: string | null;
-  itemsCount?: number;
-};
+type MarketingAgentOrder = MarketingAgentOrdersResponse["data"][number];
 
 const STATUS_FILTERS = ["ALL", "INITIATED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"] as const;
 
@@ -27,15 +23,7 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString();
 
-const extractDetails = (details: OrderDetails) => {
-  return {
-    orderedBy: details.deliveryAddress?.fullName || null,
-    itemsCount: details.items?.length || 0
-  };
-};
-
 export default function MarketingAgentOrdersPage() {
-  const { user } = useAuthContext();
   const [orders, setOrders] = useState<MarketingAgentOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,27 +48,6 @@ export default function MarketingAgentOrdersPage() {
 
         const baseOrders = res.data || [];
         setOrders(baseOrders);
-
-        const detailResults = await Promise.all(
-          baseOrders.map(async (order) => {
-            try {
-              const detail = await orderService.getOrderDetails(order.orderId);
-              if (detail.success) {
-                return { orderId: order.orderId, ...extractDetails(detail.data) };
-              }
-            } catch (err) {
-              console.error("Failed to load order details", err);
-            }
-            return { orderId: order.orderId, orderedBy: null, itemsCount: 0 };
-          })
-        );
-
-        setOrders((prev) =>
-          prev.map((order) => {
-            const detail = detailResults.find((item) => item.orderId === order.orderId);
-            return detail ? { ...order, orderedBy: detail.orderedBy, itemsCount: detail.itemsCount } : order;
-          })
-        );
       } catch (err) {
         console.error("Failed to load orders", err);
         setError("Failed to load orders");
@@ -99,8 +66,8 @@ export default function MarketingAgentOrdersPage() {
       const matchesSearch =
         !q ||
         order.orderId.toLowerCase().includes(q) ||
-        (order.medicine?.name || "").toLowerCase().includes(q) ||
-        (order.orderedBy || "").toLowerCase().includes(q);
+        (order.customer?.name || "").toLowerCase().includes(q) ||
+        (order.customer?.phone || "").toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
   }, [orders, activeStatus, search]);
@@ -192,16 +159,10 @@ export default function MarketingAgentOrdersPage() {
 
                   <div className="mt-4 flex items-start gap-4">
                     <div className="w-16 h-16 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center">
-                      {order.medicine?.image ? (
-                        <img src={order.medicine.image} alt="" className="w-full h-full object-contain mix-blend-multiply" />
-                      ) : (
-                        <Package className="text-gray-200" />
-                      )}
+                      <Package className="text-gray-200" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-slate-900 truncate">
-                        {order.medicine?.name || "Medicine order"}
-                      </p>
+                      <p className="font-black text-slate-900 truncate">{order.customer?.name || "Agent"}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500">
                         <span className="inline-flex items-center gap-1">
                           <Clock size={12} /> {formatDate(order.createdAt)}
@@ -210,23 +171,23 @@ export default function MarketingAgentOrdersPage() {
                           <CreditCard size={12} /> {order.paymentMode}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Package size={12} /> {order.itemsCount ?? 0} items
+                          <Package size={12} /> {order.itemCount ?? 0} items
                         </span>
                       </div>
                       <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                         <User size={14} />
-                        <span className="font-semibold truncate">{order.orderedBy || "Agent"}</span>
+                        <span className="font-semibold truncate">{order.customer?.phone || ""}</span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</p>
-                      <p className="text-lg font-black text-slate-900">₹{order.payableAmount}</p>
+                      <p className="text-lg font-black text-slate-900">₹{order.totalAmount}</p>
                     </div>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
                     <span>Payment {order.paymentStatus}</span>
-                    <span>Delivery {order.deliveryStatus || "PENDING"}</span>
+                    <span>{order.deliveryAddress?.addressLine1 || "Delivery address"}</span>
                   </div>
 
                   <Link

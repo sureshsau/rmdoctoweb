@@ -10,6 +10,7 @@ export default function OrderDetailsPage() {
     const { id } = useParams();
     const [order, setOrder] = useState<OrderDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -20,7 +21,9 @@ export default function OrderDetailsPage() {
                     setOrder(res.data);
                 }
             } catch (err) {
+                const message = (err as any)?.response?.data?.message || (err as any)?.message;
                 console.error("Failed to load order details:", err);
+                setError(message || "Failed to load order details");
             } finally {
                 setLoading(false);
             }
@@ -43,6 +46,7 @@ export default function OrderDetailsPage() {
                     <Package className="text-gray-200 w-10 h-10" />
                 </div>
                 <h1 className="text-2xl font-black text-gray-900">Order not found</h1>
+                {error && <p className="mt-2 text-sm text-red-500 font-semibold">{error}</p>}
                 <button onClick={() => router.back()} className="mt-6 text-cyan-600 font-bold uppercase tracking-widest text-xs">Go Back</button>
             </div>
         );

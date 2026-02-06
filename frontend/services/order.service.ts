@@ -89,6 +89,38 @@ export type AllOrdersResponse = {
     };
 };
 
+export type MarketingAgentOrdersResponse = {
+    success: boolean;
+    data: Array<{
+        orderId: string;
+        orderStatus: string;
+        paymentStatus: string;
+        paymentMode: string;
+        customer: {
+            name: string;
+            phone: string;
+        };
+        itemCount: number;
+        totalAmount: number;
+        deliveryAddress?: {
+            addressLine1?: string;
+            pincode?: string;
+        };
+        createdAt: string;
+    }>;
+    pagination?: {
+        totalOrders: number;
+        currentPage: number;
+        totalPages: number;
+        limit: number;
+    };
+    meta?: {
+        fallback: boolean;
+        errorStatus?: number;
+        errorMessage?: string;
+    };
+};
+
 export const orderService = {
     async placeOrder(payload: OrderPayload) {
         const res = await apiClient.post("/medicine/order", payload);
@@ -99,15 +131,31 @@ export const orderService = {
         return res.data;
     },
     async getOrderDetails(orderId: string): Promise<{ success: boolean; data: OrderDetails }> {
-        // Encode to avoid invalid path segments if an unexpected value slips in
-        const safeId = encodeURIComponent(orderId);
-        const res = await apiClient.get(`/medicine/order/${safeId}`);
-        return res.data;
-    },
-    async getMarketingAgentOrders(): Promise<AllOrdersResponse> {
         try {
-            const res = await apiClient.get("/marketing-agent/medicine/oderes");
-            return { ...res.data, meta: { fallback: false } };
+            // Encode to avoid invalid path segments if an unexpected value slips in
+            const safeId = encodeURIComponent(orderId);
+            const res = await apiClient.get(`/medicine/order/${safeId}`);
+            return res.data;
+        } catch (err: any) {
+            console.error("getOrderDetails failed", err);
+            console.error("getOrderDetails response", {
+                status: err?.response?.status,
+                statusText: err?.response?.statusText,
+                data: err?.response?.data,
+                message: err?.message
+            });
+            throw err;
+        }
+    },
+    async getMarketingAgentOrders(): Promise<MarketingAgentOrdersResponse> {
+        try {
+            const res = await apiClient.get("/marketing-agent/medicine/orders");
+            return {
+                success: Boolean(res.data?.success),
+                data: res.data?.orders || [],
+                pagination: res.data?.pagination,
+                meta: { fallback: false }
+            };
         } catch (err: any) {
             const status = err?.response?.status;
             const message = err?.response?.data?.message || err?.message;

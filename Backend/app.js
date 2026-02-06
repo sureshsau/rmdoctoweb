@@ -19,6 +19,8 @@ import medicineOrderRoute from './routes/medicineOrder.route.js'
 import AppError from "./utils/AppError.js";
 import { ensureRekognitionCollection } from "./services/aws.service.js";
 import marketingAgentRoute from './routes/marketingAgent.route.js'
+import Razorpay from "razorpay";
+import razorpay from "./config/razorpay.config.js";
 
 /* ================= CORS ================= */
 
@@ -53,6 +55,34 @@ app.use("/marketing-agent",marketingAgentRoute)
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);
+
+
+
+
+export const createRazorpayOrder = async (req, res) => {
+  try {
+    let amount=100
+
+    const order = await razorpay.orders.create({
+      amount: amount * 100,   // INR → paise
+      currency: "INR",
+      receipt: `rcpt_${Date.now()}`,
+      payment_capture: 1
+    });
+
+    res.json({
+      success: true,
+      order
+    });
+    console.log(order);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
+  }
+};
+app.post('/razorpay',createRazorpayOrder)
+
 
 /* ================= ERROR HANDLER ================= */
 

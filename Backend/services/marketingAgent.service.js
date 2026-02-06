@@ -8,6 +8,7 @@ import { uploadAgreementToS3 } from "./aws.service.js";
 import AppError from "../utils/AppError.js";
 import marketingAgentProfile from "../models/marketingAgentProfile.model.js";
 import { error } from "console";
+import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 
 
 
@@ -166,7 +167,7 @@ export const registerAgentByMarketingAgentService = async ({
       {
         $set: {
           dashboard: "agent",
-          role: ["agent"],
+          roles: ["agent"],
           permissions: role?.permissions || [],
           "profiles.agentId": agentProfileId,
 
@@ -279,4 +280,132 @@ export const getMarketingAgentTree = async ({
   }
 };
 
+export const getOrdersForMarketingAgentService = async ({
+  marketingAgentUserId,
+  status,
+  page = 1,
+  limit = 10
+}) => {
+  const query = {
+    deliveryAgentId: marketingAgentUserId
+  };
 
+  if (status) {
+    query.orderStatus = status;
+  }
+
+  const skip = (page - 1) * limit;
+
+  /* =========================
+     PARALLEL DB CALLS
+  ========================= */
+  const [orders, totalOrders] = await Promise.all([
+    MedicineOrder.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "userId",
+        select: "name phone"
+      })
+      .populate({
+        path: "items.medicineId",
+        select: "name images"
+      })
+      .lean(),
+
+    MedicineOrder.countDocuments(query)
+  ]);
+
+  /* =========================
+     OVERVIEW SHAPE
+  ========================= */
+  const overviewOrders = orders.map(order => ({
+    orderId: order._id,
+
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMode: order.paymentMode,
+
+    customer: {
+      name: order.userId?.name || null,
+      phone: order.userId?.phone || null
+    },
+
+    itemCount: order.items.length,
+
+    totalAmount: order.pricing.payableAmount,
+
+    deliveryAddress: {
+      addressLine1: order.deliveryAddress.addressLine1,
+      pincode: order.deliveryAddress.pincode
+    },
+
+    createdAt: order.createdAt
+  }));
+
+  return {
+    orders: overviewOrders,
+    pagination: {
+      totalOrders,
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit),
+      limit
+    }
+  };
+};
+
+
+const VALID_TRANSITIONS = {
+  INITIATED: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: []
+};
+
+export const updateOrderStatusService = async ({
+  orderId,
+  newStatus,
+  marketingAgentUserId,
+  cancelReason
+}) => {
+  const order = await MedicineOrder.findById(orderId);
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  /* 🔐 AUTHORIZATION */
+  if (
+    !order.deliveryAgentId ||
+    order.deliveryAgentId.toString() !== marketingAgentUserId.toString()
+  ) {
+    throw new AppError("Not authorized to update this order", 403);
+  }
+
+  /* 🔁 VALID STATUS TRANSITION */
+  const allowed = VALID_TRANSITIONS[order.orderStatus] || [];
+
+  if (!allowed.includes(newStatus)) {
+    throw new AppError(
+      `Cannot change order from ${order.orderStatus} to ${newStatus}`,
+      400
+    );
+  }
+
+  order.orderStatus = newStatus;
+
+  if (newStatus === "DELIVERED") {
+    order.paymentStatus = "PAID";
+    order.otpVerified = true;
+  }
+
+  if (newStatus === "CANCELLED") {
+    order.cancelledReason = cancelReason || "Cancelled by delivery agent";
+  }
+
+  await order.save();
+
+  return order;
+};

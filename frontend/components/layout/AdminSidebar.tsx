@@ -5,12 +5,8 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
     Users,
-    Stethoscope,
     Pill,
-    CalendarCheck,
-    UserPlus,
     LogOut,
-    Settings,
     Shield,
     Clock
 } from "lucide-react";
@@ -22,11 +18,10 @@ export default function AdminSidebar() {
 
     const links = [
         { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-        { name: "Doctors", href: "/admin/doctors", icon: Stethoscope },
+        { name: "Users", href: "/admin/users", icon: Users },
         { name: "Medicine", href: "/admin/medicine", icon: Pill },
         { name: "Roles", href: "/admin/roles", icon: Shield },
         { name: "Attendance", href: "/admin/attendance/settings", icon: Clock },
-        { name: "Agents", href: "/admin/agents", icon: UserPlus },
     ];
 
     return (

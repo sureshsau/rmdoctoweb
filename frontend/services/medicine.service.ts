@@ -97,7 +97,32 @@ export const medicineService = {
         // NOTE: app.js mounts at "/medicines", so that is correct.
         const res = await apiClient.get<any>(`/medicines?${query.toString()}`);
 
-        const data: Medicine[] = res.data.data || [];
+        const raw: any[] = res.data.data || [];
+        const data: Medicine[] = raw.map(item => {
+            const rawImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
+            const normalizedImages = rawImages.length
+                ? rawImages.map((img: any) => {
+                    const val = img?.url || img?.path || img?.location || img?.src || img;
+                    return val ? { url: String(val), key: String(img?.key || val) } : null;
+                }).filter(Boolean) as { url: string; key: string }[]
+                : undefined;
+
+            return {
+                _id: item._id,
+                name: item.name,
+                brandName: item.brandName,
+                dosageForm: item.dosageForm,
+                // Normalize the pricing shape so the UI can rely on medicine.pricing
+                pricing: {
+                    mrp: Number(item.mrp ?? item.price ?? 0),
+                    price: Number(item.price ?? item.mrp ?? 0),
+                    specialPrice: Number(item.specialPrice ?? 0),
+                },
+                // Normalize image into the expected images array (supports both string and array shapes)
+                images: normalizedImages,
+            };
+        });
+
         const pagination = res.data.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 };
 
         return { data, pagination };
@@ -120,7 +145,10 @@ export const medicineService = {
     },
 
     async addMedicine(formData: FormData) {
-        const res = await apiClient.post("/medicines", formData); // let axios set multipart boundary
+        // Allow Axios to set the correct multipart boundary automatically
+        const res = await apiClient.post("/medicines", formData, {
+            headers: { "Content-Type": undefined },
+        });
         return res.data;
     },
 

@@ -1,301 +1,304 @@
-'use client';
-import React, { useState } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import { Star, ArrowUpDown, Menu, X } from 'lucide-react';
+"use client";
 
-const MedicineStore = () => {
-  const [selectedCategory, setSelectedCategory] = useState('Top picks - Ayurveda');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+import { useEffect, useState, useCallback } from "react";
+import { medicineService, Medicine } from "@/services/medicine.service";
+import MedicineCard from "@/components/store/MedicineCard";
+import { Search, ShoppingBag, Filter, ArrowLeft, ChevronLeft, ChevronRight, X, ClipboardList } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMedicineCart } from "@/context/MedicineCartContext";
+import Link from "next/link";
 
-  const categories = [
-    { 
-      name: 'Top picks - Ayurveda', 
-      icon: '🌿',
-      isActive: true,
-      bgColor: 'from-rose-400 to-orange-300'
-    },
-    { 
-      name: 'Mind Care', 
-      icon: '🧠',
-      bgColor: 'bg-slate-100'
-    },
-    { 
-      name: 'Sexual Wellness', 
-      image: 'https://images.unsplash.com/photo-1542385151-efd9000785a0?w=100&h=100&fit=crop',
-      bgColor: 'bg-slate-100'
-    },
-    { 
-      name: 'Bone, Joint & Muscle', 
-      icon: '🦴',
-      bgColor: 'bg-slate-100'
-    },
-    { 
-      name: 'Ayurvedic Stomach Care', 
-      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=100&h=100&fit=crop',
-      bgColor: 'bg-slate-100'
-    },
-    { 
-      name: 'Cough, Cold & Fever', 
-      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=100&h=100&fit=crop',
-      bgColor: 'bg-slate-100'
-    },
-    { 
-      name: 'Diabetes Care', 
-      icon: '🩺',
-      bgColor: 'bg-slate-100'
-    },
-  ];
+// Simple debounce implementation
+function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
 
-  const products = [
-    {
-      id: 1,
-      name: 'Himalaya Wellness Himalaya Ashwagandha Tablet | Stress Relief Supplement | Rejuvenates Mind & Body',
-      image: 'https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?w=400&h=400&fit=crop&q=80',
-      originalPrice: '₹260',
-      salePrice: '₹234',
-      carePrice: '₹211',
-      discount: '10% off',
-      rating: 4.4,
-      reviews: '3816 ratings',
-      delivery: '2pm, Tomorrow',
-      tablets: '60 tablets',
-      bestseller: true
-    },
-    {
-      id: 2,
-      name: 'Panch Tulsi Drops for Respiratory Relief and Healthy Immunity | by Tata 1mg',
-      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=400&h=400&fit=crop&q=80',
-      originalPrice: '₹164',
-      salePrice: '₹85',
-      carePrice: '₹76.5',
-      discount: '48% off',
-      rating: 4.5,
-      reviews: '1119 ratings',
-      delivery: '2pm, Tomorrow',
-      volume: '30 ml Drop',
-      bestseller: true
-    },
-    {
-      id: 3,
-      name: 'Dabur Chyawanprash | 2X Immunity | Helps Protect from Common Illnesses',
-      image: 'https://images.unsplash.com/photo-1610725664285-7c57e6eeac3f?w=400&h=400&fit=crop&q=80',
-      originalPrice: '₹395',
-      salePrice: '₹348',
-      carePrice: '₹313',
-      discount: '12% off',
-      rating: 4.3,
-      reviews: '15420 ratings',
-      delivery: '6pm, Today',
-      weight: '1 kg Paste',
-      bestseller: false
-    },
-    {
-      id: 4,
-      name: 'Kapiva Himalayan Shilajit | Endurance, Stamina & Strength',
-      image: 'https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/917d6f93-fb36-439a-8c48-884b67b35381_1600w.jpg',
-      originalPrice: '₹1499',
-      salePrice: '₹899',
-      carePrice: '₹809',
-      discount: '40% off',
-      rating: 4.1,
-      reviews: '842 ratings',
-      delivery: '11am, Tomorrow',
-      weight: '20g Resin',
-      bestseller: false
+const CATEGORIES = ["All", "Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Inhaler", "Other"];
+
+export default function PublicMedicineStorePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL State
+  const page = Number(searchParams.get("page")) || 1;
+  const initialCategory = searchParams.get("category") || "All";
+  const initialSearch = searchParams.get("q") || "";
+
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    limit: 10
+  });
+
+  // Local state for immediate UI feedback
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const { totalItems, totalPrice } = useMedicineCart();
+
+  const loadMedicines = useCallback(async (p: number, cat: string, q: string) => {
+    setLoading(true);
+    try {
+      const res = await medicineService.getAllMedicines({
+        page: p,
+        limit: 10,
+        search: q,
+        dosageForm: cat === "All" ? undefined : cat
+      });
+      console.log(res.data);
+      setMedicines(res.data);
+      setPagination({
+        total: res.pagination.total,
+        totalPages: res.pagination.totalPages,
+        limit: res.pagination.limit
+      });
+    } catch (err) {
+      console.error("Failed to load medicines:", err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, []);
+
+  useEffect(() => {
+    loadMedicines(page, initialCategory, initialSearch);
+  }, [page, initialCategory, initialSearch, loadMedicines]);
+
+  // Debounced search logic
+  const debouncedSearch = useCallback(
+    debounce((q: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (q) params.set("q", q);
+      else params.delete("q");
+      params.set("page", "1"); // Reset to page 1 on search
+      router.push(`?${params.toString()}`);
+    }, 500),
+    [searchParams, router]
+  );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    debouncedSearch(val);
+  };
+
+  const handleCategoryChange = (cat: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("category", cat);
+    params.set("page", "1");
+    router.push(`?${params.toString()}`);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", newPage.toString());
+    router.push(`?${params.toString()}`);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    params.set("page", "1");
+    router.push(`?${params.toString()}`);
+  };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] antialiased flex flex-col">
-      <Navbar />
-      
-      {/* Mobile Categories Button */}
-      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <Menu className="w-5 h-5" />
-          <span className="text-sm font-medium">Categories</span>
-        </button>
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-80 bg-white h-full overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Categories</h2>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <nav className="space-y-1 p-4">
-              {categories.map((category, index) => (
-                <a
-                  key={index}
-                  href="#"
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
-                    category.isActive 
-                      ? 'bg-rose-50 border border-rose-200 text-rose-600 font-medium' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  } transition-colors`}
-                  onClick={() => {
-                    setSelectedCategory(category.name);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden ${
-                    category.isActive 
-                        ? `bg-linear-to-br ${category.bgColor}` 
-                      : category.bgColor
-                  }`}>
-                    {category.image ? (
-                      <div 
-                        className="w-full h-full bg-cover bg-center opacity-70"
-                        style={{ backgroundImage: `url(${category.image})` }}
-                      />
-                    ) : (
-                      <span className="text-sm">{category.icon}</span>
-                    )}
-                  </div>
-                  <span className="text-sm">{category.name}</span>
-                </a>
-              ))}
-            </nav>
-          </aside>
-        </div>
-      )}
-      
-      {/* Main Content Layout */}
-      <div className="flex max-w-[1600px] mx-auto w-full flex-1">
-        
-        {/* Desktop Sidebar */}
-        <aside className="w-64 hidden lg:block bg-white h-[calc(100vh-64px)] overflow-y-auto sticky top-16 border-r border-gray-100 py-4">
-          <nav className="space-y-1">
-            {categories.map((category, index) => (
-              <a
-                key={index}
-                href="#"
-                className={`flex items-center gap-3 px-4 py-3 ${
-                  category.isActive 
-                    ? 'bg-rose-50 border-r-4 border-rose-500 text-rose-600 font-medium' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                } transition-colors`}
-                onClick={() => setSelectedCategory(category.name)}
-              >
-                <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden ${
-                  category.isActive 
-                    ? `bg-linear-to-br ${category.bgColor}` 
-                    : category.bgColor
-                }`}>
-                  {category.image ? (
-                    <div 
-                      className="w-full h-full bg-cover bg-center opacity-70"
-                      style={{ backgroundImage: `url(${category.image})` }}
-                    />
-                  ) : (
-                    <span className="text-sm">{category.icon}</span>
-                  )}
-                </div>
-                <span className="text-sm">{category.name}</span>
-              </a>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Product Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-gray-900">Ayurvedic Top Picks</h1>
-            <button className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Sort
-              <ArrowUpDown className="w-3.5 h-3.5 text-gray-500" />
+    <div className="min-h-screen bg-gray-50 pb-28">
+      {/* Header Section */}
+      <div className="bg-white sticky top-0 z-30 border-b border-gray-100 shadow-sm px-4 py-4 md:py-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2.5 hover:bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all text-gray-600"
+            >
+              <ArrowLeft className="w-5 h-5" />
             </button>
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-cyan-600 transition-colors" />
+              <input
+                placeholder="Search by name, brand, or composition..."
+                className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border-gray-100 focus:bg-white focus:ring-4 focus:ring-cyan-50 rounded-2xl text-base font-medium transition-all outline-none border hover:border-cyan-200"
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {/* My Orders Link (Desktop) */}
+            <Link
+              href="/medicine-store/orders"
+              className="hidden md:flex items-center gap-3 px-5 py-3.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-100 rounded-2xl font-bold transition-all hover:border-cyan-200"
+            >
+              <ClipboardList className="w-5 h-5 text-cyan-600" />
+              <span>My Orders</span>
+            </Link>
+
+            {/* Cart Preview (Desktop) */}
+            <Link
+              href="/medicine-store/cart"
+              className="hidden md:flex items-center gap-3 px-5 py-3.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-2xl font-bold shadow-lg shadow-cyan-100 transition-all hover:-translate-y-0.5"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Cart ({totalItems})</span>
+              <span className="w-px h-4 bg-white/20 mx-1" />
+              <span>₹{totalPrice}</span>
+            </Link>
           </div>
 
-          {/* Products List */}
-          <div className="space-y-3 sm:space-y-4">
-            {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5 flex flex-col lg:flex-row gap-4 sm:gap-6 hover:shadow-sm transition-shadow">
-                {/* Image */}
-                <div className="w-full lg:w-48 h-40 sm:h-48 shrink-0 flex items-center justify-center p-2">
-                  <img 
-                    src={product.image} 
-                    alt={product.name} 
-                    className="max-h-full object-contain mix-blend-multiply opacity-90"
-                  />
-                </div>
-                
-                {/* Details */}
-                <div className="flex-1 flex flex-col justify-start pt-1">
-                  {product.bestseller && (
-                    <div className="mb-2">
-                      <span className="inline-block bg-orange-50 text-orange-700 text-xs sm:text-[10px] font-semibold px-1.5 py-0.5 rounded border border-orange-100">
-                        Bestseller+
-                      </span>
-                    </div>
-                  )}
-                  {!product.bestseller && <div className="mb-2 h-[22px]"></div>}
-                  
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug mb-1">
-                    {product.name}
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-3">
-                    {product.tablets || product.volume || product.weight}
-                  </p>
-                  
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="inline-flex items-center gap-1 bg-green-700 text-white text-xs font-bold px-1.5 py-0.5 rounded-sm">
-                      {product.rating} <Star className="w-2.5 h-2.5 fill-current" />
-                    </span>
-                    <span className="text-sm text-gray-500">{product.reviews}</span>
-                  </div>
+          {/* Categories Grid/Scroll */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-2">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => handleCategoryChange(cat)}
+                className={`px-6 py-2.5 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-300
+                  ${initialCategory === cat
+                    ? "bg-cyan-600 text-white shadow-lg shadow-cyan-100 ring-2 ring-cyan-600 ring-offset-2"
+                    : "bg-white text-gray-500 hover:bg-gray-50 border border-gray-100 hover:border-cyan-200"
+                  }
+                `}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-                  <div className="mt-auto">
-                    <p className="text-xs text-gray-500">
-                      Get by <span className="font-bold text-gray-900">{product.delivery}</span>
-                    </p>
-                  </div>
-                </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-4 md:p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+              {initialCategory === "All" ? "Essential Medicines" : `${initialCategory}s`}
+            </h2>
+            <p className="text-sm text-gray-500 font-medium mt-1">
+              Showing {medicines.length} of {pagination.total} medicines
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-gray-100 text-xs font-bold text-gray-400 tracking-widest uppercase">
+            <Filter size={14} /> Sort: Default
+          </div>
+        </div>
 
-                {/* Pricing Action */}
-                <div className="w-full lg:w-64 shrink-0 flex flex-col items-stretch lg:items-end justify-between border-t lg:border-t-0 lg:border-l border-gray-100 lg:pl-6 pt-4 lg:pt-0">
-                  <div className="w-full text-center lg:text-right mb-4">
-                    <div className="flex items-center justify-center lg:justify-end gap-2 text-xs mb-0.5">
-                      <span className="text-gray-400 line-through">{product.originalPrice}</span>
-                      <span className="text-green-600 font-bold">{product.discount}</span>
-                    </div>
-                    <div className="text-xl sm:text-2xl font-bold text-gray-900">{product.salePrice}</div>
-                  </div>
-
-                  <div className="w-full space-y-3">
-                    <div className="bg-rose-50 rounded text-right flex items-stretch overflow-hidden">
-                      <div className="bg-rose-600 text-white text-xs sm:text-[10px] font-bold px-1.5 flex items-center">CARE</div>
-                      <div className="flex-1 py-1 px-2 flex justify-between items-center text-xs">
-                        <span className="text-gray-500">price</span>
-                        <span className="font-bold text-gray-900">{product.carePrice}</span>
-                      </div>
-                    </div>
-                    <div className="text-xs sm:text-[10px] text-right text-rose-500 font-medium -mt-2">order for ₹1200</div>
-
-                    <button className="w-full py-3 sm:py-2 border border-rose-500 text-rose-600 font-bold rounded hover:bg-rose-50 transition-colors text-sm tracking-wide">
-                      ADD
-                    </button>
-                  </div>
-                </div>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="bg-white rounded-[32px] p-6 space-y-4 shadow-sm border border-gray-50 animate-pulse">
+                <div className="aspect-square bg-gray-50 rounded-2xl" />
+                <div className="h-4 bg-gray-50 rounded w-3/4" />
+                <div className="h-4 bg-gray-50 rounded w-1/2" />
+                <div className="pt-4 h-10 bg-gray-50 rounded-xl" />
               </div>
             ))}
           </div>
-        </main>
+        ) : medicines.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center bg-white rounded-[40px] border border-gray-50 shadow-sm">
+            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+              <Search className="w-10 h-10 text-gray-200" />
+            </div>
+            <h3 className="text-xl font-black text-gray-900">No medicines found</h3>
+            <p className="text-gray-500 mt-2 max-w-xs mx-auto font-medium">
+              We couldn't find any results for "{searchTerm}". Try checking for typos or use different keywords.
+            </p>
+            <button
+              onClick={clearSearch}
+              className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
+            >
+              Clear Search
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {medicines.map(item => (
+                <MedicineCard key={item._id} medicine={item} />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {pagination.totalPages > 1 && (
+              <div className="mt-16 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                  className="p-3 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-white transition-all text-gray-600"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+
+                {[...Array(pagination.totalPages)].map((_, i) => {
+                  const pNum = i + 1;
+                  // Only show current, first, last, and neighbors
+                  if (
+                    pNum === 1 ||
+                    pNum === pagination.totalPages ||
+                    (pNum >= page - 1 && pNum <= page + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pNum}
+                        onClick={() => handlePageChange(pNum)}
+                        className={`w-12 h-12 rounded-2xl font-bold transition-all
+                          ${page === pNum
+                            ? "bg-cyan-600 text-white shadow-lg shadow-cyan-100"
+                            : "bg-white text-gray-500 hover:bg-gray-50 border border-gray-100"
+                          }
+                        `}
+                      >
+                        {pNum}
+                      </button>
+                    );
+                  }
+                  if (pNum === page - 2 || pNum === page + 2) {
+                    return <span key={pNum} className="text-gray-300 font-bold px-2">...</span>;
+                  }
+                  return null;
+                })}
+
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === pagination.totalPages}
+                  className="p-3 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-white transition-all text-gray-600"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {/* Floating Bottom Bar (Mobile Cart) */}
+      {totalItems > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-5px_30px_rgba(0,0,0,0.08)] p-6 z-40 md:hidden animate-in slide-in-from-bottom-full duration-500">
+          <Link
+            href="/medicine-store/cart"
+            className="w-full flex items-center justify-between bg-cyan-600 hover:bg-cyan-700 text-white p-5 rounded-3xl font-bold shadow-xl shadow-cyan-200 transition-all active:scale-95"
+          >
+            <div className="flex flex-col items-start translate-x-1">
+              <span className="text-[10px] uppercase tracking-widest opacity-70">Checkout Items</span>
+              <span className="text-sm">{totalItems} Medicine{totalItems > 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-lg">₹{totalPrice}</span>
+              <ShoppingBag size={20} />
+            </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
-};
-
-export default MedicineStore;
+}

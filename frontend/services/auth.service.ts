@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/apiClient";
 
 export type AuthUser = {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   phone?: string;
   email?: string | null;

@@ -279,7 +279,7 @@ export default function AdminMedicinePage() {
                                 </div>
 
                                 <div className="absolute right-3 top-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-semibold text-cyan-700 shadow-sm">
-                                    ₹{item.pricing?.price ?? item.price ?? 0}
+                                    ₹{item.pricing?.price ?? 0}
                                 </div>
 
                                 <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition">
@@ -424,42 +424,44 @@ export default function AdminMedicinePage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div className="border border-dashed border-cyan-200 rounded-xl bg-cyan-50/50 p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-800">Images</p>
-                                                <p className="text-[11px] text-gray-500">Up to 5 images. First one shows on cards. (Images can be added only when creating)</p>
+                                {!editingId && (
+                                    <div className="space-y-3">
+                                        <div className="border border-dashed border-cyan-200 rounded-xl bg-cyan-50/50 p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-800">Images</p>
+                                                    <p className="text-[11px] text-gray-500">Up to 5 images. First one shows on cards.</p>
+                                                </div>
+                                                <span className="text-xs font-semibold text-cyan-700 bg-white px-3 py-1 rounded-full border border-cyan-100">{imageCountLabel}</span>
                                             </div>
-                                            <span className="text-xs font-semibold text-cyan-700 bg-white px-3 py-1 rounded-full border border-cyan-100">{imageCountLabel}</span>
+
+                                            <label className="mt-3 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-lg py-6 bg-white hover:border-cyan-400 transition cursor-pointer">
+                                                <ImageIcon className="w-8 h-8 text-gray-400" />
+                                                <span className="text-sm font-medium text-gray-700 mt-2">Upload or drag files</span>
+                                                <span className="text-[11px] text-gray-500">PNG, JPG up to 5MB</span>
+                                                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
+                                            </label>
+
+                                            {selectedImages.length > 0 && (
+                                                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto pr-1">
+                                                    {selectedImages.map(img => (
+                                                        <div key={img.url} className="relative group aspect-square rounded-lg overflow-hidden bg-white border border-gray-200">
+                                                            <img src={img.url} alt="preview" className="object-cover w-full h-full" />
+                                                            <button type="button" onClick={() => handleRemoveImage(img.url)} className="absolute top-1 right-1 bg-white/90 rounded-full p-1 text-red-500 shadow-sm opacity-0 group-hover:opacity-100 transition">
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <label className={`mt-3 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-lg py-6 bg-white transition ${editingId ? "opacity-60 cursor-not-allowed" : "hover:border-cyan-400 cursor-pointer"}`}>
-                                            <ImageIcon className="w-8 h-8 text-gray-400" />
-                                            <span className="text-sm font-medium text-gray-700 mt-2">Upload or drag files</span>
-                                            <span className="text-[11px] text-gray-500">PNG, JPG up to 5MB</span>
-                                            {!editingId && <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />}
-                                        </label>
-
-                                        {selectedImages.length > 0 && (
-                                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto pr-1">
-                                                {selectedImages.map(img => (
-                                                    <div key={img.url} className="relative group aspect-square rounded-lg overflow-hidden bg-white border border-gray-200">
-                                                        <img src={img.url} alt="preview" className="object-cover w-full h-full" />
-                                                        <button type="button" onClick={() => handleRemoveImage(img.url)} className="absolute top-1 right-1 bg-white/90 rounded-full p-1 text-red-500 shadow-sm opacity-0 group-hover:opacity-100 transition">
-                                                            <XCircle className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <div className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-3 leading-relaxed">
+                                            <div className="flex items-center gap-2 font-semibold text-gray-700 mb-1 text-sm"><AlertCircle className="w-4 h-4 text-amber-500" />Quality tips</div>
+                                            Use bright product shots on white background. Include front label and composition if possible.
+                                        </div>
                                     </div>
-
-                                    <div className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-3 leading-relaxed">
-                                        <div className="flex items-center gap-2 font-semibold text-gray-700 mb-1 text-sm"><AlertCircle className="w-4 h-4 text-amber-500" />Quality tips</div>
-                                        Use bright product shots on white background. Include front label and composition if possible.
-                                    </div>
-                                </div>
+                                )}
                             </div>
 
                             {formError && <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"><AlertCircle className="w-4 h-4" />{formError}</div>}

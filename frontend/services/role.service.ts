@@ -13,6 +13,13 @@ export type CreateRoleRequest = {
     permissions: string[];
 };
 
+export type AssignRoleRequest = {
+    userId: string;
+    roles?: string[];
+    permissions?: string[];
+    dashboard?: string;
+};
+
 export const roleService = {
     async getAllRoles() {
         // Backend returns { success: true, count: number, data: Role[] }
@@ -22,6 +29,11 @@ export const roleService = {
 
     async createRole(payload: CreateRoleRequest) {
         const res = await apiClient.post("/roles", payload);
+        return res.data;
+    },
+
+    async assignRole(payload: AssignRoleRequest) {
+        const res = await apiClient.post("/role-assignments/assign", payload);
         return res.data;
     },
 };

@@ -12,14 +12,15 @@ export default function MedicineCard({ medicine }: { medicine: Medicine }) {
     const { items, addMedicine, updateQuantity } = useMedicineCart();
 
     // Role Logic
+    console.log(medicine.pricing);
     const isAgent: boolean = user?.roles?.some((r) => r.toLowerCase().includes("agent") || r.toLowerCase().includes("admin")) ?? false;
 
     // Data Extraction
     // User logic: "Everyone sees MRP". "Agent sees Special Price also".
-    // Pricing Logic
-    const mrp = medicine.pricing?.mrp;
-    const price = medicine.pricing?.price; // Public Selling Price
-    const specialPrice = medicine.pricing?.specialPrice || 0; // Agent Selling Price
+    // Pricing Logic with fallback to legacy flat fields
+    const mrp = medicine.pricing?.mrp ?? (medicine as any).mrp ?? 0;
+    const price = medicine.pricing?.price ?? (medicine as any).price ?? mrp; // Public Selling Price
+    const specialPrice = medicine.pricing?.specialPrice ?? (medicine as any).specialPrice ?? 0; // Agent Selling Price
 
     // Discount (based on MRP vs Selling Price)
     const effectivePrice = (isAgent && specialPrice > 0) ? specialPrice : price;
@@ -82,7 +83,7 @@ export default function MedicineCard({ medicine }: { medicine: Medicine }) {
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate mb-3">{medicine.manufacturer?.name || (medicine as any).manufacturerName || (medicine as any).manufacturer || medicine.brandName || ""}</p>
+                    <p className="text-xs text-gray-500 truncate mb-3">{medicine.manufacturer?.name || medicine.brandName || "Generic"}</p>
                 </div>
             </Link>
 

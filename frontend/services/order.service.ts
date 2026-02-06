@@ -79,6 +79,16 @@ export interface OrderDetails {
     createdAt: string;
 }
 
+export type AllOrdersResponse = {
+    success: boolean;
+    data: OrderOverview[];
+    meta?: {
+        fallback: boolean;
+        errorStatus?: number;
+        errorMessage?: string;
+    };
+};
+
 export const orderService = {
     async placeOrder(payload: OrderPayload) {
         const res = await apiClient.post("/medicine/order", payload);
@@ -89,21 +99,73 @@ export const orderService = {
         return res.data;
     },
     async getOrderDetails(orderId: string): Promise<{ success: boolean; data: OrderDetails }> {
-        const res = await apiClient.get(`/medicine/order/${orderId}`);
+        // Encode to avoid invalid path segments if an unexpected value slips in
+        const safeId = encodeURIComponent(orderId);
+        const res = await apiClient.get(`/medicine/order/${safeId}`);
         return res.data;
     },
-    async getAllOrders(params?: Record<string, string | number | undefined>): Promise<{ success: boolean; data: OrderOverview[] }> {
+    async getMarketingAgentOrders(): Promise<AllOrdersResponse> {
+        try {
+            const res = await apiClient.get("/marketing-agent/medicine/oderes");
+            return { ...res.data, meta: { fallback: false } };
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message || err?.message;
+            console.error("getMarketingAgentOrders failed", err);
+            console.error("getMarketingAgentOrders response", {
+                status,
+                statusText: err?.response?.statusText,
+                data: err?.response?.data,
+                message: err?.message
+            });
+            return {
+                success: false,
+                data: [],
+                meta: {
+                    fallback: false,
+                    errorStatus: status,
+                    errorMessage: message
+                }
+            };
+        }
+    },
+    async getAllOrders(params?: Record<string, string | number | undefined>): Promise<AllOrdersResponse> {
         // Prefer full admin view; if it fails (400/403/404), fall back to user-scoped overview.
         try {
             const res = await apiClient.get("/medicine/order/view/all", { params });
-            return res.data;
-        } catch (err) {
+            return { ...res.data, meta: { fallback: false } };
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message || err?.message;
+            console.error("getAllOrders view/all failed", {
+                status,
+                statusText: err?.response?.statusText,
+                data: err?.response?.data,
+                message: err?.message
+            });
+
             try {
                 const res = await apiClient.get("/medicine/order", { params });
-                return res.data;
-            } catch (innerErr) {
+                return { ...res.data, meta: { fallback: true, errorStatus: status, errorMessage: message } };
+            } catch (innerErr: any) {
                 console.error("Failed to load orders", innerErr);
-                return { success: false, data: [] };
+                const innerStatus = innerErr?.response?.status;
+                const innerMessage = innerErr?.response?.data?.message || innerErr?.message;
+                console.error("getAllOrders fallback failed", {
+                    status: innerStatus,
+                    statusText: innerErr?.response?.statusText,
+                    data: innerErr?.response?.data,
+                    message: innerErr?.message
+                });
+                return {
+                    success: false,
+                    data: [],
+                    meta: {
+                        fallback: true,
+                        errorStatus: innerStatus ?? status,
+                        errorMessage: innerMessage ?? message
+                    }
+                };
             }
         }
     }

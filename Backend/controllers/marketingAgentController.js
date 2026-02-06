@@ -1,4 +1,4 @@
-import { getMarketingAgentTree, registerAgentByMarketingAgentService } from "../services/marketingAgent.service.js";
+import { getMarketingAgentTree, getOrdersForMarketingAgentService, registerAgentByMarketingAgentService, updateOrderStatusService } from "../services/marketingAgent.service.js";
 
 
 
@@ -44,3 +44,60 @@ export const marketingAgentNetworkController = async (req, res) => {
     });
   }
 };
+
+
+export const getAssignedOrders = async (req, res, next) => {
+  try {
+    const marketingAgentUserId = req.user.id;
+
+    const {
+      status,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    const result = await getOrdersForMarketingAgentService({
+      marketingAgentUserId,
+      status,
+      page: Number(page),
+      limit: Number(limit)
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrderStatusController = async (req, res, next) => {
+  try {
+    const marketingAgentUserId = req.user.id;
+    const { orderId } = req.params;
+    const { status, cancelReason } = req.body;
+
+    const updatedOrder = await updateOrderStatusService({
+      orderId,
+      newStatus: status,
+      marketingAgentUserId,
+      cancelReason
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+      order: {
+        id: updatedOrder._id,
+        orderStatus: updatedOrder.orderStatus,
+        paymentStatus: updatedOrder.paymentStatus
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+

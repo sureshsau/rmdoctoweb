@@ -274,7 +274,7 @@ export const registerAgentByAgentService = async ({
           coordinates: [longitude, latitude]
         },
         dashboard: "agent",
-        role: ["agent"],
+        roles: ["agent"],
         permissions: [],
         isActive: true,
         isBlocked: false,

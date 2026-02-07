@@ -343,6 +343,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
         device
       );
     const deviceType = isMobile ? "app" : "web";
+    console.log(deviceType);
 
     // 5️⃣ Session versioning
     let version;

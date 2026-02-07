@@ -57,15 +57,12 @@ export const registerAgentByMarketingAgentService = async ({
 
     // 🔍 1. Find user by phone
     let user = await User.findOne({ phone });
-    if(user.roles.includes("marketing_agent")){
-      throw new AppError("you can't register this user because this is a existing employee")
-    }
-    if(user.roles.includes("marketing_agent")||user.roles.includes("admin")||user.roles.includes("subadmin")){
+    if(user?.roles?.includes("marketing_agent")||user?.roles?.includes("admin")||user?.roles?.includes("subadmin")){
             throw new AppError("you can't register this user because this is a existing employee")
         }
-    // if (user?.roles) {
-    //   throw new AppError(`${user.roles} are already given to user`, 400);
-    // }
+    if (user?.roles) {
+      throw new AppError(`${user.roles} are already given to user`, 400);
+    }
 
     // 🔍 2. If agent profile already exists
     if (user?.profiles?.agentId) {

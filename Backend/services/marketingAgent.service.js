@@ -60,7 +60,9 @@ export const registerAgentByMarketingAgentService = async ({
     if(user.roles.includes("marketing_agent")){
       throw new AppError("you can't register this user because this is a existing employee")
     }
-
+    if(user.roles.includes("marketing_agent")||user.roles.includes("admin")||user.roles.includes("subadmin")){
+            throw new AppError("you can't register this user because this is a existing employee")
+        }
     // if (user?.roles) {
     //   throw new AppError(`${user.roles} are already given to user`, 400);
     // }

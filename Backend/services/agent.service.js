@@ -189,7 +189,7 @@ export const registerAgentByAgentService = async ({
     ========================= */
     let user = await User.findOne({ phone });
 
-    if(user.roles.includes("marketing_agent")){
+    if(user.roles.includes("marketing_agent")||user.roles.includes("admin")||user.roles.includes("subadmin")){
         throw new AppError("you can't register this user because this is a existing employee")
     }
 

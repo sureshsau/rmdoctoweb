@@ -3,7 +3,7 @@ import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import AppError from "../utils/AppError.js";
 
 
-export const createRazorpayOrderService = async ({
+export const createRazorpayMedicineOrderService = async ({
   orderId,
   user
 }) => {
@@ -13,14 +13,32 @@ export const createRazorpayOrderService = async ({
     throw new AppError("Order not found", 404);
   }
 
-  if (order.paymentMode !== "ONLINE") {
-    throw new AppError("Order is not ONLINE payment", 400);
-  }
-
+  /* 🔐 Prevent wrong flow */
   if (order.paymentStatus === "PAID") {
     throw new AppError("Order already paid", 400);
   }
 
+  /* 🔒 Lock payment mode to ONLINE */
+  order.paymentMode = "ONLINE";
+  order.paymentStatus = "PENDING";
+
+  /* 🛑 If Razorpay order already exists, reuse it */
+  if (order.razorpay?.orderId) {
+    return {
+      razorpayOrderId: order.razorpay.orderId,
+      amount: Math.round(order.pricing.payableAmount * 100),
+      currency: "INR",
+      key: process.env.RAZORPAY_KEY_ID,
+      user: {
+        name: user.name,
+        phone: user.phone
+      }
+    };
+  }
+
+  /* =========================
+     CREATE RAZORPAY ORDER
+  ========================= */
   const razorpayOrder = await razorpay.orders.create({
     amount: Math.round(order.pricing.payableAmount * 100), // paise
     currency: "INR",
@@ -31,7 +49,7 @@ export const createRazorpayOrderService = async ({
     }
   });
 
-  // 🔒 Save Razorpay orderId
+  /* 💾 SAVE PAYMENT INFO */
   order.razorpay = {
     orderId: razorpayOrder.id
   };
@@ -49,6 +67,7 @@ export const createRazorpayOrderService = async ({
     }
   };
 };
+
 
 
 export const verifyRazorpayPaymentService = async ({

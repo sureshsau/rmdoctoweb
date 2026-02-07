@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middlewire.js';
 import { createMedicineOrderMiddleware } from '../validator/medicine/medicineOrder.validator.js';
-import { getAllMedicineOrdersController, getMedicineOrderDetailsController, getMedicineOrdersOverviewController, orderMedicine, verifyOrderOtpController } from '../controllers/medicineOrderController.js';
+import { createRazorpayMedicineOrder, getAllMedicineOrdersController, getMedicineOrderDetailsController, getMedicineOrdersOverviewController, orderMedicine, verifyOnlinePaymentController, verifyOrderOtpController } from '../controllers/medicineOrderController.js';
 const router=express.Router();
 
 
@@ -18,6 +18,17 @@ router.post(
   authenticate,
   verifyOrderOtpController
 )
+.post(
+  "/payments/razorpay/create",
+  authenticate,
+  createRazorpayMedicineOrder
+)
+.post(
+  "/payments/razorpay/verify",
+  authenticate,
+  verifyOnlinePaymentController
+)
+
 .get("/view/all",authenticate,authorize("medicineOrder.view.all"),getAllMedicineOrdersController)
 
 export default router

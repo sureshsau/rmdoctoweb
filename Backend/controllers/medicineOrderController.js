@@ -1,5 +1,5 @@
 import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getUserMedicineOrdersOverview, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
-import { verifyRazorpayPaymentService } from "../services/razorpay.js";
+import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 
 
 
@@ -172,6 +172,32 @@ export const getAllMedicineOrdersController = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+export const createRazorpayMedicineOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "orderId is required"
+      });
+    }
+
+    const data = await createRazorpayMedicineOrderService({
+      orderId,
+      user: req.user
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Razorpay order created successfully",
+      data
+    });
+  } catch (error) {
+    next(error);
   }
 };
 

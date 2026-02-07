@@ -3,7 +3,7 @@ import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import AppError from "../utils/AppError.js";
 
 
-export const createRazorpayOrderService = async ({
+export const createRazorpayMedicineOrderService = async ({
   orderId,
   user
 }) => {
@@ -13,14 +13,32 @@ export const createRazorpayOrderService = async ({
     throw new AppError("Order not found", 404);
   }
 
-  if (order.paymentMode !== "ONLINE") {
-    throw new AppError("Order is not ONLINE payment", 400);
-  }
-
+  /* 🔐 Prevent wrong flow */
   if (order.paymentStatus === "PAID") {
     throw new AppError("Order already paid", 400);
   }
 
+  /* 🔒 Lock payment mode to ONLINE */
+  order.paymentMode = "ONLINE";
+  order.paymentStatus = "PENDING";
+
+  /* 🛑 If Razorpay order already exists, reuse it */
+  if (order.razorpay?.orderId) {
+    return {
+      razorpayOrderId: order.razorpay.orderId,
+      amount: Math.round(order.pricing.payableAmount * 100),
+      currency: "INR",
+      key: process.env.RAZORPAY_KEY_ID,
+      user: {
+        name: user.name,
+        phone: user.phone
+      }
+    };
+  }
+
+  /* =========================
+     CREATE RAZORPAY ORDER
+  ========================= */
   const razorpayOrder = await razorpay.orders.create({
     amount: Math.round(order.pricing.payableAmount * 100), // paise
     currency: "INR",
@@ -31,7 +49,7 @@ export const createRazorpayOrderService = async ({
     }
   });
 
-  // 🔒 Save Razorpay orderId
+  /* 💾 SAVE PAYMENT INFO */
   order.razorpay = {
     orderId: razorpayOrder.id
   };
@@ -63,6 +81,13 @@ export const verifyRazorpayPaymentService = async ({
     throw new AppError("Order not found", 404);
   }
 
+  if (order.paymentStatus === "PAID") {
+    throw new AppError("Payment already verified", 400);
+  }
+
+  /* =========================
+     VERIFY SIGNATURE
+  ========================= */
   const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
   const expectedSignature = crypto
@@ -74,9 +99,19 @@ export const verifyRazorpayPaymentService = async ({
     throw new AppError("Payment verification failed", 400);
   }
 
-  // ✅ Payment verified
+  /* =========================
+     GENERATE DELIVERY OTP
+  ========================= */
+  const otp = crypto.randomInt(100000, 1000000);
+
+  /* =========================
+     UPDATE ORDER
+  ========================= */
   order.paymentStatus = "PAID";
   order.orderStatus = "CONFIRMED";
+
+  order.otp = otp;
+  order.otpVerified = false;
 
   order.razorpay = {
     orderId: razorpay_order_id,
@@ -86,9 +121,13 @@ export const verifyRazorpayPaymentService = async ({
 
   await order.save();
 
+  /* =========================
+     RESPONSE (NO OTP)
+  ========================= */
   return {
     orderId: order._id,
     paymentStatus: order.paymentStatus,
     orderStatus: order.orderStatus
   };
 };
+

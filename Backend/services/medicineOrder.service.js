@@ -94,24 +94,6 @@ export const createMedicineOrder = async ({
       }
 
       marketingAgentId = _id;
-    } else {
-      const [{ _id } = {}] = await User.aggregate([
-        {
-          $match: {
-            roles: { $in: ["marketing_agent"] },
-            isActive: true,
-            isBlocked: false
-          }
-        },
-        { $project: { _id: 1 } },
-        { $sample: { size: 1 } }
-      ]);
-
-      if (!_id) {
-        throw new AppError("No marketing agent available", 400);
-      }
-
-      marketingAgentId = _id;
     }
 
     const payableAmount = subtotal + gstTotal;

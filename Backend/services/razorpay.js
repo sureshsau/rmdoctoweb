@@ -69,7 +69,6 @@ export const createRazorpayMedicineOrderService = async ({
 };
 
 
-
 export const verifyRazorpayPaymentService = async ({
   orderId,
   razorpay_order_id,
@@ -82,6 +81,13 @@ export const verifyRazorpayPaymentService = async ({
     throw new AppError("Order not found", 404);
   }
 
+  if (order.paymentStatus === "PAID") {
+    throw new AppError("Payment already verified", 400);
+  }
+
+  /* =========================
+     VERIFY SIGNATURE
+  ========================= */
   const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
   const expectedSignature = crypto
@@ -93,9 +99,19 @@ export const verifyRazorpayPaymentService = async ({
     throw new AppError("Payment verification failed", 400);
   }
 
-  // ✅ Payment verified
+  /* =========================
+     GENERATE DELIVERY OTP
+  ========================= */
+  const otp = crypto.randomInt(100000, 1000000);
+
+  /* =========================
+     UPDATE ORDER
+  ========================= */
   order.paymentStatus = "PAID";
   order.orderStatus = "CONFIRMED";
+
+  order.otp = otp;
+  order.otpVerified = false;
 
   order.razorpay = {
     orderId: razorpay_order_id,
@@ -105,9 +121,13 @@ export const verifyRazorpayPaymentService = async ({
 
   await order.save();
 
+  /* =========================
+     RESPONSE (NO OTP)
+  ========================= */
   return {
     orderId: order._id,
     paymentStatus: order.paymentStatus,
     orderStatus: order.orderStatus
   };
 };
+

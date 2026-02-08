@@ -30,14 +30,16 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isMedicineStore = pathname?.startsWith('/medicine-store');
   const isMarketingAgentRoute = pathname?.startsWith('/marketing-agent');
   const isAgentRoute = pathname?.startsWith('/agent');
+  const isDoctorRoute = pathname?.startsWith('/doctor');
+  const isReceptionistRoute = pathname?.startsWith('/receptionist');
 
   return (
     <>
       {/* Show navbar only for non-admin routes */}
-      {(!isAdminRoute && !isAuthRoute && !isCheckInOut && !isMedicineStore && !isMarketingAgentRoute && !isAgentRoute) && <Navbar />}
+      {(!isAdminRoute && !isAuthRoute && !isCheckInOut && !isMedicineStore && !isMarketingAgentRoute && !isAgentRoute && !isDoctorRoute && !isReceptionistRoute) && <Navbar />}
 
       {/* Content wrapper: add top padding for regular pages, none for auth or admin */}
-      <div className={isAdminRoute || isAuthRoute || isCheckInOut || isMedicineStore || isMarketingAgentRoute || isAgentRoute ? "" : "pt-20"}>
+      <div className={isAdminRoute || isAuthRoute || isCheckInOut || isMedicineStore || isMarketingAgentRoute || isAgentRoute || isDoctorRoute || isReceptionistRoute ? "" : "pt-20"}>
         {children}
       </div>
     </>

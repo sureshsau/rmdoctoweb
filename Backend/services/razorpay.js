@@ -2,7 +2,6 @@ import razorpay from "../config/razorpay.config.js";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import AppError from "../utils/AppError.js";
 
-
 export const createRazorpayMedicineOrderService = async ({
   orderId,
   user

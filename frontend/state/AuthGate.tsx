@@ -30,7 +30,7 @@ function roleFromPath(pathname: string) {
   if (pathname.startsWith("/doctor")) return "doctor";
   if (pathname.startsWith("/agent")) return "agent";
   if (pathname.startsWith("/marketing-agent")) return "marketing_agent";
-  if (pathname.startsWith("/reception")) return "reception";
+  if (pathname.startsWith("/receptionist")) return "receptionist";
   if (pathname.startsWith("/dashboard")) return "user";
   if (pathname.startsWith("/ChekInOut")) return "staff";
   return null;
@@ -65,7 +65,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       // Staff-only page (CheckInOut) should be blocked for plain users
       if (routeRole === "staff") {
-        const allowed = new Set(["admin", "doctor", "receptionist", "reception", "agent"]);
+        const allowed = new Set(["admin", "doctor", "receptionist", "agent"]);
         if (!allowed.has(expected)) {
           router.replace("/unauthorized");
         }
@@ -73,7 +73,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
 
       // If trying to open a dashboard not matching their dashboard, redirect.
-      if (routeRole && routeRole !== expected && !(routeRole === "reception" && expected === "receptionist")) {
+      if (routeRole && routeRole !== expected) {
         router.replace(getDashboardPathForUser(user));
       }
     }

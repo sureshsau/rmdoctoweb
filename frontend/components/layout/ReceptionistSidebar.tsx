@@ -5,29 +5,30 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
     Users,
-    UserPlus,
-    Package,
+    Stethoscope,
+    ClipboardList,
+    ShoppingBag,
     LogOut,
-    Settings,
     ShieldCheck,
     X
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
 
-type MarketingAgentSidebarProps = {
+type ReceptionistSidebarProps = {
     isOpen?: boolean;
     onClose?: () => void;
 };
 
-export default function MarketingAgentSidebar({ isOpen = false, onClose }: MarketingAgentSidebarProps) {
+export default function ReceptionistSidebar({ isOpen = false, onClose }: ReceptionistSidebarProps) {
     const pathname = usePathname();
     const { logout, user } = useAuthContext();
 
     const links = [
-        { name: "Overview", href: "/marketing-agent/dashboard", icon: LayoutDashboard },
-        { name: "Orders", href: "/marketing-agent/orders", icon: Package },
-        { name: "My Team", href: "/marketing-agent/team", icon: Users },
-        { name: "Recruitment", href: "/marketing-agent/recruit", icon: UserPlus },
+        { name: "Overview", href: "/receptionist/dashboard", icon: LayoutDashboard },
+        { name: "Users", href: "/receptionist/dashboard#users", icon: Users },
+        { name: "Doctors", href: "/receptionist/dashboard#doctors", icon: Stethoscope },
+        { name: "Orders", href: "/receptionist/dashboard#orders", icon: ClipboardList },
+        { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag }
     ];
 
     return (
@@ -35,14 +36,13 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
             className={`w-64 bg-white border-r border-gray-100 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-40 shadow-sm transition-transform duration-300
                 ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
         >
-            {/* Logo Section */}
             <div className="h-20 flex items-center justify-between px-6 border-b border-gray-50">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                    <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
                         <ShieldCheck className="text-white w-6 h-6" />
                     </div>
                     <span className="text-xl font-bold text-gray-900 tracking-tight">
-                        Marketing
+                        Reception
                     </span>
                 </div>
                 <button
@@ -55,19 +55,20 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
                 </button>
             </div>
 
-            {/* Profile Summary */}
             <div className="px-6 py-6">
                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Signed in as</p>
-                    <p className="text-sm font-bold text-gray-900 truncate mt-1">{user?.name || "Marketing Agent"}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate mt-1">{user?.name || "Receptionist"}</p>
                 </div>
             </div>
 
-            {/* Navigation Links */}
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
                 {links.map((link) => {
-                    const isActive = pathname === link.href;
                     const Icon = link.icon;
+                    const isActive =
+                        pathname === link.href ||
+                        (link.href === "/receptionist/dashboard" && pathname.startsWith("/receptionist")) ||
+                        (link.href === "/medicine-store" && pathname.startsWith("/medicine-store"));
 
                     return (
                         <Link
@@ -76,7 +77,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
                             onClick={onClose}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200
                                 ${isActive
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                                    ? "bg-amber-500 text-white shadow-lg shadow-amber-100"
                                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                                 }
                             `}
@@ -88,16 +89,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
                 })}
             </nav>
 
-            {/* Bottom Actions */}
             <div className="p-4 border-t border-gray-50 space-y-1">
-                <Link
-                    href="/marketing-agent/settings"
-                    onClick={onClose}
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-colors"
-                >
-                    <Settings className="w-5 h-5" />
-                    Settings
-                </Link>
                 <button
                     onClick={() => logout({ redirectTo: "/" })}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors"

@@ -8,6 +8,38 @@ import { useAuthContext } from "@/state/AuthContext";
 import { useState, useMemo, useEffect } from "react";
 import { orderService, OrderPayload } from "@/services/order.service";
 
+declare global {
+    interface Window {
+        Razorpay?: any;
+    }
+}
+
+let razorpayScriptPromise: Promise<boolean> | null = null;
+
+const loadRazorpayScript = () => {
+    if (razorpayScriptPromise) return razorpayScriptPromise;
+
+    razorpayScriptPromise = new Promise((resolve) => {
+        if (typeof window === "undefined") {
+            resolve(false);
+            return;
+        }
+
+        if (window.Razorpay) {
+            resolve(true);
+            return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+
+    return razorpayScriptPromise;
+};
+
 type CheckoutStep = "cart" | "address" | "payment" | "summary";
 
 export default function PublicCartPage() {
@@ -21,6 +53,7 @@ export default function PublicCartPage() {
     const [loading, setLoading] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
     const [paymentMode, setPaymentMode] = useState<OrderPayload["paymentMode"]>("COD");
+    const [pendingOnlineOrderId, setPendingOnlineOrderId] = useState<string | null>(null);
 
     // Address State
     const [address, setAddress] = useState({
@@ -143,10 +176,87 @@ export default function PublicCartPage() {
         };
 
         try {
-            await orderService.placeOrder(payload);
-            setOrderSuccess(true);
-            clearCart();
-            setTimeout(() => router.push("/medicine-store"), 5000);
+            let createdOrderId = pendingOnlineOrderId;
+
+            if (paymentMode !== "ONLINE") {
+                const orderResponse = await orderService.placeOrder(payload);
+                createdOrderId =
+                    orderResponse?.data?.orderId ||
+                    orderResponse?.data?._id ||
+                    orderResponse?.data?.data?.orderId ||
+                    orderResponse?.data?.data?._id ||
+                    null;
+
+                setOrderSuccess(true);
+                clearCart();
+                setTimeout(() => router.push("/medicine-store"), 5000);
+                return;
+            }
+
+            if (!createdOrderId) {
+                const orderResponse = await orderService.placeOrder(payload);
+                createdOrderId =
+                    orderResponse?.data?.orderId ||
+                    orderResponse?.data?._id ||
+                    orderResponse?.data?.data?.orderId ||
+                    orderResponse?.data?.data?._id ||
+                    null;
+                if (createdOrderId) {
+                    setPendingOnlineOrderId(createdOrderId);
+                }
+            }
+
+            if (!createdOrderId) {
+                throw new Error("Order id missing from server response");
+            }
+
+            const razorpayReady = await loadRazorpayScript();
+            if (!razorpayReady || !window.Razorpay) {
+                throw new Error("Razorpay SDK failed to load");
+            }
+
+            const razorpayOrder = await orderService.createRazorpayOrder(createdOrderId);
+
+            const options = {
+                key: razorpayOrder.data.key,
+                amount: razorpayOrder.data.amount,
+                currency: razorpayOrder.data.currency,
+                name: "RM Docto",
+                description: "Medicine Order Payment",
+                order_id: razorpayOrder.data.razorpayOrderId,
+                prefill: {
+                    name: razorpayOrder.data.user?.name || user?.name || "",
+                    contact: razorpayOrder.data.user?.phone || user?.phone || ""
+                },
+                handler: async (response: any) => {
+                    try {
+                        await orderService.verifyRazorpayPayment({
+                            orderId: createdOrderId,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        });
+
+                        setOrderSuccess(true);
+                        clearCart();
+                        setTimeout(() => router.push("/medicine-store"), 5000);
+                    } catch (verifyError) {
+                        console.error(verifyError);
+                        alert("Payment verification failed. Please contact support if payment was deducted.");
+                    } finally {
+                        setLoading(false);
+                    }
+                },
+                modal: {
+                    ondismiss: () => {
+                        setLoading(false);
+                        router.push("/medicine-store/orders");
+                    }
+                }
+            };
+
+            const razorpayInstance = new window.Razorpay(options);
+            razorpayInstance.open();
         } catch (err) {
             console.error(err);
             alert("Failed to place order. Technical issue on server.");

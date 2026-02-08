@@ -1,23 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { orderService, OrderDetails } from "@/services/order.service";
 import { ArrowLeft, Package, Clock, CheckCircle2, ShoppingBag, Truck, MapPin, Smartphone, User, CreditCard, ShieldCheck } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 
 declare global {
     interface Window {
-        Razorpay?: any;
+        google?: any;
     }
 }
 
-export default function OrderDetailsPage() {
+type OrderDetailsClientProps = {
+    mapsKey?: string;
+};
+
+export default function OrderDetailsClient({ mapsKey }: OrderDetailsClientProps) {
     const router = useRouter();
     const { id } = useParams();
     const [order, setOrder] = useState<OrderDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [retryingPayment, setRetryingPayment] = useState(false);
+    const [showTracker, setShowTracker] = useState(false);
+    const [trackerError, setTrackerError] = useState<string | null>(null);
+    const [agentLocation, setAgentLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [followMe, setFollowMe] = useState(true);
+
+    const mapContainerRef = useRef<HTMLDivElement | null>(null);
+    const mapInstanceRef = useRef<any>(null);
+    const agentMarkerRef = useRef<any>(null);
+    const agentPulseRef = useRef<any>(null);
+    const destinationMarkerRef = useRef<any>(null);
+    const directionsServiceRef = useRef<any>(null);
+    const directionsRendererRef = useRef<any>(null);
+    const lastRouteAtRef = useRef(0);
+    const geoWatchIdRef = useRef<number | null>(null);
+    const pulseIntervalRef = useRef<number | null>(null);
+    const lastPositionRef = useRef<{ lat: number; lng: number; ts: number } | null>(null);
+    const lastZoomRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -38,82 +58,243 @@ export default function OrderDetailsPage() {
         fetchDetails();
     }, [id]);
 
-    const loadRazorpayScript = () =>
+    const loadGoogleMapsScript = (apiKey: string) =>
         new Promise<boolean>((resolve) => {
             if (typeof window === "undefined") {
                 resolve(false);
                 return;
             }
 
-            if (window.Razorpay) {
+            if (window.google?.maps) {
                 resolve(true);
                 return;
             }
 
             const script = document.createElement("script");
-            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
             script.onload = () => resolve(true);
             script.onerror = () => resolve(false);
             document.body.appendChild(script);
         });
 
-    const handleRetryPayment = async () => {
-        if (!order) return;
+    const updateRoute = (origin: { lat: number; lng: number }, destination: { lat: number; lng: number }) => {
+        if (!directionsServiceRef.current || !directionsRendererRef.current) return;
 
-        setRetryingPayment(true);
-        try {
-            const razorpayReady = await loadRazorpayScript();
-            if (!razorpayReady || !window.Razorpay) {
-                throw new Error("Razorpay SDK failed to load");
-            }
+        const now = Date.now();
+        if (now - lastRouteAtRef.current < 10_000) return;
+        lastRouteAtRef.current = now;
 
-            const razorpayOrder = await orderService.createRazorpayOrder(order.orderId);
-
-            const options = {
-                key: razorpayOrder.data.key,
-                amount: razorpayOrder.data.amount,
-                currency: razorpayOrder.data.currency,
-                name: "RM Docto",
-                description: "Medicine Order Payment",
-                order_id: razorpayOrder.data.razorpayOrderId,
-                prefill: {
-                    name: razorpayOrder.data.user?.name || order.deliveryAddress.fullName,
-                    contact: razorpayOrder.data.user?.phone || order.deliveryAddress.phone
-                },
-                handler: async (response: any) => {
-                    try {
-                        await orderService.verifyRazorpayPayment({
-                            orderId: order.orderId,
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature
-                        });
-
-                        const refreshed = await orderService.getOrderDetails(order.orderId);
-                        if (refreshed.success) {
-                            setOrder(refreshed.data);
-                        }
-                    } catch (verifyError) {
-                        console.error(verifyError);
-                        alert("Payment verification failed. Please contact support if payment was deducted.");
-                    } finally {
-                        setRetryingPayment(false);
-                    }
-                },
-                modal: {
-                    ondismiss: () => setRetryingPayment(false)
+        directionsServiceRef.current.route(
+            {
+                origin,
+                destination,
+                travelMode: "DRIVING"
+            },
+            (result: any, status: string) => {
+                if (status === "OK" && result) {
+                    directionsRendererRef.current.setDirections(result);
                 }
-            };
+            }
+        );
+    };
 
-            const razorpayInstance = new window.Razorpay(options);
-            razorpayInstance.open();
-        } catch (err) {
-            console.error(err);
-            alert("Unable to start payment. Please try again.");
-            setRetryingPayment(false);
+    const startPulse = (center: { lat: number; lng: number }) => {
+        if (!agentPulseRef.current || !window.google?.maps) return;
+
+        let radius = 20;
+        let growing = true;
+
+        agentPulseRef.current.setCenter(center);
+        agentPulseRef.current.setRadius(radius);
+
+        if (pulseIntervalRef.current !== null) return;
+
+        pulseIntervalRef.current = window.setInterval(() => {
+            radius = growing ? radius + 2 : radius - 2;
+            if (radius >= 40) growing = false;
+            if (radius <= 18) growing = true;
+            agentPulseRef.current.setRadius(radius);
+        }, 120);
+    };
+
+    const applySpeedZoom = (nextAgent: { lat: number; lng: number }, speedMps?: number | null) => {
+        if (!mapInstanceRef.current) return;
+
+        let mps = speedMps ?? null;
+        const now = Date.now();
+
+        if (mps == null && lastPositionRef.current) {
+            const dLat = nextAgent.lat - lastPositionRef.current.lat;
+            const dLng = nextAgent.lng - lastPositionRef.current.lng;
+            const dt = (now - lastPositionRef.current.ts) / 1000;
+            if (dt > 0) {
+                const metersPerDegLat = 111_320;
+                const metersPerDegLng = 111_320 * Math.cos((nextAgent.lat * Math.PI) / 180);
+                const dx = dLng * metersPerDegLng;
+                const dy = dLat * metersPerDegLat;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                mps = dist / dt;
+            }
+        }
+
+        lastPositionRef.current = { lat: nextAgent.lat, lng: nextAgent.lng, ts: now };
+
+        if (mps == null) return;
+
+        let targetZoom = 16;
+        if (mps < 0.5) targetZoom = 17;
+        else if (mps < 2) targetZoom = 16;
+        else if (mps < 6) targetZoom = 15;
+        else targetZoom = 14;
+
+        if (lastZoomRef.current !== targetZoom) {
+            mapInstanceRef.current.setZoom(targetZoom);
+            lastZoomRef.current = targetZoom;
         }
     };
 
+    const resolveDestination = () => {
+        const coords = order?.deliveryAddress?.location?.coordinates;
+        if (!coords || coords.length !== 2) return null;
+        return { lat: coords[1], lng: coords[0] };
+    };
+
+    useEffect(() => {
+        if (!showTracker || !order) return;
+
+        if (!mapsKey) {
+            setTrackerError("Google Maps key is missing.");
+            return;
+        }
+
+        const destination = resolveDestination();
+        if (!destination) {
+            setTrackerError("Destination coordinates are missing.");
+            return;
+        }
+
+        const startTracking = async () => {
+            const ready = await loadGoogleMapsScript(mapsKey);
+            if (!ready || !window.google?.maps) {
+                setTrackerError("Unable to load Google Maps.");
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                setTrackerError("Geolocation is not supported in this browser.");
+                return;
+            }
+
+            geoWatchIdRef.current = navigator.geolocation.watchPosition(
+                (position) => {
+                    const nextAgent = { lat: position.coords.latitude, lng: position.coords.longitude };
+                    setAgentLocation(nextAgent);
+
+                    if (!mapContainerRef.current) return;
+
+                    if (!mapInstanceRef.current) {
+                        mapInstanceRef.current = new window.google.maps.Map(mapContainerRef.current, {
+                            center: nextAgent,
+                            zoom: 16,
+                            mapTypeControl: false,
+                            fullscreenControl: false,
+                            streetViewControl: false
+                        });
+
+                        agentMarkerRef.current = new window.google.maps.Marker({
+                            position: nextAgent,
+                            map: mapInstanceRef.current,
+                            title: "Your location",
+                            icon: {
+                                path: window.google.maps.SymbolPath.CIRCLE,
+                                scale: 7,
+                                fillColor: "#06b6d4",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            }
+                        });
+
+                        agentPulseRef.current = new window.google.maps.Circle({
+                            map: mapInstanceRef.current,
+                            center: nextAgent,
+                            radius: 20,
+                            strokeColor: "#06b6d4",
+                            strokeOpacity: 0.4,
+                            strokeWeight: 2,
+                            fillColor: "#06b6d4",
+                            fillOpacity: 0.12
+                        });
+
+                        destinationMarkerRef.current = new window.google.maps.Marker({
+                            position: destination,
+                            map: mapInstanceRef.current,
+                            title: "Delivery location"
+                        });
+
+                        directionsServiceRef.current = new window.google.maps.DirectionsService();
+                        directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+                            suppressMarkers: true,
+                            preserveViewport: true,
+                            polylineOptions: {
+                                strokeOpacity: 0,
+                                icons: [
+                                    {
+                                        icon: {
+                                            path: "M 0,-1 0,1",
+                                            strokeOpacity: 1,
+                                            strokeWeight: 3,
+                                            strokeColor: "#06b6d4",
+                                            scale: 3
+                                        },
+                                        offset: "0",
+                                        repeat: "14px"
+                                    }
+                                ]
+                            }
+                        });
+                        directionsRendererRef.current.setMap(mapInstanceRef.current);
+                    } else if (agentMarkerRef.current) {
+                        agentMarkerRef.current.setPosition(nextAgent);
+                    }
+
+                    if (destinationMarkerRef.current) {
+                        destinationMarkerRef.current.setPosition(destination);
+                    }
+
+                    if (agentPulseRef.current) {
+                        agentPulseRef.current.setCenter(nextAgent);
+                        startPulse(nextAgent);
+                    }
+
+                    if (followMe && mapInstanceRef.current) {
+                        mapInstanceRef.current.panTo(nextAgent);
+                    }
+
+                    applySpeedZoom(nextAgent, position.coords.speed);
+
+                    updateRoute(nextAgent, destination);
+                },
+                (geoError) => {
+                    setTrackerError(geoError.message || "Unable to access location.");
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 }
+            );
+        };
+
+        startTracking();
+
+        return () => {
+            if (geoWatchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(geoWatchIdRef.current);
+                geoWatchIdRef.current = null;
+            }
+            if (pulseIntervalRef.current !== null) {
+                window.clearInterval(pulseIntervalRef.current);
+                pulseIntervalRef.current = null;
+            }
+        };
+    }, [order, showTracker, mapsKey, followMe]);
 
     if (loading) {
         return (
@@ -138,7 +319,6 @@ export default function OrderDetailsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50/50 pb-32">
-            {/* Header */}
             <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-30 px-4 py-4 border-b border-gray-100 shadow-sm flex items-center gap-4">
                 <button
                     onClick={() => router.back()}
@@ -153,7 +333,6 @@ export default function OrderDetailsPage() {
             </header>
 
             <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-8">
-                {/* 🔑 PIN SECTION (Strictly for Owner/Admin) */}
                 {order.otp && !order.otpVerified && (
                     <section className="bg-gray-900 rounded-[40px] p-8 text-white relative overflow-hidden shadow-2xl shadow-cyan-900/20 animate-in zoom-in duration-500">
                         <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/10 rounded-full -mr-24 -mt-24 blur-3xl opacity-50" />
@@ -174,18 +353,16 @@ export default function OrderDetailsPage() {
                     </section>
                 )}
 
-                {/* Tracking Timeline */}
                 <section className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-8 border-b border-gray-50 pb-4">Live Tracking</h3>
                     <div className="relative space-y-12">
-                        {/* Vertical Line */}
                         <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-gray-50" />
 
                         <TimelineItem
                             active={true}
                             icon={<Package size={16} />}
                             title="Order Initiated"
-                            desc="We've received your request and a pharmacist is reviewing it."
+                            desc="We have the order and are preparing for dispatch."
                             time={new Date(order.createdAt).toLocaleTimeString()}
                         />
                         <TimelineItem
@@ -209,7 +386,6 @@ export default function OrderDetailsPage() {
                     </div>
                 </section>
 
-                {/* Items */}
                 <section className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-6 pb-4 border-b border-gray-50">Medicines Ordered</h3>
                     <div className="space-y-6">
@@ -250,7 +426,6 @@ export default function OrderDetailsPage() {
                     </div>
                 </section>
 
-                {/* Address & Delivery Agent */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100 space-y-4">
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50 pb-4">Delivery Address</h3>
@@ -300,17 +475,44 @@ export default function OrderDetailsPage() {
                                 ? "Cash will be collected at the time of delivery."
                                 : "Payment has been processed securely through our system."}
                         </p>
-                        {order.paymentMode === "ONLINE" && order.paymentStatus === "PENDING" && (
-                            <button
-                                onClick={handleRetryPayment}
-                                disabled={retryingPayment}
-                                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-cyan-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-cyan-200 transition hover:bg-cyan-700 disabled:bg-cyan-200 disabled:text-cyan-600"
-                            >
-                                {retryingPayment ? "Opening payment..." : "Retry Payment"}
-                            </button>
-                        )}
+                        <button
+                            onClick={() => {
+                                setTrackerError(null);
+                                setShowTracker((prev) => !prev);
+                            }}
+                            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-700 shadow-lg shadow-cyan-100 transition hover:bg-cyan-50"
+                        >
+                            {showTracker ? "Hide Tracker" : "Deliverable Location Tracker"}
+                        </button>
                     </div>
                 </div>
+
+                {showTracker && (
+                    <section className="bg-white rounded-[40px] p-6 md:p-8 shadow-sm border border-gray-100">
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Live Delivery Map</h3>
+                        <div className="mb-4 flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Follow my location</p>
+                            <button
+                                type="button"
+                                onClick={() => setFollowMe((prev) => !prev)}
+                                className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest ${followMe ? "bg-cyan-600 text-white" : "bg-white text-gray-500 border border-gray-100"}`}
+                            >
+                                {followMe ? "On" : "Off"}
+                            </button>
+                        </div>
+                        {trackerError && (
+                            <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+                                {trackerError}
+                            </div>
+                        )}
+                        <div ref={mapContainerRef} className="h-[420px] w-full rounded-3xl border border-gray-100" />
+                        {agentLocation && !trackerError && (
+                            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                Live location active
+                            </p>
+                        )}
+                    </section>
+                )}
             </main>
         </div>
     );

@@ -1,8 +1,7 @@
 export const DASHBOARD_ROUTE_MAP: Record<string, string> = {
   admin: "/admin/dashboard",
   doctor: "/doctor/dashboard",
-  receptionist: "/reception/dashboard",
-  reception: "/reception/dashboard",
+  receptionist: "/receptionist/dashboard",
   agent: "/agent/dashboard",
   marketing_agent: "/marketing-agent/dashboard",
   user: "/dashboard",

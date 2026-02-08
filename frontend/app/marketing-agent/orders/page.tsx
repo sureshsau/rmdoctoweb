@@ -191,7 +191,7 @@ export default function MarketingAgentOrdersPage() {
                   </div>
 
                   <Link
-                    href={`/medicine-store/orders/${order.orderId}`}
+                    href={`/marketing-agent/orders/${order.orderId}`}
                     className="mt-4 inline-flex items-center justify-center w-full rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs font-black uppercase tracking-widest text-cyan-700 hover:bg-cyan-100"
                   >
                     View details

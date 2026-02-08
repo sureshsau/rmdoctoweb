@@ -55,6 +55,10 @@ export interface OrderDetails {
         city?: string;
         state?: string;
         pincode: string;
+        location?: {
+            type?: "Point";
+            coordinates: [number, number]; // [lng, lat]
+        };
     };
     deliveryAgent: {
         name: string | null;
@@ -78,6 +82,28 @@ export interface OrderDetails {
     otpVerified: boolean;
     createdAt: string;
 }
+
+export type RazorpayCreateResponse = {
+    success: boolean;
+    message?: string;
+    data: {
+        razorpayOrderId: string;
+        amount: number;
+        currency: string;
+        key: string;
+        user: {
+            name?: string;
+            phone?: string;
+        };
+    };
+};
+
+export type RazorpayVerifyPayload = {
+    orderId: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+};
 
 export type AllOrdersResponse = {
     success: boolean;
@@ -216,5 +242,14 @@ export const orderService = {
                 };
             }
         }
+    }
+    ,
+    async createRazorpayOrder(orderId: string): Promise<RazorpayCreateResponse> {
+        const res = await apiClient.post("/medicine/order/payments/razorpay/create", { orderId });
+        return res.data;
+    },
+    async verifyRazorpayPayment(payload: RazorpayVerifyPayload): Promise<{ success: boolean; result: any }> {
+        const res = await apiClient.post("/medicine/order/payments/razorpay/verify", payload);
+        return res.data;
     }
 };

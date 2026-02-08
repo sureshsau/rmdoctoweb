@@ -12,7 +12,7 @@ router.post(
   registerAgentController
 )
 router.get(
-  "/myNetwok",
+  "/network",
   authenticate,
   agetNetworkController
 )

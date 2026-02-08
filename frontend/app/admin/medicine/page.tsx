@@ -372,11 +372,9 @@ export default function AdminMedicinePage() {
                                                 <option value="Capsule">Capsule</option>
                                                 <option value="Syrup">Syrup</option>
                                                 <option value="Injection">Injection</option>
-                                                <option value="Ointment">Ointment</option>
+                                                <option value="Cream">Cream</option>
                                                 <option value="Drops">Drops</option>
                                                 <option value="Inhaler">Inhaler</option>
-                                                <option value="Suspension">Suspension</option>
-                                                <option value="Powder">Powder</option>
                                                 <option value="Other">Other</option>
                                             </select>
                                         </div>

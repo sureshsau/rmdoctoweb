@@ -58,5 +58,21 @@ export const attendanceService = {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
+  },
+
+  async checkInFace(payload: { lat: number; lng: number; imageUrl: string; deviceInfo?: string }) {
+    const formData = new FormData();
+    formData.append("lat", String(payload.lat));
+    formData.append("lng", String(payload.lng));
+    if (payload.deviceInfo) formData.append("deviceInfo", payload.deviceInfo);
+
+    const imageResponse = await fetch(payload.imageUrl);
+    const imageBlob = await imageResponse.blob();
+    formData.append("faceImage", imageBlob, "checkin.jpg");
+
+    const res = await apiClient.post("/attendance/mark", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
   }
 };

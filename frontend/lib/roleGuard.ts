@@ -4,7 +4,7 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 export function requireRole(
   router: AppRouterInstance,
   allowedRoles: Array<
-    "admin" | "doctor" | "receptionist" | "agent" | "user"
+    "admin" | "subadmin" | "doctor" | "receptionist" | "agent" | "user"
   >
 ) {
   const token = getValidToken();
@@ -18,6 +18,7 @@ export function requireRole(
 
   const dashboard = (user.dashboard || "user").toString() as
     | "admin"
+    | "subadmin"
     | "doctor"
     | "receptionist"
     | "agent"

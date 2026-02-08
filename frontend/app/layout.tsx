@@ -1,23 +1,12 @@
 'use client';
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/layout/Navbar";
 import { usePathname } from 'next/navigation';
 import { AuthProvider } from "@/state/AuthContext";
 import { AuthGate } from "@/state/AuthGate";
 import { MedicineCartProvider } from "@/context/MedicineCartContext";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 // Note: metadata should be exported from a separate metadata file for client components
 // For now, we'll keep it simple
@@ -54,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <AuthProvider>
           <AuthGate>

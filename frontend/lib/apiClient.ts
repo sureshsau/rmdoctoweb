@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 
 function getBaseUrl() {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -21,9 +21,14 @@ apiClient.interceptors.request.use((config) => {
 
   const token = localStorage.getItem("token");
   if (token) {
-    config.headers = config.headers ?? {};
-    // @ts-expect-error axios header typing varies
-    config.headers.Authorization = `Bearer ${token}`;
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    if (config.headers instanceof AxiosHeaders) {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    } else {
+      (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
   }
 
 

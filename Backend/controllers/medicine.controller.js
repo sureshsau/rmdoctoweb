@@ -1,4 +1,5 @@
 import { addMedicineService, deleteMedicineService, editMedicineService, getMedicineByIdService, getMedicinesService } from "../services/medicine.service.js";
+import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
 
 export const addMedicineController = async (req, res) => {
@@ -30,6 +31,8 @@ export const addMedicineController = async (req, res) => {
       success: false,
       message: error.message || "Failed to add medicine"
     });
+  }finally{
+    await cleanupUploadedFile(req);
   }
 };
 

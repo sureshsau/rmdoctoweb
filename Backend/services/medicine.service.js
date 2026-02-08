@@ -42,9 +42,6 @@ export const addMedicineService = async ({
   } catch (error) {
     console.error("❌ addMedicineService error", error);
     throw error;
-  }finally{
-   await cleanupUploadedFile(req)
-  
   }
 };
 

@@ -60,6 +60,14 @@ export const attendanceService = {
     return res.data;
   },
 
+  /** Setup attendance for a specific user. Backend: POST /attendance/setup/:userId */
+  async setupUserAttendance(userId: string, formData: FormData) {
+    const res = await apiClient.post(`/attendance/setup/${userId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  },
+
   async checkInFace(payload: { lat: number; lng: number; imageUrl: string; deviceInfo?: string }) {
     const formData = new FormData();
     formData.append("lat", String(payload.lat));

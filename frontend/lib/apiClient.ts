@@ -1,10 +1,14 @@
 import axios, { AxiosHeaders } from "axios";
 
 function getBaseUrl() {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const isDev = process.env.NODE_ENV === "development";
+  const baseUrl = isDev
+    ? process.env.NEXT_PUBLIC_API_URL_DEV
+    : process.env.NEXT_PUBLIC_API_URL_PROD;
   if (!baseUrl) {
-    // Client-only app: fail fast so env issues are obvious.
-    throw new Error("NEXT_PUBLIC_API_URL is not set");
+    throw new Error(
+      isDev ? "NEXT_PUBLIC_API_URL_DEV is not set" : "NEXT_PUBLIC_API_URL_PROD is not set"
+    );
   }
   return baseUrl;
 }

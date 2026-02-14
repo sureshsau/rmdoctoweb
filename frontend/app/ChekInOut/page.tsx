@@ -141,26 +141,26 @@ export default function CheckInOutPage() {
         return;
       }
 
-      const data = await attendanceService.checkInFace({
+      // Backend returns: { success, message, data: { action, time, workedHours?, status? } }
+      const res = await attendanceService.checkInFace({
         lat: coords.lat,
         lng: coords.lng,
         imageUrl: imageBase64,
         deviceInfo: navigator.userAgent,
       });
 
-      const { faceMatched, locationValid, confidence } = data;
+      const success = res?.success === true;
+      const payload = res?.data ?? res;
 
-      if (!faceMatched) {
-        setStatus("Face verification failed ❌");
+      if (!success) {
+        setStatus(res?.message || "Check-in failed ❌");
         return;
       }
 
-      if (!locationValid) {
-        setStatus("You are outside the hospital premises ❌");
-        return;
-      }
-
-      setStatus(`Checked In Successfully ✅ (Confidence: ${confidence})`);
+      const action = payload?.action;
+      const actionLabel = action === "CHECK_OUT" ? "Checked Out" : "Checked In";
+      const extra = payload?.workedHours != null ? ` (${payload.workedHours}h worked)` : "";
+      setStatus(`${actionLabel} Successfully ✅${extra}`);
     } catch (err: unknown) {
       setStatus(getApiErrorMessage(err, "Check-in failed due to server error ❌"));
     } finally {

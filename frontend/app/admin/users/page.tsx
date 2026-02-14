@@ -19,8 +19,10 @@ import {
     UserCog,
     Eye,
     EyeOff,
-    Filter
+    Filter,
+    Clock
 } from "lucide-react";
+import Link from "next/link";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function AdminUsersPage() {
@@ -140,7 +142,6 @@ export default function AdminUsersPage() {
 
     const openAssignRoleModal = (user: AuthUser) => {
         const primaryRole = user.roles?.[0];
-        console.log(user);
         setSelectedUser(user);
         setAssignRoleForm({
             userId: user._id || user.id || "",
@@ -249,173 +250,199 @@ export default function AdminUsersPage() {
         }));
     };
 
+    const activeCount = users.filter((u) => u.isActive !== false).length;
+
     return (
-        <div className="space-y-8 pb-20">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">User Management</h1>
-                    <p className="text-gray-500 font-medium mt-1">Manage users, roles, and permissions across the platform.</p>
-                </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 bg-cyan-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-cyan-700 transition shadow-lg shadow-cyan-600/20 active:scale-95"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add User
-                </button>
-            </div>
-
-            {/* Search & Filters */}
-            <div className="bg-white p-4 rounded-[32px] shadow-sm border border-gray-100 flex flex-wrap items-center gap-4">
-                <div className="relative flex-1 min-w-[300px]">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, email, or phone..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none transition font-medium text-gray-700"
-                    />
-                </div>
-                <div className="relative group">
-                    <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-cyan-600 transition-colors" size={18} />
-                    <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="pl-12 pr-10 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm appearance-none focus:ring-2 focus:ring-cyan-500 outline-none font-bold text-sm text-gray-700 transition-all cursor-pointer"
+        <div className="min-w-0 w-full overflow-x-hidden">
+            <div className="space-y-6 pb-16 max-w-[1600px]">
+                {/* Header + CTA */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight truncate">
+                            User Management
+                        </h1>
+                        <p className="text-gray-500 font-medium mt-1 text-sm sm:text-base">
+                            Manage users, roles, and permissions.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center justify-center gap-2 bg-cyan-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-cyan-700 transition shadow-md active:scale-[0.98] shrink-0"
                     >
-                        <option value="">All Roles</option>
-                        {roles.map(role => (
-                            <option key={role._id} value={role.key}>{role.name}</option>
-                        ))}
-                    </select>
+                        <Plus className="w-4 h-4" />
+                        Add User
+                    </button>
                 </div>
-            </div>
 
-            {/* Users Table */}
-            <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-gray-50 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                                <th className="px-8 py-6">User</th>
-                                <th className="px-6 py-6">Contact</th>
-                                <th className="px-6 py-6">Roles</th>
-                                <th className="px-6 py-6">Dashboard</th>
-                                <th className="px-6 py-6">Status</th>
-                                <th className="px-8 py-6 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {loading ? (
-                                [1, 2, 3, 4, 5].map(i => (
-                                    <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-8 py-6">
-                                            <div className="h-4 bg-gray-50 rounded-lg w-full" />
+                {/* Stats strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Total</p>
+                        <p className="text-xl font-black text-gray-900 mt-0.5">{users.length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Active</p>
+                        <p className="text-xl font-black text-emerald-600 mt-0.5">{activeCount}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm col-span-2 sm:col-span-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Filtered</p>
+                        <p className="text-xl font-black text-cyan-600 mt-0.5">{filteredUsers.length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm col-span-2 sm:col-span-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Roles</p>
+                        <p className="text-xl font-black text-gray-900 mt-0.5">{roles.length}</p>
+                    </div>
+                </div>
+
+                {/* Search & Filters */}
+                <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-3 sm:gap-4 min-w-0">
+                    <div className="relative flex-1 min-w-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+                        <input
+                            type="text"
+                            placeholder="Search name, email, phone..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full min-w-0 pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm sm:text-base font-medium text-gray-700"
+                        />
+                    </div>
+                    <div className="relative flex-shrink-0 sm:w-48">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <select
+                            value={roleFilter}
+                            onChange={(e) => setRoleFilter(e.target.value)}
+                            className="w-full pl-10 pr-8 py-2.5 sm:py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-semibold text-gray-700 cursor-pointer appearance-none"
+                        >
+                            <option value="">All roles</option>
+                            {roles.map((role) => (
+                                <option key={role._id} value={role.key}>{role.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Users Table - scrolls inside container only */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-w-0">
+                    <div className="overflow-x-auto" style={{ overflowX: "auto" }}>
+                        <table className="w-full text-left min-w-[800px]">
+                            <thead>
+                                <tr className="border-b border-gray-100 bg-gray-50/80">
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">User</th>
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Contact</th>
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Roles</th>
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Dashboard</th>
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Status</th>
+                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {loading ? (
+                                    [1, 2, 3, 4, 5].map((i) => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td colSpan={6} className="px-4 md:px-6 py-5">
+                                                <div className="h-4 bg-gray-100 rounded-lg max-w-xs" />
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : filteredUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-4 md:px-6 py-16 text-center">
+                                            <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto flex items-center justify-center mb-3">
+                                                <Users className="text-gray-300" size={28} />
+                                            </div>
+                                            <h3 className="text-base font-bold text-gray-900">No users found</h3>
+                                            <p className="text-sm text-gray-500 mt-1">Try different search or filters.</p>
                                         </td>
                                     </tr>
-                                ))
-                            ) : filteredUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-8 py-20 text-center">
-                                        <div className="w-20 h-20 bg-gray-50 rounded-3xl mx-auto flex items-center justify-center mb-4">
-                                            <Users className="text-gray-200" size={32} />
-                                        </div>
-                                        <h3 className="text-lg font-black text-gray-900">No users found</h3>
-                                        <p className="text-gray-500 font-medium">Try adjusting your search or filters.</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredUsers.map((user, idx) => (
-                                    <tr key={user._id || user.id || user.email || user.phone || idx} className="group hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-sm">
-                                                    {user.name.charAt(0).toUpperCase()}
+                                ) : (
+                                    filteredUsers.map((user, idx) => (
+                                        <tr
+                                            key={user._id || user.id || user.email || user.phone || idx}
+                                            className="hover:bg-gray-50/70 transition-colors"
+                                        >
+                                            <td className="px-4 md:px-6 py-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                                        {user.name?.charAt(0)?.toUpperCase() || "?"}
+                                                    </div>
+                                                    <p className="font-bold text-gray-900 truncate">{user.name}</p>
                                                 </div>
-                                                <div>
-                                                    <p className="font-black text-gray-900">{user.name}</p>
-                                                    {/* <p className="text-xs font-bold text-gray-400 flex items-center gap-1 mt-0.5">
-                                                        <Calendar size={10} />
-                                                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                                                    </p> */}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-6">
-                                            <div className="space-y-1">
-                                                {user.email && (
-                                                    <p className="text-sm font-bold text-gray-600 flex items-center gap-2">
-                                                        <Mail size={12} className="text-gray-400" />
-                                                        {user.email}
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4">
+                                                <div className="space-y-0.5 min-w-0">
+                                                    {user.email && (
+                                                        <p className="text-xs sm:text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.email}>
+                                                            <Mail size={10} className="inline text-gray-400 mr-1" />
+                                                            {user.email}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.phone}>
+                                                        <Phone size={10} className="inline text-gray-400 mr-1" />
+                                                        {user.phone}
                                                     </p>
-                                                )}
-                                                <p className="text-sm font-bold text-gray-600 flex items-center gap-2">
-                                                    <Phone size={12} className="text-gray-400" />
-                                                    {user.phone}
-                                                </p>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-6">
-                                            <div className="flex flex-wrap gap-1">
-                                                {user.roles && user.roles.length > 0 ? (
-                                                    user.roles.map((role, idx) => (
-                                                        <span key={idx} className="px-2 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                                                            {role}
-                                                        </span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-xs font-bold text-gray-400">No roles</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-6">
-                                            <span className="px-3 py-1.5 bg-gray-50 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider">
-                                                {user.dashboard || "user"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-6">
-                                            <div className="flex items-center gap-2">
-                                                {user.isActive ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border-emerald-100">
-                                                        <Check size={12} />
+                                                </div>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {user.roles?.length ? (
+                                                        user.roles.map((r, i) => (
+                                                            <span key={i} className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md text-[10px] font-bold uppercase">
+                                                                {r}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">—</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4">
+                                                <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold uppercase">
+                                                    {user.dashboard || "user"}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4">
+                                                {user.isActive !== false ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                        <Check size={10} />
                                                         Active
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider bg-gray-50 text-gray-600 border-gray-100">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600">
                                                         Inactive
                                                     </span>
                                                 )}
-                                                {/* {user.isBlocked && (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider bg-red-50 text-red-600 border-red-100">
-                                                        <Ban size={12} />
-                                                        Blocked
-                                                    </span>
-                                                )} */}
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <button
-                                                onClick={() => openAssignRoleModal(user)}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-cyan-600 hover:text-white hover:shadow-lg transition-all font-bold text-xs"
-                                            >
-                                                <UserCog size={14} />
-                                                Manage Roles
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-right">
+                                                <div className="flex flex-wrap justify-end gap-1.5">
+                                                    <Link
+                                                        href={`/admin/users/${user._id || user.id}/attendance?name=${encodeURIComponent(user.name || "")}&role=${encodeURIComponent((user.roles && user.roles[0]) || "")}&phone=${encodeURIComponent(user.phone || "")}`}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg hover:bg-cyan-600 hover:text-white transition text-xs font-bold"
+                                                    >
+                                                        <Clock size={12} />
+                                                        <span className="hidden sm:inline">Attendance</span>
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => openAssignRoleModal(user)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-cyan-600 hover:text-white transition text-xs font-bold"
+                                                    >
+                                                        <UserCog size={12} />
+                                                        <span className="hidden sm:inline">Roles</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             {/* Create User Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[44px] shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white via-cyan-50/60 to-white">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-600/20">
@@ -442,7 +469,7 @@ export default function AdminUsersPage() {
                                 </div>
                             )}
 
-                            <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-8">
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 space-y-8">
                                 <div className="grid lg:grid-cols-2 gap-8">
                                     <div className="bg-gray-50/80 rounded-[28px] p-6 space-y-5 border border-gray-100">
                                         <div>
@@ -633,8 +660,8 @@ export default function AdminUsersPage() {
 
             {/* Assign Role Modal */}
             {showAssignRoleModal && selectedUser && (
-                <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[48px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-600/20">
@@ -653,7 +680,7 @@ export default function AdminUsersPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleAssignRole} className="p-10 space-y-6">
+                        <form onSubmit={handleAssignRole} className="p-6 sm:p-8 flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-6">
                             {assignError && (
                                 <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-2xl">
                                     <X size={16} />

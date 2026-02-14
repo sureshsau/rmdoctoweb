@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthContext } from "@/state/AuthContext";
 import { attendanceService, AttendanceLog } from "@/services/attendance.service";
-import { LogOut, MapPin, Camera, Clock, ShoppingBag } from "lucide-react";
+import { LogOut, MapPin, Camera, Clock, ShoppingBag, Scan } from "lucide-react";
 import Link from "next/link";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -39,11 +39,9 @@ export default function DoctorDashboard() {
   async function fetchLogs() {
     try {
       const res = await attendanceService.getMyLogs();
-      if (res.data) {
-        // Response info: message: "Attendance fetched...", data: result
-        // result might be an object or array. Service "getAttendanceService" usually returns list.
-        setLogs(Array.isArray(res.data) ? res.data : []);
-      }
+      const data = res?.data ?? res;
+      const list = Array.isArray(data?.logs) ? data.logs : Array.isArray(data) ? data : [];
+      setLogs(list);
     } catch (err) {
       console.error("Fetch logs failed", err);
     }
@@ -90,6 +88,13 @@ export default function DoctorDashboard() {
             <p className="text-xs text-gray-500">Welcome, Dr. {user?.name}</p>
           </div>
         </div>
+        <Link
+          href="/doctor/attendance"
+          className="flex items-center gap-2 bg-cyan-600 text-white hover:bg-cyan-700 px-3 py-2 rounded-lg transition mr-2"
+        >
+          <Scan className="w-4 h-4" />
+          <span className="hidden sm:inline">Attendance</span>
+        </Link>
         <Link
           href="/medicine-store"
           className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg transition mr-2"
@@ -200,26 +205,31 @@ export default function DoctorDashboard() {
                       <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No attendance logs found.</td>
                     </tr>
                   ) : (
-                    logs.map((log, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900 font-medium">
-                          {new Date(log.date || log.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {log.checkInTime ? new Date(log.checkInTime).toLocaleTimeString() : "-"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {log.checkOutTime ? new Date(log.checkOutTime).toLocaleTimeString() : "-"}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-                              ${log.status === 'Present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}
-                            `}>
-                            {log.status || "Present"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    logs.map((log: any, idx: number) => {
+                      const dateStr = log.attendanceDate ?? log.date ?? log.createdAt;
+                      const checkInT = log.checkIn?.time ?? log.checkInTime;
+                      const checkOutT = log.checkOut?.time ?? log.checkOutTime;
+                      return (
+                        <tr key={log._id || idx} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-900 font-medium">
+                            {dateStr ? new Date(dateStr).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {checkInT ? new Date(checkInT).toLocaleTimeString() : "-"}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {checkOutT ? new Date(checkOutT).toLocaleTimeString() : "-"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold 
+                                ${(log.status || "").toUpperCase() === "PRESENT_FULL" || log.status === "WORKING" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}
+                              `}>
+                              {log.status || "Present"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

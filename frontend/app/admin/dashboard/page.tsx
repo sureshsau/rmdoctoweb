@@ -99,27 +99,27 @@ export default function AdminDashboardPage() {
     );
 
     return (
-        <div className="space-y-8 pb-16">
+        <div className="min-w-0 max-w-6xl mx-auto space-y-6 sm:space-y-8 pb-12">
             <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-600">Hospital Operations</p>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">Admin Command Center</h1>
-                    <p className="text-gray-500 mt-1">Realtime overview of users, orders, and system health.</p>
+                <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wider text-teal-600">Hospital Operations</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight truncate">Admin Dashboard</h1>
+                    <p className="text-slate-500 text-sm mt-1">Overview of users, orders, and system health.</p>
                 </div>
-                <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
-                    <ShieldCheck className="text-emerald-500" size={18} />
-                    <span className="text-sm font-bold text-gray-700">Uptime healthy</span>
-                    <span className="text-xs font-black text-gray-400">{new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                <div className="flex items-center gap-3 app-card px-4 py-3 shrink-0">
+                    <ShieldCheck className="text-teal-500" size={18} />
+                    <span className="text-sm font-medium text-slate-700">System healthy</span>
+                    <span className="text-xs font-medium text-slate-400">{new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
                 </div>
             </header>
 
             {error && (
-                <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl p-4 text-sm font-semibold">
+                <div className="app-card border-red-200 bg-red-50 text-red-700 rounded-xl p-4 text-sm font-medium">
                     {error}
                 </div>
             )}
 
-            <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                 <StatCard
                     title="Total Users"
                     value={metrics.totalUsers}
@@ -158,20 +158,20 @@ export default function AdminDashboardPage() {
                 />
             </section>
 
-            <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="bg-white border border-gray-100 rounded-3xl shadow-sm p-6 xl:col-span-2">
+            <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+                <div className="app-card rounded-2xl p-4 sm:p-6 xl:col-span-2 min-w-0">
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Order Flow</p>
                             <h2 className="text-xl font-black text-gray-900">Recent orders</h2>
                         </div>
-                        <a href="/admin/orders" className="text-sm font-bold text-cyan-600 flex items-center gap-1">
+                        <a href="/admin/orders" className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1">
                             View all <ArrowUpRight size={16} />
                         </a>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    <div className="overflow-x-auto min-w-0">
+                        <table className="w-full text-sm min-w-[400px]">
                             <thead>
                                 <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
                                     <th className="py-3 text-left">Order</th>

@@ -115,15 +115,15 @@ export default function Home() {
 
               {/* search */}
               <div className="max-w-xl">
-                <div className="bg-white shadow-lg rounded-full px-4 py-3 flex items-center gap-3 border border-gray-100">
-                  <Search className="w-5 h-5 text-gray-500" />
+                <div className="bg-white shadow-lg shadow-slate-200/50 rounded-2xl px-4 py-3 flex items-center gap-3 border border-slate-100">
+                  <Search className="w-5 h-5 text-slate-400" />
                   <input
-                    className="flex-1 text-sm text-gray-700 outline-none bg-transparent"
+                    className="flex-1 text-sm text-slate-800 outline-none bg-transparent placeholder:text-slate-400"
                     placeholder="Search doctor, specialty or symptom..."
                     type="text"
                     aria-label="Search doctors"
                   />
-                  <button className="px-4 py-2 bg-cyan-600 text-white text-sm rounded-full hover:bg-cyan-700 hover:scale-105 transition">
+                  <button className="px-5 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all">
                     Search
                   </button>
                 </div>
@@ -133,8 +133,8 @@ export default function Home() {
                 <BookAppointmentButton variant="landing" />
 
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Phone className="w-5 h-5 text-cyan-600" />
+                  <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                    <Phone className="w-5 h-5 text-teal-600" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Support Line (8 AM – 6 PM)</div>
@@ -248,7 +248,7 @@ export default function Home() {
               <h3 className="text-2xl md:text-3xl font-bold">Consult top doctors online for any health concern</h3>
               <p className="text-gray-600">Private online consultations with verified doctors in all specialists</p>
             </div>
-            <button className="hidden lg:block border-2 border-cyan-600 text-cyan-600 px-6 py-2.5 text-sm rounded-full hover:bg-cyan-600 hover:text-white transition font-semibold">
+            <button className="hidden lg:block border-2 border-teal-600 text-teal-700 px-6 py-2.5 text-sm rounded-xl hover:bg-teal-600 hover:text-white transition font-semibold">
               View All Specialties
             </button>
           </div>
@@ -267,14 +267,14 @@ export default function Home() {
                   <Image src={s.icon} alt={s.title} width={80} height={80} className="w-full h-full object-cover" />
                 </div>
                 <h4 className="text-sm md:text-xs font-semibold mb-3 whitespace-pre-line text-gray-900">{s.title}</h4>
-                <button className="w-full text-cyan-600 font-bold text-xs hover:text-cyan-700 transition">CONSULT NOW</button>
+                <button className="w-full text-teal-600 font-bold text-xs hover:text-teal-700 transition">CONSULT NOW</button>
               </div>
             ))}
           </div>
 
           {/* mobile view all */}
           <div className="lg:hidden mt-6 text-center">
-            <button className="border-2 border-cyan-600 text-cyan-600 px-8 py-3 rounded-full hover:bg-cyan-600 hover:text-white transition font-semibold">
+            <button className="border-2 border-teal-600 text-teal-700 px-8 py-3 rounded-xl hover:bg-teal-600 hover:text-white transition font-semibold">
               View All Specialties
             </button>
           </div>
@@ -294,20 +294,19 @@ export default function Home() {
             {/* Header with See more button aligned */}
             <div className="mb-6 sm:mb-8 flex items-center justify-between gap-3 sm:gap-4">
               <div className="text-left flex-1 min-w-0">
-                <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-cyan-600 mb-1 sm:mb-2 leading-tight">Online Medicine Store</h4>
+                <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-teal-600 mb-1 sm:mb-2 leading-tight">Online Medicine Store</h4>
                 <p className="text-gray-600 hidden sm:block">Get genuine medicines delivered to your doorstep with prescription verification</p>
               </div>
               <div className="text-right shrink-0">
                 <button 
                   onClick={() => setShowAllCards(!showAllCards)}
-                  className="text-cyan-600 font-semibold text-xs sm:text-sm hover:text-cyan-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
+                  className="text-teal-600 font-semibold text-xs sm:text-sm hover:text-teal-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
                 >
-                  {showAllCards ? 'See less' : 'See more'}
+                  {showAllCards ? "See less" : "See more"}
                 </button>
               </div>
             </div>
 
-            {/* PNG-style cards with right-side icons using Iconify */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {[
                 {name:"Prescription Medicines", desc:"Verified prescriptions", icon:"mdi:pill"},
@@ -329,7 +328,7 @@ export default function Home() {
                   className="relative bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md transition border border-gray-100 overflow-hidden min-h-[140px] sm:min-h-[160px]"
                 >
                   {/* right-side circular icon - responsive sizing */}
-                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-cyan-600 flex items-center justify-center shadow-lg">
+                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-teal-600 flex items-center justify-center shadow-lg">
                     <Icon icon={item.icon} className="text-white" width={16} height={16} />
                   </div>
 
@@ -338,7 +337,7 @@ export default function Home() {
                       <h5 className="text-xs sm:text-sm font-semibold mb-1 sm:mb-2 text-gray-900 leading-relaxed">{item.name}</h5>
                       <p className="text-xs text-gray-500 mb-3 sm:mb-4">{item.desc}</p>
                     </div>
-                    <button className="text-xs font-bold text-cyan-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-cyan-200 hover:bg-cyan-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
+                    <button className="text-xs font-bold text-teal-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-teal-200 hover:bg-teal-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
                       ORDER NOW
                     </button>
                   </div>
@@ -352,13 +351,13 @@ export default function Home() {
             {/* Header with See more button aligned */}
             <div className="mb-6 sm:mb-8 flex items-center justify-between gap-3 sm:gap-4">
               <div className="text-left flex-1 min-w-0">
-                <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-cyan-600 mb-1 sm:mb-2 leading-tight">Laboratory Tests</h4>
+                <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-teal-600 mb-1 sm:mb-2 leading-tight">Laboratory Tests</h4>
                 <p className="text-gray-600 hidden sm:block">Book lab tests and get accurate reports with home collection facility</p>
               </div>
               <div className="text-right shrink-0">
                 <button 
                   onClick={() => setShowAllLabTests(!showAllLabTests)}
-                  className="text-cyan-600 font-semibold text-xs sm:text-sm hover:text-cyan-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
+                  className="text-teal-600 font-semibold text-xs sm:text-sm hover:text-teal-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
                 >
                   {showAllLabTests ? 'See less' : 'See more'}
                 </button>
@@ -387,7 +386,7 @@ export default function Home() {
                   className="relative bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md transition border border-gray-100 overflow-hidden min-h-[140px] sm:min-h-[160px]"
                 >
                   {/* right-side circular icon - responsive sizing */}
-                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-cyan-600 flex items-center justify-center shadow-lg">
+                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-teal-600 flex items-center justify-center shadow-lg">
                     <Icon icon={item.icon} className="text-white" width={16} height={16} />
                   </div>
 
@@ -396,7 +395,7 @@ export default function Home() {
                       <h5 className="text-xs sm:text-sm font-semibold mb-1 sm:mb-2 text-gray-900 leading-relaxed">{item.name}</h5>
                       <p className="text-xs text-gray-500 mb-3 sm:mb-4">{item.desc}</p>
                     </div>
-                    <button className="text-xs font-bold text-cyan-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-cyan-200 hover:bg-cyan-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
+                    <button className="text-xs font-bold text-teal-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-teal-200 hover:bg-teal-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
                       BOOK TEST
                     </button>
                   </div>
@@ -412,13 +411,13 @@ export default function Home() {
                 {/* Header with See more button aligned */}
                 <div className="mb-6 sm:mb-8 flex items-center justify-between gap-3 sm:gap-4">
                   <div className="text-left flex-1 min-w-0">
-                    <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-cyan-600 mb-1 sm:mb-2 leading-tight">Diagnostic Scans & Imaging</h4>
+                    <h4 className="text-xl sm:text-2xl md:text-3xl font-bold text-teal-600 mb-1 sm:mb-2 leading-tight">Diagnostic Scans & Imaging</h4>
                     <p className="text-gray-600 hidden sm:block">Advanced imaging services with state-of-the-art technology and expert radiologists</p>
                   </div>
                   <div className="text-right shrink-0">
                     <button 
                       onClick={() => setShowAllScans(!showAllScans)}
-                      className="text-cyan-600 font-semibold text-xs sm:text-sm hover:text-cyan-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
+                      className="text-teal-600 font-semibold text-xs sm:text-sm hover:text-teal-700 transition whitespace-nowrap px-2 py-1 sm:px-0 sm:py-0"
                     >
                       {showAllScans ? 'See less' : 'See more'}
                     </button>
@@ -447,7 +446,7 @@ export default function Home() {
                       className="relative bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md transition border border-gray-100 overflow-hidden min-h-[140px] sm:min-h-[160px]"
                     >
                       {/* right-side circular icon - responsive sizing */}
-                      <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-cyan-600 flex items-center justify-center shadow-lg">
+                      <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-teal-600 flex items-center justify-center shadow-lg">
                         <Icon icon={item.icon} className="text-white" width={16} height={16} />
                       </div>
 
@@ -456,7 +455,7 @@ export default function Home() {
                           <h5 className="text-xs sm:text-sm font-semibold mb-1 sm:mb-2 text-gray-900 leading-relaxed">{item.name}</h5>
                           <p className="text-xs text-gray-500 mb-3 sm:mb-4">{item.desc}</p>
                         </div>
-                        <button className="text-xs font-bold text-cyan-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-cyan-200 hover:bg-cyan-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
+                        <button className="text-xs font-bold text-teal-600 px-3 py-2 sm:px-4 sm:py-2 rounded-full border border-teal-200 hover:bg-teal-600 hover:text-white transition w-full sm:w-auto min-h-[36px] flex items-center justify-center">
                           BOOK SCAN
                         </button>
                       </div>
@@ -468,15 +467,15 @@ export default function Home() {
           )}
 
           {/* Quick Actions
-          <div className="bg-linear-to-r from-cyan-600 to-blue-600 rounded-3xl p-8 text-center">
+          <div className="bg-linear-to-r from-teal-600 to-cyan-600 rounded-3xl p-8 text-center">
             <h4 className="text-2xl font-bold text-white mb-4">Need Immediate Medical Assistance?</h4>
             <p className="text-blue-100 mb-6">Get instant access to our medical services with just a few clicks</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/book-appointment" className="inline-flex items-center gap-2 bg-white text-cyan-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition-all duration-300 hover:scale-105">
+              <Link href="/book-appointment" className="inline-flex items-center gap-2 bg-white text-teal-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition-all duration-300 hover:scale-105">
                 <Calendar className="w-4 h-4" />
                 Book Appointment
               </Link>
-              <Link href="/services" className="inline-flex items-center gap-2 border-2 border-white text-white px-8 py-3 rounded-full font-bold hover:bg-white hover:text-cyan-600 transition-all duration-300">
+              <Link href="/services" className="inline-flex items-center gap-2 border-2 border-white text-white px-8 py-3 rounded-full font-bold hover:bg-white hover:text-teal-600 transition-all duration-300">
                 <FileText className="w-4 h-4" />
                 View All Services
               </Link>

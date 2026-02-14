@@ -1,1 +1,79 @@
 @import "tailwindcss";
+
+/* ========== Hospital / Pro UI Design System ========== */
+:root {
+  --app-primary: 20 184 166;       /* teal-500 */
+  --app-primary-dark: 13 148 136;  /* teal-600 */
+  --app-surface: 248 250 252;     /* slate-50 */
+  --app-border: 226 232 240;      /* slate-200 */
+  --app-card: 255 255 255;
+  --sidebar-width: 16rem;          /* 256px / w-64 */
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.03);
+  --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 10px 24px -4px rgb(0 0 0 / 0.06);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: rgb(15 23 42); /* slate-900 */
+}
+
+/* App shell background: subtle medical/pro texture */
+.app-shell {
+  background-color: rgb(var(--app-surface) / 0.6);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgb(20 184 166 / 0.06), transparent),
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgb(6 182 212 / 0.04), transparent);
+  min-height: 100vh;
+}
+
+/* Dashboard card - consistent elevation */
+.app-card {
+  background: rgb(var(--app-card));
+  border: 1px solid rgb(var(--app-border) / 0.8);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* Modern hospital card hover */
+.app-card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.app-card-hover:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
+}
+
+/* Sidebar - consistent across admin, receptionist, agent */
+.app-sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: rgb(var(--app-card));
+  border-right: 1px solid rgb(var(--app-border) / 0.6);
+  box-shadow: 2px 0 12px rgb(0 0 0 / 0.03);
+}
+
+/* Main content area - responsive padding (parent handles sidebar margin) */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .app-main { padding: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .app-main { padding: 2rem; }
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid rgb(var(--app-primary));
+  outline-offset: 2px;
+}

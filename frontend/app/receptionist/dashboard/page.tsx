@@ -121,7 +121,7 @@ export default function ReceptionistDashboard() {
     const totalOrders = orders.length;
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+        <div className="min-w-0 max-w-6xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
             <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] border border-gray-100 bg-white shadow-sm">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-white to-rose-50" />
                 <div className="absolute -right-24 -top-24 h-52 w-52 sm:h-64 sm:w-64 rounded-full bg-amber-200/30 blur-3xl" />

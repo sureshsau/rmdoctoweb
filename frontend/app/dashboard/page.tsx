@@ -12,9 +12,9 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className="bg-cyan-100 text-cyan-700 p-2 rounded-lg">
+      <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <div className="bg-teal-100 text-teal-700 p-2.5 rounded-xl">
             <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
@@ -34,15 +34,15 @@ export default function UserDashboard() {
       <main className="max-w-5xl mx-auto p-6 flex-1 w-full space-y-8">
 
         {/* Hero Section */}
-        <section className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
+        <section className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden border border-teal-100">
           <div className="relative z-10 max-w-lg">
             <h2 className="text-3xl font-bold mb-4">Your Health, Delivered.</h2>
-            <p className="text-cyan-100 mb-8 text-lg">
+            <p className="text-teal-100 mb-8 text-lg">
               Browse our complete pharmacy catalog, compare prices, and order medicines directly from your dashboard.
             </p>
             <Link
               href="/medicine-store"
-              className="bg-white text-cyan-700 px-8 py-3 rounded-xl font-bold hover:bg-cyan-50 transition inline-flex items-center gap-2"
+              className="bg-white text-teal-700 px-8 py-3 rounded-xl font-bold hover:bg-teal-50 transition inline-flex items-center gap-2 shadow-lg"
             >
               <ShoppingBag className="w-5 h-5" />
               Enter Medicine Store
@@ -50,14 +50,14 @@ export default function UserDashboard() {
           </div>
 
           {/* Decorative Background Icon */}
-          <Pill className="absolute -bottom-10 -right-10 w-64 h-64 text-white opacity-10 rotate-12" />
+          <Pill className="absolute -bottom-10 -right-10 w-64 h-64 text-white opacity-10 rotate-12 pointer-events-none" />
         </section>
 
         {/* Quick Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Store Card */}
-          <Link href="/medicine-store" className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex items-center gap-4">
+          <Link href="/medicine-store" className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-teal-100 transition flex items-center gap-4">
             <div className="bg-green-100 text-green-600 p-4 rounded-full group-hover:scale-110 transition">
               <ShoppingBag className="w-8 h-8" />
             </div>
@@ -69,7 +69,7 @@ export default function UserDashboard() {
           </Link>
 
           {/* Cart Card */}
-          <Link href="/medicine-store/cart" className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex items-center gap-4">
+          <Link href="/medicine-store/cart" className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-teal-100 transition flex items-center gap-4">
             <div className="bg-orange-100 text-orange-600 p-4 rounded-full group-hover:scale-110 transition relative">
               <ShoppingBag className="w-8 h-8" />
               {totalItems > 0 && (

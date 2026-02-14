@@ -10,6 +10,7 @@ import {
     ShoppingBag,
     LogOut,
     ShieldCheck,
+    Clock,
     X
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
@@ -28,41 +29,41 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
         { name: "Users", href: "/receptionist/dashboard#users", icon: Users },
         { name: "Doctors", href: "/receptionist/dashboard#doctors", icon: Stethoscope },
         { name: "Orders", href: "/receptionist/dashboard#orders", icon: ClipboardList },
-        { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag }
+        { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag },
+        { name: "Attendance", href: "/receptionist/attendance", icon: Clock },
     ];
 
     return (
         <aside
-            className={`w-64 bg-white border-r border-gray-100 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-40 shadow-sm transition-transform duration-300
+            className={`app-sidebar flex flex-col fixed left-0 top-0 bottom-0 z-40 transition-transform duration-300 ease-out
                 ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+            style={{ width: "var(--sidebar-width)" }}
         >
-            <div className="h-20 flex items-center justify-between px-6 border-b border-gray-50">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
-                        <ShieldCheck className="text-white w-6 h-6" />
+            <div className="h-16 flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center shadow-md shrink-0">
+                        <ShieldCheck className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-xl font-bold text-gray-900 tracking-tight">
-                        Reception
-                    </span>
+                    <span className="text-lg font-bold text-slate-800 truncate">Reception</span>
                 </div>
                 <button
                     type="button"
                     aria-label="Close sidebar"
-                    className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl border border-gray-100"
+                    className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-500"
                     onClick={onClose}
                 >
-                    <X className="w-4 h-4 text-gray-600" />
+                    <X className="w-5 h-5" />
                 </button>
             </div>
 
-            <div className="px-6 py-6">
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Signed in as</p>
-                    <p className="text-sm font-bold text-gray-900 truncate mt-1">{user?.name || "Receptionist"}</p>
+            <div className="px-4 py-4 shrink-0">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed in as</p>
+                    <p className="text-sm font-bold text-slate-900 truncate mt-0.5">{user?.name || "Receptionist"}</p>
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
                 {links.map((link) => {
                     const Icon = link.icon;
                     const isActive =
@@ -75,26 +76,25 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
                             key={link.href}
                             href={link.href}
                             onClick={onClose}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                                 ${isActive
-                                    ? "bg-amber-500 text-white shadow-lg shadow-amber-100"
-                                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-                                }
-                            `}
+                                    ? "bg-amber-500 text-white"
+                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                }`}
                         >
-                            <Icon className={`w-5 h-5 ${isActive ? "text-white" : "text-gray-400"}`} />
-                            {link.name}
+                            <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
+                            <span className="truncate">{link.name}</span>
                         </Link>
                     );
                 })}
             </nav>
 
-            <div className="p-4 border-t border-gray-50 space-y-1">
+            <div className="p-3 border-t border-slate-100 shrink-0">
                 <button
                     onClick={() => logout({ redirectTo: "/" })}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                 >
-                    <LogOut className="w-5 h-5" />
+                    <LogOut className="w-5 h-5 shrink-0" />
                     Logout
                 </button>
             </div>

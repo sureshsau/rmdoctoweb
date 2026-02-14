@@ -95,6 +95,39 @@ export const registerFaceToAwsAndStoreImageToS3 = async ({
 };
 
 
+export const uploadAttendanceImageToS3 = async ({
+  userId,
+  imageBuffer,
+  mimeType = 'image/jpeg'
+}) => {
+  if (!userId || !imageBuffer) {
+    throw new Error('Missing parameters for attendance image upload');
+  }
+
+  const bucketName = process.env.ATTENDANCE_BUCKET;
+  const region = process.env.AWS_REGION;
+
+  if (!bucketName) {
+    throw new Error('ATTENDANCE_BUCKET is not configured');
+  }
+
+  const key = `attendance/${userId}/${Date.now()}.jpg`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType
+    })
+  );
+
+  const url = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+
+  return { url, key, bucketName };
+};
+
+
 
 export const verifyFaceWithRekognition = async ({
   imageBuffer,

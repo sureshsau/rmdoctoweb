@@ -7,7 +7,7 @@ import {createUserService} from '../services/user.service.js'
 export const getAllUserController = async (req, res) => {
   try {
     const users = await USER.find()
-      .select("_id name email phone isActive isBlocked roles dashboard createdAt")
+      .select("_id name email phone isActive isBlocked roles dashboard createdAt faceImage.url")
       .lean();
 
     return res.status(200).json({

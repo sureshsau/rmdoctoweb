@@ -4,10 +4,10 @@ import {
   getAttendanceSettingsController,
   registerFaceEmbeddingController,
   setAttendanceSettingsForAllUsersController,
-  getMyAttendanceThisMonthController,
-  getAttendanceByRangeController,
   setupUserAttendanceController,
-  markAttendanceByFaceController
+  markAttendanceByFaceController,
+  getMyAttendanceLogsController,
+  getAttendanceLogsForUserController
 } from "../controllers/attendance.controller.js";
 import { upload } from "../utils/multer.js";
 import { attendanceSettingsValidationRules, parseAttendancePayload, validateAttendanceSettings } from "../validator/attendance/attendanceSettings.validator.js";
@@ -27,56 +27,43 @@ const router = express.Router();
 );
 
 
-  //mark attendence
-      router.post(
-            "/mark",
-            authenticate,
-            authorize("Attendance:mark"),
-            upload.single("faceImage"),
-            markAttendanceByFaceController
-      )
+  // mark attendance
+  router.post(
+    "/mark",
+    authenticate,
+    upload.single("faceImage"),
+    markAttendanceByFaceController
+  );
 
-  .get('/settings',
-        authenticate,
-        authorize(
-          "Attendance.settings:view:self",
-          "Attendance.settings:view:all"
-        ),
-        getAttendanceSettingsController)
+  // Get own attendance logs
+  router.get(
+    "/log/me",
+    authenticate,
+    getMyAttendanceLogsController
+  );
 
- .post(
-  "/setAttendanceSettings",
-  authenticate,
-  authorize("attendance.settings.update"),
-  setAttendanceSettingsForAllUsersController
-)
+  // Get user's attendance logs (admin only)
+  router.get(
+    "/log/:userId",
+    authenticate,
+    getAttendanceLogsForUserController
+  );
 
+  router.get(
+    '/settings',
+    authenticate,
+    authorize(
+      "Attendance.settings:view:self",
+      "Attendance.settings:view:all"
+    ),
+    getAttendanceSettingsController
+  );
 
-
-
-
-  // -----------------------------
-  // ⭐ Attendance Logs Routes
-  // -----------------------------
-
-  .get("/logs/me",
-        authenticate,
-        getMyAttendanceThisMonthController)
-  .get("/logs/me/range",authenticate,getAttendanceByRangeController)
-
-  // .get("/logs/:userId",
-  //       authenticate,
-  //       authorize(["Attendance.logs:user:view"]),
-  //       getUserAttendanceController)
-
-  // .get("/logs",
-  //       authenticate,
-  //       authorize(["Attendance.logs:view:all"]),
-  //       getAllAttendanceController)
-
-  // .get("/logs/:userId/range",
-  //       authenticate,
-  //       authorize(["Attendance.logs:user:view", "Attendance.logs:all:view"]),
-  //       getAttendanceByRangeController)
+  router.post(
+    "/setAttendanceSettings",
+    authenticate,
+    authorize("attendance.settings.update"),
+    setAttendanceSettingsForAllUsersController
+  );
 
 export default router;

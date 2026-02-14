@@ -1,5 +1,6 @@
-import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getUserMedicineOrdersOverview, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
+import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getUserMedicineOrdersOverview, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
+import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
 
 
@@ -119,6 +120,43 @@ export const verifyOrderOtpController = async (req, res) => {
     });
   }
 };
+
+export const updateOrderStatusController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { newStatus="", cancelReason="", enteredOtp } = req.body;
+
+    if (!newStatus) {
+      return res.status(400).json({
+        success: false,
+        message: "New status is required"
+      });
+    }
+
+    const updatedOrder = await updateOrderStatusService({
+      orderId,
+      newStatus,
+      marketingAgentUserId: req.user.id,
+      cancelReason,
+      enteredOtp
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Order status updated to ${updatedOrder.orderStatus}`,
+      data: updatedOrder
+    });
+
+  } catch (error) {
+    console.error("Update Order Status Error:", error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Internal Server Error"
+    });
+  }
+};
+
 
 
 export const getAllMedicineOrdersController = async (req, res) => {

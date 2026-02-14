@@ -371,7 +371,8 @@ export const login = async ({ email, phone, password, ip, device }) => {
       email: user.email || null,
       dashboard: user.dashboard,
       roles: user.roles || [],
-      permissions:user.permissions || []
+      permissions:user.permissions || [],
+      profileImage: user.faceImage?.url || null,
     };
 
     // 8️⃣ Generate JWT (keep it small)

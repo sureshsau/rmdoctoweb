@@ -26,7 +26,9 @@
     "permissions": {
       "attendance.mark": "Mark attendance",
       "attendance.read": "View attendance",
-      "attendance.settings.update": "Update attendance settings"
+      "attendance.settings.update": "Update attendance settings",
+      "Attendance.settings:create": "Create attendance settings",
+      "Attendance:mark": "Mark attendance"
     }
   },
 
@@ -37,6 +39,13 @@
       "agent.read": "View agents",
       "agent.update": "Update agent",
       "agent.agreement.upload":"upload agreement"
+    }
+  }
+  ,
+  "permissions": {
+    "label": "System Permissions",
+    "permissions": {
+      "permissions:get": "Get permissions list"
     }
   }
 }

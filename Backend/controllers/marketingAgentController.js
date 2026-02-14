@@ -1,4 +1,4 @@
-import { getMarketingAgentTree, getOrdersForMarketingAgentService, registerAgentByMarketingAgentService, updateOrderStatusService } from "../services/marketingAgent.service.js";
+import { getMarketingAgentTree, getOrdersForMarketingAgentService, registerAgentByMarketingAgentService } from "../services/marketingAgent.service.js";
 
 
 
@@ -72,32 +72,8 @@ export const getAssignedOrders = async (req, res, next) => {
   }
 };
 
-export const updateOrderStatusController = async (req, res, next) => {
-  try {
-    const marketingAgentUserId = req.user.id;
-    const { orderId } = req.params;
-    const { status, cancelReason } = req.body;
 
-    const updatedOrder = await updateOrderStatusService({
-      orderId,
-      newStatus: status,
-      marketingAgentUserId,
-      cancelReason
-    });
 
-    res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-      order: {
-        id: updatedOrder._id,
-        orderStatus: updatedOrder.orderStatus,
-        paymentStatus: updatedOrder.paymentStatus
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 
 

@@ -1,10 +1,32 @@
 import AppError from "../utils/AppError.js"
 import AttendanceSettings from '../models/attendanceSettings.model.js'
+import USER from '../models/user.model.js'
 import mongoose from "mongoose";
+// NOTE: `redisClient` is imported but not used in this file. Kept for future caching needs.
 import redisClient from '../config/redis.config.js'
-import { registerFaceToAwsAndStoreImageToS3, verifyFaceWithRekognition } from "./aws.service.js";
+import { registerFaceToAwsAndStoreImageToS3, verifyFaceWithRekognition, uploadAttendanceImageToS3 } from "./aws.service.js";
 import AttendanceLog from "../models/attendanceLog.model.js";
 
+
+/*
+ * Attendance service
+ * ------------------
+ * This module contains functions to manage attendance related data and actions.
+ * Major responsibilities:
+ * - Create and update per-user attendance settings (`AttendanceSettings` model)
+ * - Register face embeddings and images with AWS Rekognition/S3
+ * - Mark attendance using face verification (check-in / check-out)
+ * - Retrieve attendance logs for a user over a date range
+ *
+ * TODOs / Known issues (documented here so callers can decide changes):
+ * - `getAttendanceService` uses `Attendance.find(...)` in the original code; ensure
+ *   the correct model is used for historical logs. This file references `AttendanceLog`.
+ * - `registerFaceEmbeddingService` previously used `findById(userId)` on settings which
+ *   is ambiguous: if `userId` is not the _id of AttendanceSettings, prefer
+ *   `findOne({ userId })` — callers should confirm schema relation.
+ * - Several places throw generic `Error`. For HTTP controllers prefer `AppError`.
+ * - `checkIn` is a stub and needs implementation (left intentionally unmodified here).
+ */
 
 
 
@@ -15,9 +37,7 @@ export const setupUserAttendanceService = async ({
   faceImageFile
 }) => {
   if (!userId) {
-    const err = new Error("userId is required");
-    err.statusCode = 400;
-    throw err;
+    throw new AppError("userId is required", 400);
   }
 
   console.log("👉 setupUserAttendanceService called");
@@ -32,7 +52,7 @@ export const setupUserAttendanceService = async ({
   // 👤 Optional face registration
   if (faceImageFile) {
     if (!faceImageFile.buffer) {
-      throw new Error("Face image buffer missing (multer misconfigured)");
+      throw new AppError("Face image buffer missing (multer misconfigured)", 400);
     }
 
     console.log("⏫ registering face with AWS...");
@@ -50,6 +70,21 @@ export const setupUserAttendanceService = async ({
       bucket: faceData.bucketName,
       key: faceData.key
     };
+    // also update the user's profile faceImage so frontend shows the new image
+    try {
+      await USER.findByIdAndUpdate(userId, {
+        $set: {
+          faceImage: {
+            url: faceData.imageUrl,
+            bucket: faceData.bucketName,
+            key: faceData.key,
+            updatedAt: new Date()
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Failed to update user.faceImage during attendance setup', err);
+    }
     settings.faceRegisteredAt = new Date();
     settings.isFaceActive = true;
   }
@@ -59,9 +94,7 @@ export const setupUserAttendanceService = async ({
     console.log("✅ AttendanceSettings saved:", settings._id);
   } catch (error) {
     if (error.code === 11000) {
-      const err = new Error("Attendance settings already exist for this user");
-      err.statusCode = 409;
-      throw err;
+      throw new AppError("Attendance settings already exist for this user", 409);
     }
     throw error;
   }
@@ -77,6 +110,10 @@ export const setupUserAttendanceService = async ({
 
 
 export async function fetchSelfAttendanceSettings(userId) {
+  /**
+   * Fetch the attendance settings for a single user.
+   * Returns a plain object (using `.lean()`) or throws `AppError(404)` when not found.
+   */
   const settings = await AttendanceSettings.findOne({ userId }).lean();
 
   if (!settings) {
@@ -92,23 +129,29 @@ export async function fetchAllAttendanceSettings() {
 }
 
 export const createAttendanceSetting=async(data)=>{
-    try{
-        if(!data){
-            throw new AppError('missing payload for creating attendance setting');
-        }
-        console.log(data);
-        const attendanceSetting=await AttendanceSettings.findOne({
-            userId:data.userId
-        });
-        if(attendanceSetting){
-            return;
-        } 
-        await AttendanceSettings.create({
-            userId:data.userId
-        })
-    }catch(err){
-        throw new AppError("Internal server error while creating Attendance schema",500);
+  try {
+    if (!data) {
+      throw new AppError('missing payload for creating attendance setting');
     }
+
+    console.log(data);
+
+    const attendanceSetting = await AttendanceSettings.findOne({
+      userId: data.userId
+    });
+
+    if (attendanceSetting) {
+      return attendanceSetting;
+    }
+
+    const created = await AttendanceSettings.create({
+      userId: data.userId
+    });
+
+    return created;
+  } catch (err) {
+    throw new AppError("Internal server error while creating Attendance schema", 500);
+  }
 }
 
 
@@ -172,18 +215,31 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
       if (!loc.radiusMeters) loc.radiusMeters = 10;
     }
 
-    // Update ALL users
-    const result = await AttendanceSettings.updateMany({}, { $set: updateData });
+    // Only apply to users with employee roles
+    const employeeRoles = ["marketing_agent", "doctor", "subadmin", "receptionist"];
 
-    const updatedCount =
-      result.modifiedCount ??
-      result.nModified ??
-      0;
+    const users = await USER.find({ roles: { $in: employeeRoles }, isActive: true }).select("_id").lean();
 
-    return {
-      updatedCount,
-      appliedSettings: updateData
-    };
+    if (!users || users.length === 0) {
+      return { updatedCount: 0, appliedSettings: updateData };
+    }
+
+    const ops = users.map(u => ({
+      updateOne: {
+        filter: { userId: u._id },
+        update: { $set: updateData, $setOnInsert: { userId: u._id } },
+        upsert: true
+      }
+    }));
+
+    const result = await AttendanceSettings.bulkWrite(ops, { ordered: false });
+
+    const modified = result.modifiedCount ?? result.nModified ?? 0;
+    const upserted = result.upsertedCount ?? (result.upserted ? Object.keys(result.upserted).length : 0) ?? 0;
+
+    const updatedCount = modified + upserted;
+
+    return { updatedCount, appliedSettings: updateData };
 
   } catch (err) {
     console.error("setAttendanceSettingsForAllUsers ERROR:", err);
@@ -210,7 +266,10 @@ export async function registerFaceEmbeddingService({ userId, embedding, faceProp
   // --------------------------
   // 3. Find existing settings or create new one
   // --------------------------
-  let settings = await AttendanceSettings.findById(userId );
+  // IMPORTANT: In many schemas AttendanceSettings._id != userId. Prefer to find
+  // by the `userId` field unless the settings document _id is intentionally the
+  // same as the user id. This keeps behavior explicit and consistent.
+  let settings = await AttendanceSettings.findOne({ userId });
 
   if (!settings) {
     // Create new settings with face embedding
@@ -328,15 +387,23 @@ export async function getAttendanceService({
   // --------------------------------------------------
   // 7. Fetch Attendance
   // --------------------------------------------------
-  const logs = await Attendance.find({
+  // NOTE: Convert `from`/`to` strings to Date objects before querying.
+  // Using strings may lead to incorrect comparisons if the DB stores Date types.
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  // Ensure `toDate` covers the whole day by setting to end of day.
+  toDate.setHours(23,59,59,999);
+
+  // Query the AttendanceLog model (historical logs).
+  const logs = await AttendanceLog.find({
     userId,
-    date: { $gte: from, $lte: to }
+    attendanceDate: { $gte: fromDate, $lte: toDate }
   })
-    .sort({ date: 1 })
+    .sort({ attendanceDate: 1 })
     .lean();
 
   return {
-    range: { from, to },
+    range: { from: fromDate.toISOString(), to: toDate.toISOString() },
     count: logs.length,
     logs
   };
@@ -396,6 +463,29 @@ export const attendanceMarkServiceByFace = async ({
 
   if (!faceVerification.verified) {
     throw new Error("Face verification failed");
+  }
+
+  // 4.5️⃣ Upload attendance snapshot to S3 and update user's faceImage
+  try {
+    const uploaded = await uploadAttendanceImageToS3({
+      userId,
+      imageBuffer: faceImageBuffer,
+      mimeType: 'image/jpeg'
+    });
+
+    await USER.findByIdAndUpdate(userId, {
+      $set: {
+        faceImage: {
+          url: uploaded.url,
+          bucket: uploaded.bucketName,
+          key: uploaded.key,
+          updatedAt: new Date()
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Failed to upload attendance snapshot or update user.faceImage', err);
+    // Do not block attendance flow for upload failures
   }
 
   // 5️⃣ CHECK-IN
@@ -538,10 +628,71 @@ export const calculateDistanceMeters = (
 };
 
 const parseTimeToMinutes = (timeStr) => {
-  const [h, m] = timeStr.split(":").map(Number);
+  // Safely parse `HH:MM`. If `timeStr` is falsy or malformed, return 0.
+  if (!timeStr || typeof timeStr !== 'string') return 0;
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return 0;
+  const [h, m] = parts.map(p => Number(p) || 0);
   return h * 60 + m;
 };
 
 const diffMinutes = (start, end) => {
   return Math.max(0, Math.floor((end - start) / 60000));
+};
+
+/**
+ * Fetch attendance logs for a user with optional filters and pagination
+ * Filters: from, to
+ * Pagination: page (default 1), limit (default 10)
+ * Returns latest records first
+ */
+export const fetchUserAttendanceLogsService = async ({
+  userId,
+  from,
+  to,
+  page = 1,
+  limit = 10
+}) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError("Invalid userId", 400);
+  }
+
+  const query = { userId };
+
+  if (from || to) {
+    query.attendanceDate = {};
+    if (from) {
+      const d = new Date(from);
+      if (isNaN(d)) throw new AppError("Invalid `from` date", 400);
+      query.attendanceDate.$gte = d;
+    }
+    if (to) {
+      const d = new Date(to);
+      if (isNaN(d)) throw new AppError("Invalid `to` date", 400);
+      d.setHours(23, 59, 59, 999);
+      query.attendanceDate.$lte = d;
+    }
+  }
+
+  page = Math.max(1, Number(page) || 1);
+  limit = Math.max(1, Math.min(Number(limit) || 10, 100)); // clamp between 1-100
+  const skip = (page - 1) * limit;
+
+  const [total, logs] = await Promise.all([
+    AttendanceLog.countDocuments(query),
+    AttendanceLog.find(query)
+      .sort({ attendanceDate: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+  ]);
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit) || 0,
+    count: logs.length,
+    logs
+  };
 };

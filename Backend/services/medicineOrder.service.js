@@ -465,3 +465,115 @@ export const handleCOD = async (order, session) => {
     paymentStatus: order.paymentStatus
   };
 };
+
+
+const VALID_TRANSITIONS = {
+  INITIATED: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED", "DELIVERED", "CANCELLED"], // ✅ added DELIVERED
+  SHIPPED: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: []
+};
+
+export const updateOrderStatusService = async ({
+  orderId,
+  newStatus,
+  marketingAgentUserId,
+  cancelReason,
+  enteredOtp
+}) => {
+  const order = await MedicineOrder.findById(orderId);
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  /* 🔐 AUTHORIZATION */
+  if (
+    !order.deliveryAgentId ||
+    order.deliveryAgentId.toString() !== marketingAgentUserId.toString()
+  ) {
+    throw new AppError("Not authorized to update this order", 403);
+  }
+
+  /* 🔁 VALID STATUS TRANSITION */
+  const allowed = VALID_TRANSITIONS[order.orderStatus] || [];
+
+  if (!allowed.includes(newStatus)) {
+    throw new AppError(
+      `Cannot change order from ${order.orderStatus} to ${newStatus}`,
+      400
+    );
+  }
+
+  /*  DELIVERY WITH OTP VERIFICATION */
+  if (newStatus === "DELIVERED") {
+
+    if (!enteredOtp) {
+      throw new AppError("OTP is required to deliver this order", 400);
+    }
+
+    if (!order.otp || order.otp !== Number(enteredOtp)) {
+      throw new AppError("Invalid OTP", 400);
+    }
+
+    order.otpVerified = true;
+    order.paymentStatus = "PAID";
+  }
+
+  if (newStatus === "CANCELLED") {
+    order.cancelledReason = cancelReason || "Cancelled by delivery agent";
+  }
+
+  order.orderStatus = newStatus;
+
+  await order.save();
+
+  return order;
+};
+
+
+export const getUserMedicineOrderTotalService = async ({
+  userId,
+  startDate,
+  endDate,
+}) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError("Invalid user id", 400);
+  }
+
+  const matchStage = {
+    userId: new mongoose.Types.ObjectId(userId),
+    orderStatus: "DELIVERED", // only count delivered orders
+  };
+
+  /* ✅ DATE RANGE FILTER */
+  if (startDate || endDate) {
+    matchStage.createdAt = {};
+
+    if (startDate) {
+      matchStage.createdAt.$gte = new Date(startDate);
+    }
+
+    if (endDate) {
+      matchStage.createdAt.$lte = new Date(endDate);
+    }
+  }
+
+  const result = await MedicineOrder.aggregate([
+    { $match: matchStage },
+
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: "$pricing.payableAmount" },
+        totalOrders: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return {
+    totalAmount: result[0]?.totalAmount || 0,
+    totalOrders: result[0]?.totalOrders || 0,
+  };
+};

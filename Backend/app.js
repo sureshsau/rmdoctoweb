@@ -21,6 +21,7 @@ import { ensureRekognitionCollection } from "./services/aws.service.js";
 import marketingAgentRoute from './routes/marketingAgent.route.js'
 import Razorpay from "razorpay";
 import razorpay from "./config/razorpay.config.js";
+import appointmentRoute from './routes/appointment.routes.js';
 
 /* ================= CORS ================= */
 
@@ -51,7 +52,7 @@ app.use("/permission", permissionRoute);
 app.use("/agent", agentRoute);
 app.use("/medicine/order",medicineOrderRoute);
 app.use("/marketing-agent",marketingAgentRoute)
-
+app.use("/appointment",appointmentRoute)
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);

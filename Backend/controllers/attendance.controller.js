@@ -1,4 +1,4 @@
-import { attendanceMarkServiceByFace, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers, setupUserAttendanceService } from "../services/attendance.service.js"
+import { attendanceMarkServiceByFace, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers, setupUserAttendanceService, fetchUserAttendanceLogsService } from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
 import { getFaceEmbedding } from "../utils/getFaceEmbedding.js";
 import fs from 'fs';
@@ -68,7 +68,7 @@ export const setupUserAttendanceController = async (req, res) => {
       attendanceSettings: req.body,
       faceImageFile: req.file || null
     });
-
+    console.log("attendace setting successfull");
     return res.status(200).json({
       success: true,
       message: "Attendance settings configured successfully",
@@ -229,5 +229,65 @@ export const markAttendanceByFaceController = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+/**
+ * Get own attendance logs with optional filters and pagination
+ * Query params: from, to, page, limit
+ */
+export const getMyAttendanceLogsController = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { from, to, page, limit } = req.query;
+
+    const result = await fetchUserAttendanceLogsService({
+      userId,
+      from,
+      to,
+      page,
+      limit
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance logs fetched successfully",
+      data: result
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get user's attendance logs (admin only)
+ * Query params: from, to, page, limit
+ */
+export const getAttendanceLogsForUserController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { from, to, page, limit } = req.query;
+
+    // Only admin/subadmin allowed
+    const roles = req.user.roles || [];
+    if (!roles.includes('admin') && !roles.includes('subadmin')) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const result = await fetchUserAttendanceLogsService({
+      userId,
+      from,
+      to,
+      page,
+      limit
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User attendance logs fetched successfully",
+      data: result
+    });
+  } catch (err) {
+    next(err);
   }
 };

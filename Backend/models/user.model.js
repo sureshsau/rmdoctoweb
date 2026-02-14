@@ -96,6 +96,14 @@ const UserSchema = new mongoose.Schema(
     },
     kycDocuments: [{ url: String, type: String }],
 
+    // FACE IMAGE (attendance snapshot)
+    faceImage: {
+      url: { type: String, default: null },
+      bucket: { type: String, default: null },
+      key: { type: String, default: null },
+      updatedAt: { type: Date, default: null }
+    },
+
     // SECURITY
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },

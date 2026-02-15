@@ -49,6 +49,10 @@ import { orderService, OrderOverview } from "@/services/order.service";
 import { receptionistAppointmentService, Appointment } from "@/services/receptionist.appointment.service";
 import { AuthUser } from "@/services/auth.service";
 import { Dialog, Transition } from "@headlessui/react";
+import dynamic from "next/dynamic";
+// Lazy load AttendanceHub to avoid hydration issues
+const AttendanceHub = dynamic(() => import("@/components/attendance/AttendanceHub"), { ssr: false });
+
 
 // Types
 type TabType = "doctors" | "appointments" | "orders";
@@ -311,6 +315,22 @@ const SpecialtyFilter = ({ selected, onSelect }: { selected: string; onSelect: (
 
 export default function ReceptionistDashboard() {
     const { user } = useAuthContext();
+    const [showAttendance, setShowAttendance] = useState(false);
+        // ...existing code...
+        // In your return JSX, add:
+        // <div className="flex justify-end mb-4">
+        //     <button
+        //         onClick={() => setShowAttendance((v) => !v)}
+        //         className="px-4 py-2 rounded-lg bg-amber-50 text-amber-700 font-semibold border border-amber-200 hover:bg-amber-100 transition-all"
+        //     >
+        //         {showAttendance ? "Hide Attendance" : "Show Attendance"}
+        //     </button>
+        // </div>
+        // {showAttendance && (
+        //     <div className="mb-8">
+        //         <AttendanceHub roleLabel="Receptionist" accent="amber" userId={user?.id || user?._id} />
+        //     </div>
+        // )}
     
     // State
     const [doctors, setDoctors] = useState<AuthUser[]>([]);

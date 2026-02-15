@@ -19,39 +19,46 @@ export type AttendanceLog = {
   checkOutTime?: string;
   status: string;
   date: string;
-  // Add other fields from backend model if needed for display
+  checkIn?: {
+    time?: string;
+    image?: { url?: string; bucket?: string; key?: string };
+    [key: string]: any;
+  };
+  checkOut?: {
+    time?: string;
+    image?: { url?: string; bucket?: string; key?: string };
+    [key: string]: any;
+  };
+  [key: string]: any;
 };
 
 export const attendanceService = {
   // SETTINGS
   async getGlobalSettings() {
-    // Backend: GET /attendance/settings
-    // If Admin, returns { scope: "all", data: [...] }
-    // Ideally we want the "current" global setting. 
-    // The backend `getAttendanceSettingsController` logic says "CASE 1: Admin -> returns all settings".
-    // Wait, `setAttendanceSettingsForAllUsersController` sets it for everyone. 
-    // It seems there isn't a "get one global setting" endpoint, it returns ARRAY of settings for all users?
-    // Let's assume for the "Settings Page", we might be setting a policy that gets applied.
-    // However, if we want to *View* current policy, we might have to pick one or just not show "current" if backend doesn't support "Get Global Template".
     const res = await apiClient.get("/attendance/settings");
     return res.data;
   },
 
   async setGlobalSettings(settings: AttendanceSettings) {
-    // Backend: POST /attendance/setAttendanceSettings
     const res = await apiClient.post("/attendance/setAttendanceSettings", settings);
     return res.data;
   },
 
   // LOGS (for Dashboards)
   /**
-   * Fetch attendance logs for a user (always by id, never 'me').
-   * @param userId Required user ID to fetch logs for (including self)
+   * Fetch attendance logs for the current user (with pagination/filters).
+   * @param params Optional: { page, limit, from, to }
    */
-  async getMyLogs(userId: string) {
-    // Always use /attendance/log/:id, never /me
-    if (!userId) throw new Error("userId is required for getMyLogs");
-    const url = `/attendance/log/${userId}`;
+  async getMyLogs(params?: { page?: number; limit?: number; from?: string; to?: string }) {
+    // Always use /attendance/log/me for self
+    let url = `/attendance/log/me`;
+    if (params) {
+      const q = Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join('&');
+      if (q) url += `?${q}`;
+    }
     const res = await apiClient.get(url);
     return res.data;
   },
@@ -76,6 +83,23 @@ export const attendanceService = {
     const imageBlob = await imageResponse.blob();
     formData.append("faceImage", imageBlob, "checkin.jpg");
 
+    const res = await apiClient.post("/attendance/mark", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  },
+
+  async checkOutFace(payload: { lat: number; lng: number; imageUrl: string; deviceInfo?: string }) {
+    const formData = new FormData();
+    formData.append("lat", String(payload.lat));
+    formData.append("lng", String(payload.lng));
+    if (payload.deviceInfo) formData.append("deviceInfo", payload.deviceInfo);
+
+    const imageResponse = await fetch(payload.imageUrl);
+    const imageBlob = await imageResponse.blob();
+    formData.append("faceImage", imageBlob, "checkout.jpg");
+
+    // If your backend uses a different endpoint for checkout, change it here. Otherwise, use the same as check-in.
     const res = await apiClient.post("/attendance/mark", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });

@@ -16,21 +16,21 @@ import {
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
 
-type ReceptionistSidebarProps = {
+type DoctorSidebarProps = {
     isOpen?: boolean;
     onClose?: () => void;
 };
 
-export default function ReceptionistSidebar({ isOpen = false, onClose }: ReceptionistSidebarProps) {
+export default function DoctorSidebar({ isOpen = false, onClose }: DoctorSidebarProps) {
     const pathname = usePathname();
     const { logout, user } = useAuthContext();
 
     const links = [
-        { name: "Overview", href: "/receptionist/dashboard", icon: LayoutDashboard },
-        { name: "My Wallet", href: "/receptionist/wallet", icon: Users },
-        { name: "Medicine", href: "/receptionist/medicine", icon: Pill },
+        { name: "Overview", href: "/doctor/dashboard", icon: LayoutDashboard },
+        { name: "My Wallet", href: "/doctor/wallet", icon: Users },
+        { name: "Medicine", href: "/doctor/medicine", icon: Pill },
         { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag },
-        { name: "Attendance", href: "/receptionist/attendance", icon: Clock },
+        { name: "Attendance", href: "/doctor/attendance", icon: Clock },
     ];
 
     return (
@@ -41,10 +41,10 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
         >
             <div className="h-16 flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center shadow-md shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-600 flex items-center justify-center shadow-md shrink-0">
                         <ShieldCheck className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-lg font-bold text-slate-800 truncate">Reception</span>
+                    <span className="text-lg font-bold text-slate-800 truncate">Doctor</span>
                 </div>
                 <button
                     type="button"
@@ -59,7 +59,7 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
             <div className="px-4 py-4 shrink-0">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed in as</p>
-                    <p className="text-sm font-bold text-slate-900 truncate mt-0.5">{user?.name || "Receptionist"}</p>
+                    <p className="text-sm font-bold text-slate-900 truncate mt-0.5">{user?.name || "Doctor"}</p>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
                     const Icon = link.icon;
                     const isActive =
                         pathname === link.href ||
-                        (link.href === "/receptionist/dashboard" && pathname.startsWith("/receptionist")) ||
+                        (link.href === "/doctor/dashboard" && pathname.startsWith("/doctor")) ||
                         (link.href === "/medicine-store" && pathname.startsWith("/medicine-store"));
 
                     return (
@@ -78,7 +78,7 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
                             onClick={onClose}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                                 ${isActive
-                                    ? "bg-amber-500 text-white"
+                                    ? "bg-cyan-600 text-white"
                                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                 }`}
                         >

@@ -165,7 +165,6 @@ export const getAllMedicineOrdersController = async (req, res) => {
       orderStatus,
       paymentStatus,
       paymentMode,
-      deliveryStatus,
       userId,
       deliveryAgentId,
       fromDate,
@@ -178,40 +177,31 @@ export const getAllMedicineOrdersController = async (req, res) => {
       orderStatus,
       paymentStatus,
       paymentMode,
-      deliveryStatus,
       userId,
       deliveryAgentId,
       fromDate,
       toDate
     };
 
-    // remove undefined filters
-    Object.keys(filters).forEach(
-      key => filters[key] === undefined && delete filters[key]
-    );
-
-    const orders = await getAllMedicineOrdersOverview({
+    const result = await getAllMedicineOrdersOverview({
       filters,
-      page: Number(page),
-      limit: Number(limit)
+      page,
+      limit
     });
 
     return res.status(200).json({
       success: true,
-      data: orders,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit)
-      }
+      ...result
     });
 
   } catch (error) {
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
       message: error.message
     });
   }
 };
+
 
 export const createRazorpayMedicineOrder = async (req, res, next) => {
   try {

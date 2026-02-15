@@ -403,66 +403,41 @@ export const getAllMedicineOrdersOverview = async ({
   page = 1,
   limit = 20
 }) => {
+  const currentPage = Number(page) || 1;
+  const perPage = Number(limit) || 20;
+
   const query = {};
 
-  /* 🔎 FILTERS */
-  if (filters.orderStatus)
-    query.orderStatus = filters.orderStatus;
-
-  if (filters.paymentStatus)
-    query.paymentStatus = filters.paymentStatus;
-
-  if (filters.paymentMode)
-    query.paymentMode = filters.paymentMode;
-
-  if (filters.deliveryStatus)
-    query.deliveryStatus = filters.deliveryStatus;
-
-  if (filters.userId)
-    query.userId = filters.userId;
-
-  if (filters.deliveryAgentId)
-    query.deliveryAgentId = filters.deliveryAgentId;
+  if (filters.orderStatus) query.orderStatus = filters.orderStatus;
+  if (filters.paymentStatus) query.paymentStatus = filters.paymentStatus;
+  if (filters.paymentMode) query.paymentMode = filters.paymentMode;
+  if (filters.userId) query.userId = filters.userId;
+  if (filters.deliveryAgentId) query.deliveryAgentId = filters.deliveryAgentId;
 
   if (filters.fromDate || filters.toDate) {
     query.createdAt = {};
     if (filters.fromDate)
       query.createdAt.$gte = new Date(filters.fromDate);
-    if (filters.toDate)
-      query.createdAt.$lte = new Date(filters.toDate);
+    if (filters.toDate) {
+      const end = new Date(filters.toDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt.$lte = end;
+    }
   }
 
-  /* 📦 QUERY */
+  const totalRecords = await MedicineOrder.countDocuments(query);
+
   const orders = await MedicineOrder.find(query)
-    .sort({ createdAt: -1 }) // 🔥 latest first
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .select({
-      items: { $slice: 1 }, // 🔥 only first medicine
-      pricing: 1,
-      paymentMode: 1,
-      paymentStatus: 1,
-      orderStatus: 1,
-      deliveryStatus: 1,
-      userId: 1,
-      deliveryAgentId: 1,
-      createdAt: 1
-    })
-    .populate({
-      path: "items.medicineId",
-      select: "name images"
-    })
-    .populate({
-      path: "deliveryAgentId",
-      populate: {
-        path: "userId",
-        select: "name phone"
-      }
-    })
+    .sort({ createdAt: -1 })
+    .skip((currentPage - 1) * perPage)
+    .limit(perPage)
+    .select("items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId createdAt")
+    .populate("items.medicineId", "name images")
+    .populate("userId", "name phone")
+    .populate("deliveryAgentId", "name phone")
     .lean();
 
-  /* 🔄 FORMAT RESPONSE */
-  return orders.map(order => {
+  const data = orders.map(order => {
     const firstItem = order.items?.[0];
 
     return {
@@ -470,31 +445,29 @@ export const getAllMedicineOrdersOverview = async ({
       orderStatus: order.orderStatus,
       paymentStatus: order.paymentStatus,
       paymentMode: order.paymentMode,
-      deliveryStatus: order.deliveryStatus,
-
       payableAmount: order.pricing?.payableAmount || 0,
-
       createdAt: order.createdAt,
-
+      customer: order.userId,
+      deliveryAgent: order.deliveryAgentId,
       medicine: firstItem
         ? {
-          name: firstItem.medicineId?.name || null,
-          image:
-            firstItem.medicineId?.images?.[0]?.url || null,
-          quantity: firstItem.quantity
-        }
-        : null,
-
-      deliveryAgent: order.deliveryAgentId
-        ? {
-          id: order.deliveryAgentId._id,
-          name: order.deliveryAgentId.userId?.name || null,
-          phone: order.deliveryAgentId.userId?.phone || null
-        }
+            name: firstItem.medicineId?.name,
+            image: firstItem.medicineId?.images?.[0]?.url,
+            quantity: firstItem.quantity
+          }
         : null
     };
   });
+
+  return {
+    page: currentPage,
+    totalPages: Math.ceil(totalRecords / perPage),
+    totalRecords,
+    data
+  };
 };
+
+
 
 
 /* 🔐 Generate 6-digit OTP */

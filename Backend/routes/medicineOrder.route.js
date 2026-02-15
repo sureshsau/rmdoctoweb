@@ -34,6 +34,6 @@ router.post(
   updateOrderStatusController
 )
 
-.get("/view/all",authenticate,authorize("medicineOrder.view.all"),getAllMedicineOrdersController)
+.get("/view/all",authenticate,getAllMedicineOrdersController)//authorize("medicineOrder.view.all")
 
 export default router

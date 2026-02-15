@@ -11,7 +11,8 @@ import {
     LogOut,
     ShieldCheck,
     Clock,
-    X
+    X,
+    Pill
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
 
@@ -26,8 +27,7 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
 
     const links = [
         { name: "Overview", href: "/receptionist/dashboard", icon: LayoutDashboard },
-        { name: "Doctors", href: "/receptionist/dashboard#doctors", icon: Stethoscope },
-        { name: "Orders", href: "/receptionist/dashboard#orders", icon: ClipboardList },
+        { name: "Medicine", href: "/receptionist/medicine", icon: Pill },
         { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag },
         { name: "Attendance", href: "/receptionist/attendance", icon: Clock },
     ];

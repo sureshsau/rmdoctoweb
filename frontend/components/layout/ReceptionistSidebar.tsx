@@ -26,7 +26,6 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
 
     const links = [
         { name: "Overview", href: "/receptionist/dashboard", icon: LayoutDashboard },
-        { name: "Users", href: "/receptionist/dashboard#users", icon: Users },
         { name: "Doctors", href: "/receptionist/dashboard#doctors", icon: Stethoscope },
         { name: "Orders", href: "/receptionist/dashboard#orders", icon: ClipboardList },
         { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag },

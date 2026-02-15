@@ -252,12 +252,15 @@ export const getMyAttendanceLogsController = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Attendance logs fetched successfully",
-      data: result
+      ...result
     });
+
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };
+
 
 /**
  * Get user's attendance logs (admin only)

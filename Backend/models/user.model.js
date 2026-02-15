@@ -103,6 +103,11 @@ const UserSchema = new mongoose.Schema(
       key: { type: String, default: null },
       updatedAt: { type: Date, default: null }
     },
+    rmCoinsBalance: {
+  type: Number,
+  default: 0,
+  min: 0
+},
 
     // SECURITY
     failedLoginAttempts: { type: Number, default: 0 },

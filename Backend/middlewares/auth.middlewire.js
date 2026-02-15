@@ -137,3 +137,32 @@ export function authorize(requiredPermissions) {
     next();
   };
 }
+
+// ✅ CHECK IF USER IS ADMIN
+export const isAdmin = (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    if (!Array.isArray(user.roles) || !user.roles.includes("admin")) {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can access this resource",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error checking admin status",
+    });
+  }
+};
+

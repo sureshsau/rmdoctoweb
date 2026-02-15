@@ -2,15 +2,13 @@ import mongoose from "mongoose";
 
 const RMCreditTransactionSchema = new mongoose.Schema(
   {
-    // CREDIT REFERENCE
-    rmCreditId: {
+    walletId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "RMCredit",
       required: true,
       index: true
     },
 
-    // AGENT REFERENCE (denormalized for faster queries)
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -18,54 +16,37 @@ const RMCreditTransactionSchema = new mongoose.Schema(
       index: true
     },
 
-    // MEDICINE ORDER REFERENCE (optional - only for debit/refund)
     medicineOrderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "MedicineOrder",
-      default: null,
-      index: true
+      default: null
     },
 
-    // TRANSACTION DETAILS
-    creditAmount: {
+    amount: {
       type: Number,
       required: true,
       min: 0
     },
 
-    remainingCredit: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-
-    // TRANSACTION TYPE
+    // credit = admin add
+    // debit = medicine purchase
+    // revoke = admin remove
     type: {
       type: String,
-      enum: ["send", "revoke", "debit", "refund"],
-      default: "debit",
+      enum: ["credit", "debit", "revoke"],
+      required: true,
       index: true
     },
 
-    // ADMIN WHO PERFORMED ACTION (for send/revoke)
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null
     },
 
-    // DESCRIPTION/REASON
     description: {
       type: String,
       default: null
-    },
-
-    // STATUS
-    status: {
-      type: String,
-      enum: ["success", "failed", "pending"],
-      default: "success",
-      index: true
     }
   },
   {
@@ -73,11 +54,11 @@ const RMCreditTransactionSchema = new mongoose.Schema(
   }
 );
 
-// INDEXES
-RMCreditTransactionSchema.index({ rmCreditId: 1, createdAt: -1 });
-RMCreditTransactionSchema.index({ agentId: 1, type: 1 });
-RMCreditTransactionSchema.index({ medicineOrderId: 1 });
+RMCreditTransactionSchema.index({ walletId: 1, createdAt: -1 });
 
-const RMCreditTransaction = mongoose.model("RMCreditTransaction", RMCreditTransactionSchema);
+const RMCreditTransaction = mongoose.model(
+  "RMCreditTransaction",
+  RMCreditTransactionSchema
+);
 
 export default RMCreditTransaction;

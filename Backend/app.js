@@ -16,13 +16,14 @@ import permissionRoute from "./routes/permission.route.js";
 import agentRoute from "./routes/agent.route.js";
 import medicineRouter from "./routes/medicine.route.js";
 import medicineOrderRoute from './routes/medicineOrder.route.js'
+import rmcreditRoute from "./routes/rmcredit.route.js";
 import AppError from "./utils/AppError.js";
 import { ensureRekognitionCollection } from "./services/aws.service.js";
 import marketingAgentRoute from './routes/marketingAgent.route.js'
 import Razorpay from "razorpay";
 import razorpay from "./config/razorpay.config.js";
 import appointmentRoute from './routes/appointment.routes.js';
-
+import rmcoinRoute from "./routes/rmcoin.route.js";
 /* ================= CORS ================= */
 
 app.use(
@@ -53,6 +54,8 @@ app.use("/agent", agentRoute);
 app.use("/medicine/order",medicineOrderRoute);
 app.use("/marketing-agent",marketingAgentRoute)
 app.use("/appointment",appointmentRoute)
+app.use("/rmcredit", rmcreditRoute);
+app.use("/rmcoin", rmcoinRoute);
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // ❗ multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);

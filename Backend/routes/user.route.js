@@ -1,5 +1,5 @@
 import express from "express";
-import {  createUserController, getAllUserController } from "../controllers/user.controller.js";
+import {  createUserController, getAllDoctorsController, getAllUserController } from "../controllers/user.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
 
 
@@ -11,6 +11,7 @@ router.get(
   authorize("user.read.all"),
   getAllUserController
 )
-.post('/',authenticate,authorize(),createUserController)
+.post('/',authenticate,authorize("user.create"),createUserController)
+.get('/doctors',authenticate,getAllDoctorsController)
 
 export default router;

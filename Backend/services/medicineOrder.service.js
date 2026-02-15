@@ -5,6 +5,8 @@ import AppError from "../utils/AppError.js";
 import crypto from "crypto";
 import AgentProfile from '../models/agentProfile.model.js'
 import User from "../models/user.model.js";
+import RMCredit from "../models/rmcredit/rmcredit.model.js";
+import RMCreditTransaction from "../models/rmcredit/rmcreditTransaction.model.js";
 
 export const createMedicineOrder = async ({
   user,
@@ -70,9 +72,9 @@ export const createMedicineOrder = async ({
       // If linked → use it
       if (agentProfile?.marketingAgentId) {
         marketingAgentId = agentProfile.marketingAgentId;
-        console.log("marketing agent id found",marketingAgentId);
+        console.log("marketing agent id found", marketingAgentId);
       }
-    } 
+    }
 
     // CASE 2: Not linked OR not an agent → pick random
     if (!marketingAgentId) {
@@ -126,10 +128,63 @@ export const createMedicineOrder = async ({
         break;
 
       case "ONLINE":
-        
+
         break;
 
       case "RM_CREDIT":
+        // Only agents can use RM Credit
+        if (!user.roles.includes("agent")) {
+          throw new AppError("Only agents can use RM Credit", 403);
+        }
+
+        const wallet = await RMCredit.findOne({ agentId: userId })
+          .session(session);
+
+        if (!wallet) {
+          throw new AppError("RM Credit wallet not found", 400);
+        }
+
+        // Check expiry
+        if (wallet.expiryDate < new Date()) {
+          throw new AppError("RM Credit expired", 400);
+        }
+
+        // Check balance
+        if (wallet.balance < payableAmount) {
+          throw new AppError("Insufficient RM Credit balance", 400);
+        }
+
+        // Deduct credit
+        wallet.balance -= payableAmount;
+        wallet.usedCredit += payableAmount;
+
+        await wallet.save({ session });
+
+        // Update order as paid
+        createdOrder.paymentStatus = "PAID";
+        createdOrder.orderStatus = "CONFIRMED";
+
+        await createdOrder.save({ session });
+
+        // Create credit transaction log
+        await RMCreditTransaction.create(
+          [
+            {
+              walletId: wallet._id,
+              agentId: userId,
+              medicineOrderId: createdOrder._id,
+              amount: payableAmount,
+              type: "debit",
+              performedBy: userId,
+              description: "Medicine purchase via RM Credit"
+            }
+          ],
+          { session }
+        );
+
+        paymentResponse = createdOrder;
+
+
         break;
 
       default:
@@ -237,7 +292,7 @@ export const getMedicineOrderDetails = async ({
       phone: order.deliveryAgentId.phone || null
     };
   }
-  
+
   return {
     orderId: order._id,
 

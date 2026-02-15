@@ -37,13 +37,5 @@ export const userService = {
         return res.data;
     },
 
-    async bookAppointment(payload: any) {
-        const res = await apiClient.post("/appointment", payload);
-        return res.data;
-    },
-
-    async getAllDoctors() {
-        const res = await apiClient.get<GetAllUsersResponse>("/user/doctors");
-        return res.data;
-    },
+    // ...existing code...
 };

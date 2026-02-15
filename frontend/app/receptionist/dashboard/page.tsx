@@ -40,7 +40,7 @@ import {
     Heart
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
-import { userService } from "@/services/user.service";
+import { receptionistService } from "@/services/receptionist.service";
 import { orderService, OrderOverview } from "@/services/order.service";
 import { AuthUser } from "@/services/auth.service";
 import { Dialog, Transition } from "@headlessui/react";
@@ -129,7 +129,7 @@ export default function ReceptionistDashboard() {
 
             try {
                 const [doctorRes, orderRes] = await Promise.all([
-                    userService.getAllDoctors(),
+                    receptionistService.getAllDoctors(),
                     orderService.getAllOrders()
                 ]);
                 if (doctorRes?.success) {
@@ -316,9 +316,10 @@ export default function ReceptionistDashboard() {
         }
         try {
             setBookingLoading(true);
-            await userService.bookAppointment({
-                doctorId: selectedDoctor?._id,
+            await receptionistService.bookAppointment({
+                doctorId: String(selectedDoctor?._id || selectedDoctor?.id || ""),
                 ...form,
+                patientGender: form.patientGender.toUpperCase(),
             });
             setToast({ type: "success", message: `Appointment booked with Dr. ${selectedDoctor?.name}` });
             setBookingModal(false);
@@ -818,7 +819,7 @@ export default function ReceptionistDashboard() {
                                                 onChange={e => setForm({ ...form, patientAge: e.target.value })} 
                                             />
                                             <div className="flex gap-2">
-                                                {['Male', 'Female'].map(g => (
+                                                {['MALE', 'FEMALE', 'OTHER'].map(g => (
                                                     <button 
                                                         type="button" 
                                                         key={g} 

@@ -287,3 +287,108 @@ export const getMyAppointmentsController = async (req, res) => {
     });
   }
 };
+
+
+export const getDoctorAppointmentsController = async (req, res) => {
+  try {
+    const roles = req.user.roles || [];
+
+    if (!roles.includes("doctor")) {
+      throw new AppError("Only doctors can access this", 403);
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      filterType, // today | week | month
+      from,
+      to
+    } = req.query;
+
+    const currentPage = Math.max(1, Number(page) || 1);
+    const perPage = Math.max(1, Number(limit) || 10);
+    const skip = (currentPage - 1) * perPage;
+
+    const doctorId = req.user.id;
+
+    const query = { doctorId };
+
+    /* ================= DATE FILTER LOGIC ================= */
+
+    const now = new Date();
+
+    if (filterType === "today") {
+      const start = new Date(now.setHours(0, 0, 0, 0));
+      const end = new Date(now.setHours(23, 59, 59, 999));
+
+      query.appointmentDate = { $gte: start, $lte: end };
+    }
+
+    else if (filterType === "week") {
+      const firstDay = new Date(now);
+      firstDay.setDate(now.getDate() - now.getDay());
+      firstDay.setHours(0, 0, 0, 0);
+
+      const lastDay = new Date(firstDay);
+      lastDay.setDate(firstDay.getDate() + 6);
+      lastDay.setHours(23, 59, 59, 999);
+
+      query.appointmentDate = { $gte: firstDay, $lte: lastDay };
+    }
+
+    else if (filterType === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+      );
+
+      query.appointmentDate = { $gte: start, $lte: end };
+    }
+
+    else if (from || to) {
+      query.appointmentDate = {};
+      if (from) query.appointmentDate.$gte = new Date(from);
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        query.appointmentDate.$lte = end;
+      }
+    }
+
+    /* ================= DATABASE QUERY ================= */
+
+    const totalRecords = await Appointment.countDocuments(query);
+
+    const appointments = await Appointment.find(query)
+      .populate("doctorId", "name email")
+      .populate("bookedBy", "name roles")
+      .sort({ appointmentDate: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      filterApplied: filterType || (from || to ? "custom" : "none"),
+      pagination: {
+        page: currentPage,
+        totalPages: Math.ceil(totalRecords / perPage),
+        totalRecords
+      },
+      data: appointments
+    });
+
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+

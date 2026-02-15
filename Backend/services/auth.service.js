@@ -373,6 +373,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
       roles: user.roles || [],
       permissions:user.permissions || [],
       profileImage: user.faceImage?.url || null,
+      rmCoinsBalance: user.rmCoinsBalance || 0,
     };
 
     // 8️⃣ Generate JWT (keep it small)

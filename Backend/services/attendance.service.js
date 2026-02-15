@@ -653,46 +653,109 @@ export const fetchUserAttendanceLogsService = async ({
   page = 1,
   limit = 10
 }) => {
+
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new AppError("Invalid userId", 400);
   }
 
-  const query = { userId };
+  /* ================= DATE RANGE ================= */
+
+  let startDate, endDate;
 
   if (from || to) {
-    query.attendanceDate = {};
-    if (from) {
-      const d = new Date(from);
-      if (isNaN(d)) throw new AppError("Invalid `from` date", 400);
-      query.attendanceDate.$gte = d;
-    }
-    if (to) {
-      const d = new Date(to);
-      if (isNaN(d)) throw new AppError("Invalid `to` date", 400);
-      d.setHours(23, 59, 59, 999);
-      query.attendanceDate.$lte = d;
-    }
+    startDate = from ? new Date(from) : new Date(0);
+    endDate = to ? new Date(to) : new Date();
+
+    if (isNaN(startDate)) throw new AppError("Invalid `from` date", 400);
+    if (isNaN(endDate)) throw new AppError("Invalid `to` date", 400);
+
+    endDate.setHours(23, 59, 59, 999);
+  } else {
+    const now = new Date();
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   }
 
+  const query = {
+    userId,
+    attendanceDate: { $gte: startDate, $lte: endDate }
+  };
+
+  /* ================= PAGINATION ================= */
+
   page = Math.max(1, Number(page) || 1);
-  limit = Math.max(1, Math.min(Number(limit) || 10, 100)); // clamp between 1-100
+  limit = Math.max(1, Math.min(Number(limit) || 10, 100));
   const skip = (page - 1) * limit;
 
-  const [total, logs] = await Promise.all([
+  const [total, logs, allLogsForSummary] = await Promise.all([
     AttendanceLog.countDocuments(query),
+
     AttendanceLog.find(query)
       .sort({ attendanceDate: -1 })
       .skip(skip)
       .limit(limit)
-      .lean()
+      .lean(),
+
+    AttendanceLog.find(query).lean() // for overview summary
   ]);
 
+  /* ================= OVERVIEW CALCULATION ================= */
+
+  let presentFull = 0;
+  let presentHalf = 0;
+  let absent = 0;
+  let leaveApproved = 0;
+  let holidays = 0;
+  let totalHours = 0;
+  let lateMinutes = 0;
+  let overtimeHours = 0;
+
+  allLogsForSummary.forEach(log => {
+
+    switch (log.status) {
+      case "PRESENT_FULL":
+        presentFull++;
+        break;
+      case "PRESENT_HALF":
+        presentHalf++;
+        break;
+      case "ABSENT":
+        absent++;
+        break;
+      case "LEAVE_APPROVED":
+        leaveApproved++;
+        break;
+    }
+
+    if (log.holiday?.isHoliday) holidays++;
+
+    totalHours += log.totalHours || 0;
+    lateMinutes += log.lateByMinutes || 0;
+    overtimeHours += log.overtimeHours || 0;
+  });
+
+  const overview = {
+    totalDays: allLogsForSummary.length,
+    presentFull,
+    presentHalf,
+    absent,
+    leaveApproved,
+    holidays,
+    totalHours: Number(totalHours.toFixed(2)),
+    lateMinutes,
+    overtimeHours: Number(overtimeHours.toFixed(2))
+  };
+
   return {
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit) || 0,
-    count: logs.length,
+    overview,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+      count: logs.length
+    },
     logs
   };
 };
+

@@ -9,10 +9,10 @@ import ReactFlow, {
   MarkerType,
   Position,
   type Edge,
-  type Node
+  type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Search, ShieldCheck, Phone, Crown, Sparkles } from "lucide-react";
+import { Search, ShieldCheck, Phone, Crown, Sparkles, Users, Network } from "lucide-react";
 
 import { useAuthContext } from "@/state/AuthContext";
 import { marketingAgentService, type MarketingAgentNode } from "@/services/marketingAgent.service";
@@ -97,7 +97,7 @@ const buildGraph = (roots: MarketingAgentNode[]) => {
         type: "smoothstep",
         animated: true,
         style: {
-          stroke: "#0ea5e9",
+          stroke: "#6366f1",
           strokeWidth: 2.25,
           strokeLinecap: "round",
           strokeLinejoin: "round",
@@ -138,12 +138,16 @@ export default function MarketingAgentDashboard() {
   useEffect(() => {
     const loadNetwork = async () => {
       setLoading(true);
+      setError(null);
       try {
         const res = await marketingAgentService.getNetwork();
-        setTree(res.data?.tree || []);
+        // Backend returns { success, data: { success, tree } } or { success, tree }
+        const raw = (res as { data?: { tree?: MarketingAgentNode[] }; tree?: MarketingAgentNode[] }) ?? {};
+        const list = Array.isArray(raw.data?.tree) ? raw.data.tree : Array.isArray(raw.tree) ? raw.tree : [];
+        setTree(list);
       } catch (err) {
         console.error("Failed to load marketing network", err);
-        setError("Failed to load network");
+        setError("Unable to load network. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -164,74 +168,107 @@ export default function MarketingAgentDashboard() {
     () => ({
       type: "smoothstep" as const,
       animated: true,
-      style: { stroke: "#0ea5e9", strokeWidth: 2.25, strokeDasharray: "2 6" },
-      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#0ea5e9" }
+      style: { stroke: "#6366f1", strokeWidth: 2.25, strokeDasharray: "2 6" },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#6366f1" }
     }),
     []
   );
 
+  const totalAgents = useMemo(() => {
+    const count = (nodes: MarketingAgentNode[]): number =>
+      nodes.reduce((acc, n) => acc + 1 + (n.children?.length ? count(n.children) : 0), 0);
+    return count(tree);
+  }, [tree]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
-      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] border border-gray-100 bg-white shadow-sm">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-indigo-50" />
-        <div className="absolute -right-24 -top-24 h-52 w-52 sm:h-64 sm:w-64 rounded-full bg-cyan-200/30 blur-3xl" />
-        <div className="absolute -left-24 -bottom-24 h-52 w-52 sm:h-64 sm:w-64 rounded-full bg-indigo-200/30 blur-3xl" />
-        <div className="relative p-5 sm:p-8 flex flex-col gap-4 sm:gap-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-200">
-              <ShieldCheck />
+    <div className="py-6 sm:py-8 space-y-6 sm:space-y-8 pb-12">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-100 bg-white shadow-sm shadow-slate-200/50">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 via-white to-slate-50/80" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-200/25 blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="relative p-5 sm:p-8 flex flex-col gap-5 sm:gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">Marketing Agent</p>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight mt-0.5">
+                  Network Overview
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 mt-1">
+                  Welcome back, {user?.name || "Agent"}. View and manage your downline.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-700">Marketing Agent</p>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900">Network Command Center</h1>
-              <p className="text-sm sm:text-base text-gray-600 font-medium">Welcome back, {user?.name || "Agent"}. Visualize your full downline.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 sm:pb-0">
-            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white border border-gray-100 text-[11px] sm:text-xs font-black text-gray-600 whitespace-nowrap">
-              <Sparkles size={14} className="text-cyan-600" />
-              Live network view
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white border border-gray-100 text-[11px] sm:text-xs font-black text-gray-600 whitespace-nowrap">
-              Root centered org chart
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/90 border border-slate-100 shadow-sm text-xs font-semibold text-slate-700">
+                <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
+                Live view
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-xs font-semibold text-indigo-700">
+                <Users className="w-4 h-4 shrink-0" />
+                {totalAgents} agent{totalAgents !== 1 ? "s" : ""}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <section className="bg-white rounded-[24px] sm:rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div>
-            <h2 className="text-lg sm:text-xl font-black text-gray-900">My Team Network</h2>
-            <p className="text-sm text-gray-500">Root centered, children by level. Pan and zoom supported.</p>
+      {/* Network section */}
+      <section className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900">Team Network</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Pan and zoom to explore. Search to filter.</p>
           </div>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+          <div className="relative w-full sm:w-72 shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search agents"
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500"
+              placeholder="Search by name or phone..."
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
             />
           </div>
         </div>
 
         <div className="p-4 sm:p-6">
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-xl mb-4">{error}</div>}
+          {error && (
+            <div className="mb-4 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm font-medium">
+              {error}
+            </div>
+          )}
           {loading ? (
-            <div className="py-16 text-center text-gray-400">Loading network...</div>
+            <div className="flex flex-col items-center justify-center py-20 sm:py-24 gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
+                <Network className="w-6 h-6 text-indigo-600 animate-pulse" />
+              </div>
+              <p className="text-sm font-medium text-slate-500">Loading network...</p>
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+            </div>
           ) : nodes.length === 0 ? (
-            <div className="py-16 text-center text-gray-400">No agents found.</div>
+            <div className="flex flex-col items-center justify-center py-20 sm:py-24 text-center px-4">
+              <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <Users className="w-10 h-10 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">No agents yet</h3>
+              <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                {search.trim() ? "No matches for your search. Try a different name or phone." : "Recruit agents to see your network here."}
+              </p>
+            </div>
           ) : (
-            <div className="relative h-[60vh] sm:h-[72vh] rounded-[20px] sm:rounded-[28px] border border-gray-100 overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.08),_transparent_45%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.08),_transparent_45%)]">
-              <div className="pointer-events-none absolute inset-0">
-                <div className="absolute left-4 top-4 sm:left-6 sm:top-6 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-gray-500 shadow-sm">
-                  Drag to pan • Pinch to zoom
-                </div>
-                <div className="sm:hidden absolute right-4 bottom-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm">
-                  Tap a node to focus
-                </div>
+            <div
+              className="relative rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.06),transparent_50%),radial-gradient(circle_at_50%_100%,rgba(14,165,233,0.05),transparent_50%)] w-full h-[380px] sm:h-[480px] lg:h-[560px]"
+            >
+              <div className="pointer-events-none absolute left-3 top-3 sm:left-4 sm:top-4 z-10 inline-flex items-center gap-2 rounded-lg bg-white/90 backdrop-blur px-3 py-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 shadow-sm">
+                Drag to pan · Pinch to zoom
               </div>
               <ReactFlow
                 nodes={nodes}
@@ -245,52 +282,51 @@ export default function MarketingAgentDashboard() {
                 minZoom={0.2}
                 maxZoom={2}
               >
-                <Background gap={18} size={1} color="#e2e8f0" />
+                <Background gap={20} size={1} color="#e2e8f0" />
                 <MiniMap
-                  className="hidden sm:block"
-                  nodeStrokeColor="#0ea5e9"
-                  nodeColor="#e0f2fe"
-                  nodeBorderRadius={14}
+                  className="!bg-slate-50 !border-slate-200 hidden sm:block"
+                  nodeStrokeColor="#6366f1"
+                  nodeColor="#e0e7ff"
+                  nodeBorderRadius={12}
                 />
-                <Controls showInteractive={false} className="!right-4 !bottom-4 sm:!right-6 sm:!bottom-6" />
+                <Controls showInteractive={false} className="!right-3 !bottom-3 sm:!right-4 sm:!bottom-4 !border-slate-200 !bg-white !rounded-xl !shadow-md" />
               </ReactFlow>
             </div>
           )}
         </div>
       </section>
-
     </div>
   );
 }
 
 function AgentNode({ data }: { data: AgentNodeData }) {
   return (
-    <div className="relative min-w-[240px] rounded-[24px] border border-slate-200/70 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(14,116,144,0.18)]">
+    <div className="relative min-w-[200px] sm:min-w-[240px] rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-100/50 hover:border-indigo-200/80">
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-gradient-to-r from-cyan-50 via-white to-white rounded-t-[24px]">
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-white rounded-t-2xl">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
           {data.isRoot ? (
-            <span className="inline-flex items-center gap-1 text-cyan-700">
-              <Crown size={12} /> Root
+            <span className="inline-flex items-center gap-1 text-indigo-600">
+              <Crown className="w-3 h-3" /> Root
             </span>
           ) : (
             <span>Level {data.level}</span>
           )}
         </div>
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-full">
           L{data.level}
         </span>
       </div>
-      <div className="px-4 py-3">
+      <div className="px-3 sm:px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-700 font-black shadow-[0_8px_18px_rgba(14,165,233,0.2)]">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-100 border border-indigo-200/50 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
             {data.name.charAt(0) || "A"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-slate-900 truncate">{data.name}</p>
-            <p className="text-xs text-slate-500 flex items-center gap-2">
-              <Phone size={12} /> {data.phone}
+            <p className="font-bold text-slate-900 truncate text-sm sm:text-base">{data.name}</p>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
+              <Phone className="w-3 h-3 shrink-0" /> {data.phone}
             </p>
           </div>
         </div>

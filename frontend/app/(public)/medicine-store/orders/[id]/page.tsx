@@ -66,7 +66,6 @@ export default function OrderDetailsPage() {
             if (!razorpayReady || !window.Razorpay) {
                 throw new Error("Razorpay SDK failed to load");
             }
-
             const razorpayOrder = await orderService.createRazorpayOrder(order.orderId);
 
             const options = {
@@ -104,7 +103,6 @@ export default function OrderDetailsPage() {
                     ondismiss: () => setRetryingPayment(false)
                 }
             };
-
             const razorpayInstance = new window.Razorpay(options);
             razorpayInstance.open();
         } catch (err) {

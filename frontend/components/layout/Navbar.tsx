@@ -47,23 +47,23 @@ const Navbar = () => {
       `}</style>
 
       <nav className="fixed top-4 left-0 right-0 z-50 mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 px-4 sm:px-6 lg:px-8 transition-all duration-300">
+        <div className="bg-white/60 backdrop-blur-xl border border-white/30 rounded-full shadow-2xl px-4 sm:px-6 lg:px-8 transition-all duration-300">
           <div className="flex justify-between items-center h-14 sm:h-16">
 
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <Link href="/" className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent tracking-tight">
+              <Link href="/" className="text-xl sm:text-2xl font-extrabold bg-linear-to-r from-cyan-600 to-blue-700 bg-clip-text text-transparent">
                 RMDocto
               </Link>
             </div>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden lg:flex items-center space-x-6 ">
               {navigationItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.link}
-                  className="text-sm font-medium text-slate-600 hover:text-teal-700 hover:bg-teal-50 px-4 py-2 rounded-xl transition-colors"
+                  className="text-sm font-medium text-gray-700 hover:text-blue-700 hover:bg-blue-50/70 px-3 py-2 rounded-full transition"
                 >
                   {item.name}
                 </Link>
@@ -71,38 +71,47 @@ const Navbar = () => {
             </div>
 
            {/* Desktop Right Buttons */}
-<div className="hidden md:flex items-center gap-3">
+<div className="hidden md:flex items-center gap-4">
+  {/* If not logged in → show login/signup */}
   {!isAuthenticated ? (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       <Link
         href="/auth/login"
-        className="text-sm font-semibold px-4 py-2.5 rounded-xl text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-100 transition-all"
+        className="text-sm font-semibold px-4 py-2 rounded-full text-blue-600 bg-blue-100 hover:bg-blue-200 transition-all"
       >
         Login
       </Link>
+
       <Link
         href="/auth/register"
-        className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white bg-teal-600 hover:bg-teal-700 shadow-md shadow-teal-500/25 transition-all"
+        className="text-sm font-semibold px-4 py-2 rounded-full text-white bg-blue-600 hover:bg-blue-700 transition-all"
       >
         Sign Up
       </Link>
     </div>
   ) : (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-4">
+
+      {/* Dashboard (role based) */}
       <Link
         href={getDashboardLink()}
-        className="text-sm font-semibold px-4 py-2.5 rounded-xl text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-100 transition-all"
+        className="text-sm font-semibold px-4 py-2 rounded-full text-blue-600 bg-blue-100 hover:bg-blue-200 transition-all"
       >
         Dashboard
       </Link>
+
+      {/* Logout */}
       <button
-        onClick={() => logout({ redirectTo: "/" })}
-        className="text-sm font-semibold px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition-all"
+        onClick={() => {
+          logout({ redirectTo: "/" });
+        }}
+        className="text-sm font-semibold px-4 py-2 rounded-full text-red-600 bg-red-100 hover:bg-red-200 transition-all"
       >
         Logout
       </button>
     </div>
   )}
+
 </div>
 
 
@@ -156,7 +165,7 @@ const Navbar = () => {
                     key={item.name}
                     href={item.link}
                     onClick={closeMenu}
-                    className="group block px-4 py-3 text-base font-medium text-slate-700 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition-all duration-200"
+                    className="group block px-4 py-3 text-base font-medium text-gray-700 hover:text-blue-700 hover:bg-blue-50/70 hover:translate-x-2 rounded-lg transition-all duration-300 ease-out transform hover:shadow-md hover:scale-105 active:scale-95 active:bg-blue-100/80"
                     style={{ 
                       animationDelay: `${index * 50}ms`,
                       animation: isMenuOpen ? `slideInRight 0.3s ease-out ${index * 50}ms both` : 'none'
@@ -181,24 +190,21 @@ const Navbar = () => {
               
               {/* Mobile Action Buttons */}
                   <div className="mt-6 px-4 space-y-3">
-                    {!isAuthenticated ? (
-                      <Link
-                        href="/auth/login"
-                        onClick={closeMenu}
-                        className="block w-full text-center font-semibold px-4 py-3 rounded-xl text-white bg-teal-600 hover:bg-teal-700 shadow-md transition-all"
-                      >
-                        Login / Sign Up
-                      </Link>
-                    ) : (
-                      <>
-                        <Link href={getDashboardLink()} onClick={closeMenu} className="block w-full text-center font-semibold px-4 py-3 rounded-xl text-teal-700 bg-teal-50 border border-teal-100">
-                          Dashboard
-                        </Link>
-                        <button onClick={() => { closeMenu(); logout({ redirectTo: "/" }); }} className="block w-full text-center font-semibold px-4 py-3 rounded-xl text-red-600 bg-red-50 border border-red-100">
-                          Logout
-                        </button>
-                      </>
-                    )}
+                    {/* Login / Sign Up */}
+                    <Link
+                      href="/auth/login"
+                      onClick={closeMenu}
+                      className="block w-full text-center font-semibold px-4 py-3 rounded-lg 
+             text-white 
+             bg-linear-to-r from-rose-500 to-red-600
+             hover:from-red-600 hover:to-rose-600
+             hover:shadow-lg 
+             transition-all duration-300 
+             hover:scale-105 active:scale-95 
+             transform hover:-translate-y-1"
+                    >
+                      Login / Sign Up
+                    </Link>
                   </div>
 
 

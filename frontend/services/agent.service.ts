@@ -41,9 +41,11 @@ export const agentService = {
         const res = await apiClient.post("/agent/register", payload);
         return res.data;
     },
-    async getHierarchy(userId: string): Promise<{ success: boolean; data: HierarchyData }> {
+    async getHierarchy(): Promise<{ success: boolean; data: HierarchyData }> {
         try {
-            const res = await apiClient.get(`/agent/hierarchy/${userId}`);
+            const res = await apiClient.get(`/agent/network`, {
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             return res.data;
         } catch (err: any) {
             if (err?.response?.status === 404) {

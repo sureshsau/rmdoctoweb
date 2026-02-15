@@ -14,7 +14,7 @@ export default function MarketingAgentLayout({
 
     return (
         <RoleGuard allowed={["marketing_agent", "admin"]}>
-            <div className="min-h-screen app-shell flex">
+            <div className="min-h-screen bg-gray-50/50 flex">
                 <MarketingAgentSidebar
                     isOpen={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
@@ -24,29 +24,30 @@ export default function MarketingAgentLayout({
                     <button
                         type="button"
                         aria-label="Close sidebar"
-                        className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-[2px]"
+                        className="fixed inset-0 bg-black/30 z-30 lg:hidden"
                         onClick={() => setSidebarOpen(false)}
                     />
                 )}
 
-                <div className="flex-1 min-h-screen min-w-0 lg:ml-64">
-                    <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-100 lg:hidden shrink-0">
+                <div className="flex-1 min-h-screen lg:ml-64">
+                    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-gray-100 lg:hidden">
                         <div className="h-14 px-4 flex items-center justify-between">
                             <button
                                 type="button"
-                                aria-label="Open menu"
-                                className="p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50"
+                                aria-label="Open sidebar"
+                                className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-100 bg-white shadow-sm"
                                 onClick={() => setSidebarOpen(true)}
                             >
-                                <Menu className="w-5 h-5 text-slate-700" />
+                                <Menu className="w-5 h-5 text-gray-700" />
                             </button>
-                            <span className="text-sm font-bold text-slate-800">Marketing</span>
+                            <span className="text-sm font-black text-gray-800">Marketing</span>
                             <div className="w-10" />
                         </div>
-                    </header>
+                    </div>
 
-                    <main className="app-main">
-                        <div className="max-w-6xl mx-auto min-w-0">{children}</div>
+                    {/* Main Content Area */}
+                    <main className="min-h-screen">
+                        {children}
                     </main>
                 </div>
             </div>

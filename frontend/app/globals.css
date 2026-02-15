@@ -77,3 +77,12 @@ body {
   outline: 2px solid rgb(var(--app-primary));
   outline-offset: 2px;
 }
+
+/* Hide scrollbar for horizontal scroll areas (e.g. filter pills) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

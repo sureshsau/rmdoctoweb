@@ -20,8 +20,10 @@ import {
     Eye,
     EyeOff,
     Filter,
-    Clock
+    Clock,
+    MoreVertical
 } from "lucide-react";
+import UserActionsMenu from "@/components/shared/UserActionsMenu";
 import Link from "next/link";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -306,7 +308,7 @@ export default function AdminUsersPage() {
                             className="w-full min-w-0 pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm sm:text-base font-medium text-gray-700"
                         />
                     </div>
-                    <div className="relative flex-shrink-0 sm:w-48">
+                    <div className="relative shrink-0 sm:w-48">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                         <select
                             value={roleFilter}
@@ -321,69 +323,57 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
 
-                {/* Users Table - scrolls inside container only */}
+                {/* Mobile: card list | Desktop: table */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-w-0">
-                    <div className="overflow-x-auto" style={{ overflowX: "auto" }}>
-                        <table className="w-full text-left min-w-[800px]">
-                            <thead>
-                                <tr className="border-b border-gray-100 bg-gray-50/80">
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">User</th>
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Contact</th>
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Roles</th>
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Dashboard</th>
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Status</th>
-                                    <th className="px-4 md:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {loading ? (
-                                    [1, 2, 3, 4, 5].map((i) => (
-                                        <tr key={i} className="animate-pulse">
-                                            <td colSpan={6} className="px-4 md:px-6 py-5">
-                                                <div className="h-4 bg-gray-100 rounded-lg max-w-xs" />
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : filteredUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-4 md:px-6 py-16 text-center">
-                                            <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto flex items-center justify-center mb-3">
-                                                <Users className="text-gray-300" size={28} />
+                    {loading ? (
+                        <div className="p-4 md:p-6 space-y-3">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                            ))}
+                        </div>
+                    ) : filteredUsers.length === 0 ? (
+                        <div className="px-4 md:px-6 py-16 text-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-2xl mx-auto flex items-center justify-center mb-3">
+                                <Users className="text-gray-300" size={28} />
+                            </div>
+                            <h3 className="text-base font-bold text-gray-900">No users found</h3>
+                            <p className="text-sm text-gray-500 mt-1">Try different search or filters.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Mobile: cards */}
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {filteredUsers.map((user, idx) => (
+                                    <div
+                                        key={user._id || user.id || user.email || user.phone || idx}
+                                        className="p-4 hover:bg-gray-50/50 transition-colors"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-11 h-11 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                                {user.name?.charAt(0)?.toUpperCase() || "?"}
                                             </div>
-                                            <h3 className="text-base font-bold text-gray-900">No users found</h3>
-                                            <p className="text-sm text-gray-500 mt-1">Try different search or filters.</p>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredUsers.map((user, idx) => (
-                                        <tr
-                                            key={user._id || user.id || user.email || user.phone || idx}
-                                            className="hover:bg-gray-50/70 transition-colors"
-                                        >
-                                            <td className="px-4 md:px-6 py-4">
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                                        {user.name?.charAt(0)?.toUpperCase() || "?"}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-gray-900 truncate">{user.name}</p>
+                                                        {user.phone && (
+                                                            <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                                                                <Phone size={12} className="shrink-0 text-gray-400" />
+                                                                {user.phone}
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    <p className="font-bold text-gray-900 truncate">{user.name}</p>
+                                                    <div className="shrink-0 ml-2">
+                                                        <UserActionsMenu user={user} onRoleClick={openAssignRoleModal} />
+                                                    </div>
                                                 </div>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4">
-                                                <div className="space-y-0.5 min-w-0">
-                                                    {user.email && (
-                                                        <p className="text-xs sm:text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.email}>
-                                                            <Mail size={10} className="inline text-gray-400 mr-1" />
-                                                            {user.email}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.phone}>
-                                                        <Phone size={10} className="inline text-gray-400 mr-1" />
-                                                        {user.phone}
+                                                {user.email && (
+                                                    <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                                                        <Mail size={12} className="shrink-0 text-gray-400" />
+                                                        {user.email}
                                                     </p>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4">
-                                                <div className="flex flex-wrap gap-1">
+                                                )}
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
                                                     {user.roles?.length ? (
                                                         user.roles.map((r, i) => (
                                                             <span key={i} className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md text-[10px] font-bold uppercase">
@@ -393,49 +383,118 @@ export default function AdminUsersPage() {
                                                     ) : (
                                                         <span className="text-xs text-gray-400">—</span>
                                                     )}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4">
-                                                <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold uppercase">
-                                                    {user.dashboard || "user"}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4">
-                                                {user.isActive !== false ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                        <Check size={10} />
-                                                        Active
+                                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[10px] font-bold uppercase">
+                                                        {user.dashboard || "user"}
                                                     </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600">
-                                                        Inactive
+                                                    {user.isActive !== false ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600">
+                                                            <Check size={10} />
+                                                            Active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-600">Inactive</span>
+                                                    )}
+                                                    {/* RMDoctoCoin display */}
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-yellow-50 text-yellow-700 ml-1" title="RMDoctoCoin">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD700"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="#fff" fontWeight="bold">₹</text></svg>
+                                                        {user.rmcredit ?? 0}
                                                     </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4 text-right">
-                                                <div className="flex flex-wrap justify-end gap-1.5">
-                                                    <Link
-                                                        href={`/admin/users/${user._id || user.id}/attendance?name=${encodeURIComponent(user.name || "")}&role=${encodeURIComponent((user.roles && user.roles[0]) || "")}&phone=${encodeURIComponent(user.phone || "")}`}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg hover:bg-cyan-600 hover:text-white transition text-xs font-bold"
-                                                    >
-                                                        <Clock size={12} />
-                                                        <span className="hidden sm:inline">Attendance</span>
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => openAssignRoleModal(user)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-cyan-600 hover:text-white transition text-xs font-bold"
-                                                    >
-                                                        <UserCog size={12} />
-                                                        <span className="hidden sm:inline">Roles</span>
-                                                    </button>
                                                 </div>
-                                            </td>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Desktop: table */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left min-w-[800px]">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 bg-gray-50/80">
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">User</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Contact</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Roles</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Dashboard</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Status</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">RMDoctoCoin</th>
+                                            <th className="px-4 lg:px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500 text-right">Actions</th>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {filteredUsers.map((user, idx) => (
+                                            <tr
+                                                key={user._id || user.id || user.email || user.phone || idx}
+                                                className="hover:bg-gray-50/70 transition-colors"
+                                            >
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                                            {user.name?.charAt(0)?.toUpperCase() || "?"}
+                                                        </div>
+                                                        <p className="font-bold text-gray-900 truncate">{user.name}</p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    <div className="space-y-0.5 min-w-0">
+                                                        {user.email && (
+                                                            <p className="text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.email}>
+                                                                <Mail size={10} className="inline text-gray-400 mr-1" />
+                                                                {user.email}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-sm font-medium text-gray-600 truncate max-w-[180px]" title={user.phone}>
+                                                            <Phone size={10} className="inline text-gray-400 mr-1" />
+                                                            {user.phone}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {user.roles?.length ? (
+                                                            user.roles.map((r, i) => (
+                                                                <span key={i} className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md text-[10px] font-bold uppercase">
+                                                                    {r}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">—</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold uppercase">
+                                                        {user.dashboard || "user"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    {user.isActive !== false ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                            <Check size={10} />
+                                                            Active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600">
+                                                            Inactive
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                {/* RMDoctoCoin column */}
+                                                <td className="px-4 lg:px-6 py-4">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[12px] font-bold bg-yellow-50 text-yellow-700" title="RMDoctoCoin">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD700"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="#fff" fontWeight="bold">₹</text></svg>
+                                                        {user.rmcredit ?? 0}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 lg:px-6 py-4 text-right">
+                                                    <UserActionsMenu user={user} onRoleClick={openAssignRoleModal} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -443,7 +502,7 @@ export default function AdminUsersPage() {
             {showCreateModal && (
                 <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-md">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white via-cyan-50/60 to-white">
+                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-linear-to-r from-white via-cyan-50/60 to-white">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-600/20">
                                     <Plus size={24} />

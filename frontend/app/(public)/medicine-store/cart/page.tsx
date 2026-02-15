@@ -210,11 +210,13 @@ export default function PublicCartPage() {
                 throw new Error("Order id missing from server response");
             }
 
-            const razorpayReady = await loadRazorpayScript();
-            if (!razorpayReady || !window.Razorpay) {
-                throw new Error("Razorpay SDK failed to load");
-            }
+          const razorpayReady = await loadRazorpayScript();
 
+if (!razorpayReady || typeof window.Razorpay !== "function") {
+  alert("Payment gateway failed to load. Please disable adblock or try another browser.");
+  setLoading(false);
+  return;   // ⛔ prevent crash
+}
             const razorpayOrder = await orderService.createRazorpayOrder(createdOrderId);
 
             const options = {

@@ -12,16 +12,17 @@ import {
   Truck,
   X,
   User,
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 
 type MarketingAgentOrder = MarketingAgentOrdersResponse["data"][number];
 
 const STATUS_FILTERS = ["ALL", "INITIATED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"] as const;
-
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-const formatDate = (value: string) => new Date(value).toLocaleDateString();
+const formatDate = (value: string) => new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default function MarketingAgentOrdersPage() {
   const [orders, setOrders] = useState<MarketingAgentOrder[]>([]);
@@ -38,16 +39,10 @@ export default function MarketingAgentOrdersPage() {
         const res = await orderService.getMarketingAgentOrders();
         if (!res.success) {
           setOrders([]);
-          if (res.meta?.errorStatus === 404) {
-            setError("Orders endpoint not found. Please confirm the backend route for marketing agent orders.");
-          } else {
-            setError(res.meta?.errorMessage || "Failed to load orders");
-          }
+          setError(res.meta?.errorMessage || "Failed to load orders");
           return;
         }
-
-        const baseOrders = res.data || [];
-        setOrders(baseOrders);
+        setOrders(res.data || []);
       } catch (err) {
         console.error("Failed to load orders", err);
         setError("Failed to load orders");
@@ -55,7 +50,6 @@ export default function MarketingAgentOrdersPage() {
         setLoading(false);
       }
     };
-
     loadOrders();
   }, []);
 
@@ -73,130 +67,144 @@ export default function MarketingAgentOrdersPage() {
   }, [orders, activeStatus, search]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="relative overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-indigo-50" />
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-200/30 blur-3xl" />
-        <div className="absolute -left-16 -bottom-16 h-48 w-48 rounded-full bg-indigo-200/30 blur-3xl" />
-        <div className="relative p-5 sm:p-7 flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="w-11 h-11 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-200">
-              <Package />
+    <div className="py-6 sm:py-8 space-y-6 sm:space-y-8 pb-12">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-100 bg-white shadow-sm shadow-slate-200/50">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 via-white to-slate-50/80" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-200/25 blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
+        <div className="relative p-5 sm:p-8 flex flex-col gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0">
+                <Package className="w-7 h-7" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">Marketing Agent</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-0.5">Orders</h1>
+                <p className="text-sm text-slate-600 mt-1">Orders assigned to you from agents.</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-700">Marketing Agent</p>
-              <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Orders Tracker</h1>
-              <p className="text-sm text-gray-600 font-medium">Orders assigned to you from agents.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 sm:pb-0">
-            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white border border-gray-100 text-[11px] font-black text-gray-600 whitespace-nowrap">
-              <Sparkles size={14} className="text-cyan-600" />
-              {orders.length} total orders
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-sm font-semibold text-indigo-700 shrink-0">
+              <Sparkles className="w-4 h-4 shrink-0" />
+              {orders.length} total
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <section className="bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-gray-50 flex flex-col gap-4">
+      {/* Filters & list */}
+      <section className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-slate-100 space-y-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-black text-gray-900">Orders</h2>
-            <p className="text-sm text-gray-500">Track order status, agent name, and item count.</p>
+            <h2 className="text-lg font-bold text-slate-900">Order list</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Filter by status and search.</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Status pills - horizontal scroll on mobile */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             {STATUS_FILTERS.map((status) => (
               <button
                 key={status}
                 onClick={() => setActiveStatus(status)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                  activeStatus === status
-                    ? "bg-cyan-600 text-white border-cyan-600 shadow-sm shadow-cyan-200"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-cyan-200 hover:text-cyan-700"
-                }`}
+                className={`shrink-0 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border min-h-[44px]
+                  ${activeStatus === status
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:text-indigo-700 active:bg-slate-50"
+                  }`}
               >
                 {status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
 
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by order ID, medicine, or agent"
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-cyan-500"
+              placeholder="Search by order ID, customer, or phone..."
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             />
           </div>
         </div>
 
         <div className="p-4 sm:p-6">
-          {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2 rounded-xl mb-4">{error}</div>}
+          {error && (
+            <div className="mb-4 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm font-medium">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              {error}
+            </div>
+          )}
           {loading ? (
             <div className="space-y-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white h-28 rounded-2xl border border-gray-100 shadow-sm animate-pulse" />
+                <div key={i} className="h-36 sm:h-40 rounded-2xl bg-slate-100 animate-pulse" />
               ))}
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="py-16 text-center text-gray-400">No orders found.</div>
+            <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center px-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <Package className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">No orders found</h3>
+              <p className="text-sm text-slate-500 mt-1">Try a different filter or search.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredOrders.map((order) => (
-                <div
+                <Link
                   key={order.orderId}
-                  className="rounded-2xl border border-slate-200/70 bg-white p-4 sm:p-5 shadow-[0_16px_32px_rgba(15,23,42,0.08)]"
+                  href={`/marketing-agent/orders/${order.orderId}`}
+                  className="group block rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-lg hover:border-indigo-200/60 transition-all duration-200"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-widest">
-                      <Package size={14} />
-                      {order.orderId.slice(-6).toUpperCase()}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-0">
+                      <Package className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span className="truncate">#{order.orderId.slice(-8).toUpperCase()}</span>
                     </div>
                     <StatusBadge status={order.orderStatus} />
                   </div>
 
-                  <div className="mt-4 flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center">
-                      <Package className="text-gray-200" />
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                      <Package className="w-6 h-6 text-slate-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-slate-900 truncate">{order.customer?.name || "Agent"}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500">
+                      <p className="font-bold text-slate-900 truncate">{order.customer?.name || "Customer"}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-500">
                         <span className="inline-flex items-center gap-1">
-                          <Clock size={12} /> {formatDate(order.createdAt)}
+                          <Clock className="w-3.5 h-3.5" /> {formatDate(order.createdAt)}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <CreditCard size={12} /> {order.paymentMode}
+                          <CreditCard className="w-3.5 h-3.5" /> {order.paymentMode}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Package size={12} /> {order.itemCount ?? 0} items
+                          <Package className="w-3.5 h-3.5" /> {order.itemCount ?? 0} items
                         </span>
                       </div>
-                      <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-                        <User size={14} />
-                        <span className="font-semibold truncate">{order.customer?.phone || ""}</span>
-                      </div>
+                      {order.customer?.phone && (
+                        <p className="mt-1.5 text-sm text-slate-600 flex items-center gap-1.5 truncate">
+                          <User className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                          {order.customer.phone}
+                        </p>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</p>
-                      <p className="text-lg font-black text-slate-900">₹{order.totalAmount}</p>
+                    <div className="text-left sm:text-right shrink-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                      <p className="text-lg font-bold text-slate-900">₹{order.totalAmount}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
-                    <span>Payment {order.paymentStatus}</span>
-                    <span>{order.deliveryAddress?.addressLine1 || "Delivery address"}</span>
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-500 truncate">
+                      {order.deliveryAddress?.addressLine1 || "Delivery address"}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 group-hover:gap-1.5 transition-all">
+                      View details <ChevronRight className="w-4 h-4" />
+                    </span>
                   </div>
-
-                  <Link
-                    href={`/marketing-agent/orders/${order.orderId}`}
-                    className="mt-4 inline-flex items-center justify-center w-full rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs font-black uppercase tracking-widest text-cyan-700 hover:bg-cyan-100"
-                  >
-                    View details
-                  </Link>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -208,19 +216,17 @@ export default function MarketingAgentOrdersPage() {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; icon: JSX.Element }> = {
-    INITIATED: { bg: "bg-blue-50", text: "text-blue-600", icon: <Clock size={12} /> },
-    CONFIRMED: { bg: "bg-emerald-50", text: "text-emerald-600", icon: <CheckCircle2 size={12} /> },
-    SHIPPED: { bg: "bg-orange-50", text: "text-orange-600", icon: <Truck size={12} /> },
-    DELIVERED: { bg: "bg-gray-100", text: "text-gray-900", icon: <CheckCircle2 size={12} /> },
-    CANCELLED: { bg: "bg-red-50", text: "text-red-600", icon: <X size={12} /> }
+    INITIATED: { bg: "bg-blue-50", text: "text-blue-700", icon: <Clock size={12} /> },
+    CONFIRMED: { bg: "bg-emerald-50", text: "text-emerald-700", icon: <CheckCircle2 size={12} /> },
+    SHIPPED: { bg: "bg-amber-50", text: "text-amber-700", icon: <Truck size={12} /> },
+    DELIVERED: { bg: "bg-slate-100", text: "text-slate-800", icon: <CheckCircle2 size={12} /> },
+    CANCELLED: { bg: "bg-red-50", text: "text-red-700", icon: <X size={12} /> },
   };
-
   const style = config[status] || config.INITIATED;
-
   return (
-    <div className={`${style.bg} ${style.text} px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${style.bg} ${style.text}`}>
       {style.icon}
       {status}
-    </div>
+    </span>
   );
 }

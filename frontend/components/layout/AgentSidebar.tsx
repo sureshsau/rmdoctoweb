@@ -23,10 +23,10 @@ export default function AgentSidebar({ isOpen = true, onClose }: AgentSidebarPro
     const { logout, user } = useAuthContext();
 
     const links = [
-        { name: "Dashboard", href: "/agent/dashboard", icon: LayoutDashboard },
+        { name: "Home", href: "/agent/dashboard", icon: LayoutDashboard },
         { name: "Order Medicine", href: "/medicine-store", icon: ShoppingBag },
         { name: "My Orders", href: "/agent/orders", icon: History },
-        { name: "Attendance", href: "/agent/attendance", icon: Clock },
+        // Attendance link removed
     ];
 
     return (

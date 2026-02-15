@@ -9,7 +9,6 @@ import {
     LogOut,
     Shield,
     Clock,
-    Settings,
     X
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
@@ -28,8 +27,7 @@ export default function AdminSidebar({ isOpen = true, onClose }: AdminSidebarPro
         { name: "Users", href: "/admin/users", icon: Users },
         { name: "Medicine", href: "/admin/medicine", icon: Pill },
         { name: "Roles", href: "/admin/roles", icon: Shield },
-        { name: "Attendance settings", href: "/admin/attendance/settings", icon: Settings },
-        { name: "My Attendance", href: "/admin/attendance/me", icon: Clock },
+        { name: "Attendance", href: "/admin/attendance/settings", icon: Clock },
     ];
 
     return (

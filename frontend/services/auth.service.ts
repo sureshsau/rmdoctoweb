@@ -12,6 +12,7 @@ export type AuthUser = {
   identifier?: string;
   isActive?: boolean;
   kycStatus?: "none" | "pending" | "verified" | "rejected";
+  rmcredit?: number; // RMDoctoCoin balance
 };
 
 export type LoginRequest = {

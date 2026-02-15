@@ -19,18 +19,7 @@ export type AttendanceLog = {
   checkOutTime?: string;
   status: string;
   date: string;
-};
-
-/** Backend log entry: may use date or attendanceDate; checkIn/checkOut with time */
-export type AttendanceLogEntry = {
-  _id?: string;
-  date?: string;
-  attendanceDate?: string;
-  checkIn?: { time?: string };
-  checkOut?: { time?: string };
-  checkInTime?: string;
-  checkOutTime?: string;
-  status: string;
+  // Add other fields from backend model if needed for display
 };
 
 export const attendanceService = {
@@ -54,9 +43,16 @@ export const attendanceService = {
     return res.data;
   },
 
-  // LOGS (for Dashboards) — backend returns { success, message, data: { range, count, logs } }
-  async getMyLogs() {
-    const res = await apiClient.get<{ success: boolean; message?: string; data: { range?: { from: string; to: string }; count: number; logs: AttendanceLogEntry[] } }>("/attendance/logs/me");
+  // LOGS (for Dashboards)
+  /**
+   * Fetch attendance logs for a user (always by id, never 'me').
+   * @param userId Required user ID to fetch logs for (including self)
+   */
+  async getMyLogs(userId: string) {
+    // Always use /attendance/log/:id, never /me
+    if (!userId) throw new Error("userId is required for getMyLogs");
+    const url = `/attendance/log/${userId}`;
+    const res = await apiClient.get(url);
     return res.data;
   },
 
@@ -65,14 +61,6 @@ export const attendanceService = {
     // POST /attendance/mark
     // Requires lat, lng, faceImage
     const res = await apiClient.post("/attendance/mark", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return res.data;
-  },
-
-  /** Setup attendance for a specific user. Backend: POST /attendance/setup/:userId */
-  async setupUserAttendance(userId: string, formData: FormData) {
-    const res = await apiClient.post(`/attendance/setup/${userId}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;

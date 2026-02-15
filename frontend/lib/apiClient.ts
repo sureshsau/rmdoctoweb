@@ -1,16 +1,16 @@
 import axios, { AxiosHeaders } from "axios";
 
 function getBaseUrl() {
-  const isDev = process.env.NODE_ENV === "development";
-  const baseUrl = isDev
-    ? process.env.NEXT_PUBLIC_API_URL_DEV
-    : process.env.NEXT_PUBLIC_API_URL_PROD;
-  if (!baseUrl) {
-    throw new Error(
-      isDev ? "NEXT_PUBLIC_API_URL_DEV is not set" : "NEXT_PUBLIC_API_URL_PROD is not set"
-    );
+  // Prefer DEV in development, PROD in production
+  if (process.env.NODE_ENV === "development") {
+    const devUrl = process.env.NEXT_PUBLIC_API_URL_DEV;
+    if (!devUrl) throw new Error("NEXT_PUBLIC_API_URL_DEV is not set");
+    return devUrl;
+  } else {
+    const prodUrl = process.env.NEXT_PUBLIC_API_URL_PROD;
+    if (!prodUrl) throw new Error("NEXT_PUBLIC_API_URL_PROD is not set");
+    return prodUrl;
   }
-  return baseUrl;
 }
 
 export const apiClient = axios.create({

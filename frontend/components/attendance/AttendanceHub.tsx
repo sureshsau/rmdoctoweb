@@ -21,6 +21,10 @@ type AttendanceHubProps = {
   roleLabel?: string;
   /** Accent color class for buttons/badges, e.g. "teal", "cyan", "indigo" */
   accent?: "teal" | "cyan" | "indigo" | "amber";
+  /** Optional userId for admin/manager view */
+  userId?: string;
+  /** Hide mark attendance button (for admin or readonly views) */
+  hideMarkButton?: boolean;
 };
 
 const accentMap = {
@@ -83,18 +87,24 @@ function getStatusStyle(status: string): { bg: string; text: string; label: stri
   return { bg: "bg-slate-100", text: "text-slate-700", label: status || "—" };
 }
 
-export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal" }: AttendanceHubProps) {
+export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal", userId, hideMarkButton }: AttendanceHubProps) {
   const { user } = useAuthContext();
   const [logs, setLogs] = useState<AttendanceLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [markSuccess, setMarkSuccess] = useState<string | null>(null);
   const theme = accentMap[accent];
 
+  // UseAuthContext is already called above, do not redeclare 'user'.
   const fetchLogs = useCallback(async () => {
     try {
       setError(null);
-      const res = await attendanceService.getMyLogs();
+      // Always pass a userId (self or other)
+      const id = userId || user?.id || user?._id;
+      if (!id) throw new Error("No userId available for attendance logs");
+      const res = await attendanceService.getMyLogs(id);
       const data = res?.data ?? res;
       const list = Array.isArray(data?.logs) ? data.logs : Array.isArray(data) ? data : [];
       setLogs(list);
@@ -105,7 +115,7 @@ export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [userId, user]);
 
   useEffect(() => {
     fetchLogs();
@@ -114,6 +124,27 @@ export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal
   const onRefresh = () => {
     setRefreshing(true);
     fetchLogs();
+  };
+
+  // Simple mark attendance (no face verification)
+  const handleMarkAttendance = async () => {
+    setMarking(true);
+    setMarkSuccess(null);
+    setError(null);
+    try {
+      // For demo: just send current date, status present
+      const formData = new FormData();
+      formData.append("status", "PRESENT_FULL");
+      if (userId) formData.append("userId", userId);
+      // Optionally add more fields as needed
+      await attendanceService.markAttendance(formData);
+      setMarkSuccess("Attendance marked successfully!");
+      fetchLogs();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to mark attendance"));
+    } finally {
+      setMarking(false);
+    }
   };
 
   const today = new Date();
@@ -160,19 +191,14 @@ export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal
         </div>
       )}
 
-      {/* Face verification card */}
+      {/* Mark attendance card (no face verification) */}
       <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Mark today&apos;s attendance</h2>
-            <p className="text-slate-500 text-sm mt-1">Face verification required for check-in and check-out.</p>
-          </div>
-          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${theme.badge} text-xs font-semibold`}>
-            <Scan className="w-4 h-4" />
-            Face ID
+            <h2 className="text-lg font-bold text-slate-900">Mark today's attendance</h2>
+            <p className="text-slate-500 text-sm mt-1">Click below to mark yourself present for today.</p>
           </div>
         </div>
-
         <div className="flex flex-col sm:flex-row items-center gap-6 mt-8">
           <div className="w-40 h-40 rounded-full border-4 border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
             {(user as { profileImage?: string } | null)?.profileImage ? (
@@ -188,15 +214,18 @@ export default function AttendanceHub({ roleLabel = "Attendance", accent = "teal
             )}
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <p className="text-slate-600 text-sm font-medium">Align your face within the circle on the next screen.</p>
-            <Link
-              href="/ChekInOut"
-              className={`mt-4 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-white shadow-lg transition-all hover:shadow-xl ${theme.button}`}
-            >
-              <Scan className="w-5 h-5" />
-              Start Face Verification
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+            {!hideMarkButton && (
+              <button
+                type="button"
+                onClick={handleMarkAttendance}
+                disabled={marking}
+                className={`mt-4 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-white shadow-lg transition-all hover:shadow-xl ${theme.button} disabled:opacity-60`}
+              >
+                <Scan className="w-5 h-5" />
+                {marking ? "Marking..." : "Mark Attendance"}
+              </button>
+            )}
+            {markSuccess && <p className="text-green-600 text-sm mt-2">{markSuccess}</p>}
           </div>
         </div>
       </section>

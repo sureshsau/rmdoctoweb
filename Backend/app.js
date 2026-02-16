@@ -25,6 +25,7 @@ import razorpay from "./config/razorpay.config.js";
 import appointmentRoute from './routes/appointment.routes.js';
 import rmcoinRoute from "./routes/rmcoin.route.js";
 import axios from "axios";
+import loginRoute from './routes/login.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -60,52 +61,9 @@ app.use("/rmcoin", rmcoinRoute);
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);
+app.use("/login", loginRoute);
 
 
-
-app.post("/send-otp", async (req, res) => {
-  try {
-    let { mobile } = req.body;
-
-    if (!mobile) {
-      return res.status(400).json({ message: "Mobile required" });
-    }
-
-    mobile = String(mobile).replace(/\D/g, "");
-
-    const formattedMobile = mobile.startsWith("91")
-      ? mobile
-      : `91${mobile}`;
-
-    const response = await axios.post(
-      "https://control.msg91.com/api/v5/otp",
-      {},
-      {
-        params: {
-          mobile: formattedMobile,
-          authkey: process.env.MSG91_AUTH_KEY,
-          template_id: process.env.MSG91_TEMPLATE_ID,
-          otp_expiry: 5,
-          realTimeResponse: 1
-        },
-        headers: {
-          "content-type": "application/json"
-        }
-      }
-    );
-
-    console.log("MSG91 RESPONSE:", response.data);
-
-    res.json(response.data);
-
-  } catch (err) {
-    console.error("MSG91 ERROR:", err.response?.data || err.message);
-
-    res.status(500).json({
-      error: err.response?.data || err.message
-    });
-  }
-});
 
 
 

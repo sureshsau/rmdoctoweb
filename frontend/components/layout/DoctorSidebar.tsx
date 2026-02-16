@@ -28,8 +28,6 @@ export default function DoctorSidebar({ isOpen = false, onClose }: DoctorSidebar
     const links = [
         { name: "Overview", href: "/doctor/dashboard", icon: LayoutDashboard },
         { name: "My Wallet", href: "/doctor/wallet", icon: Users },
-        { name: "Medicine", href: "/doctor/medicine", icon: Pill },
-        { name: "Medicine Store", href: "/medicine-store", icon: ShoppingBag },
         { name: "Attendance", href: "/doctor/attendance", icon: Clock },
     ];
 

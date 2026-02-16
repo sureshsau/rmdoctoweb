@@ -18,22 +18,6 @@ import {
     XCircle,
     CheckCircle,
     AlertCircle,
-    MapPin,
-    Award,
-    Star,
-    Syringe,
-    Scissors,
-    Bone,
-    Brain,
-    Eye,
-    Droplet,
-    Users,
-    Download,
-    Filter,
-    MoreVertical,
-    ChevronDown,
-    Menu,
-    X,
     Mail,
     Heart,
     RefreshCw,
@@ -41,23 +25,26 @@ import {
     FileText,
     CreditCard,
     Video,
-    MessageSquare
+    MessageSquare,
+    X,
+    Filter,
+    MoreVertical,
+    ChevronDown,
+    Users,
+    Star,
+    Menu
 } from "lucide-react";
 import { useAuthContext } from "@/state/AuthContext";
 import { receptionistService } from "@/services/receptionist.service";
 import { orderService, OrderOverview } from "@/services/order.service";
-import { receptionistAppointmentService, Appointment } from "@/services/receptionist.appointment.service";
+import { receptionistAppointmentService, Appointment, GetAppointmentsResponse } from "@/services/receptionist.appointment.service";
 import { AuthUser } from "@/services/auth.service";
 import { Dialog, Transition } from "@headlessui/react";
-import dynamic from "next/dynamic";
-// Lazy load AttendanceHub to avoid hydration issues
-const AttendanceHub = dynamic(() => import("@/components/attendance/AttendanceHub"), { ssr: false });
-
 
 // Types
 type TabType = "doctors" | "appointments" | "orders";
 type TimeRangeType = "today" | "week" | "month";
-type AppointmentFilterType = "today" | "week" | "month" | "all";
+type AppointmentFilterType = "today" | "month" | "custom";
 
 // Constants
 const ITEMS_PER_PAGE = 10;
@@ -86,17 +73,6 @@ const getStatusColor = (status: string) => {
     return statusMap[status.toLowerCase()] || statusMap.default;
 };
 
-const specialties = [
-    { name: "Cardiology", icon: Heart, color: "rose" },
-    { name: "Neurology", icon: Brain, color: "purple" },
-    { name: "Pediatrics", icon: Syringe, color: "blue" },
-    { name: "Orthopedics", icon: Bone, color: "amber" },
-    { name: "Ophthalmology", icon: Eye, color: "indigo" },
-    { name: "Dermatology", icon: Droplet, color: "pink" },
-    { name: "General Medicine", icon: Stethoscope, color: "emerald" },
-    { name: "Surgery", icon: Scissors, color: "orange" }
-];
-
 // Appointment Card Component
 const AppointmentCard = ({ appointment, onRefresh }: { appointment: Appointment; onRefresh?: () => void }) => {
     const [showDetails, setShowDetails] = useState(false);
@@ -104,14 +80,14 @@ const AppointmentCard = ({ appointment, onRefresh }: { appointment: Appointment;
         ? appointment.doctorId?.name 
         : "Doctor";
 
-    const handleStatusUpdate = async (status: string) => {
-        try {
-            await receptionistAppointmentService.updateAppointmentStatus(appointment._id, status);
-            if (onRefresh) onRefresh();
-        } catch (error) {
-            console.error("Failed to update status:", error);
-        }
-    };
+    // const handleStatusUpdate = async (status: string) => {
+    //     try {
+    //         await receptionistAppointmentService.updateAppointmentStatus(appointment._id, status);
+    //         if (onRefresh) onRefresh();
+    //     } catch (error) {
+    //         console.error("Failed to update status:", error);
+    //     }
+    // };
 
     return (
         <div className="bg-white rounded-lg border border-gray-200 hover:border-emerald-200 transition-all">
@@ -131,14 +107,6 @@ const AppointmentCard = ({ appointment, onRefresh }: { appointment: Appointment;
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    appointment.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                                    appointment.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                                    appointment.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-                                    'bg-gray-100 text-gray-700'
-                                }`}>
-                                    {appointment.status || 'pending'}
-                                </span>
                                 <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
                                     {new Date(appointment.appointmentDate).toLocaleDateString()} {appointment.appointmentTime}
                                 </span>
@@ -180,39 +148,6 @@ const AppointmentCard = ({ appointment, onRefresh }: { appointment: Appointment;
                                 )}
                             </div>
                         )}
-
-                        <div className="flex items-center gap-2 mt-3">
-                            <button
-                                onClick={() => setShowDetails(!showDetails)}
-                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-                            >
-                                {showDetails ? 'Show less' : 'Show details'}
-                            </button>
-                            
-                            {appointment.status === 'pending' && (
-                                <>
-                                    <button
-                                        onClick={() => handleStatusUpdate('confirmed')}
-                                        className="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700 transition-colors"
-                                    >
-                                        Confirm
-                                    </button>
-                                    <button
-                                        onClick={() => handleStatusUpdate('cancelled')}
-                                        className="text-xs bg-rose-600 text-white px-3 py-1 rounded-lg hover:bg-rose-700 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                </>
-                            )}
-                            
-                            <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                                <MessageSquare className="w-4 h-4 text-gray-500" />
-                            </button>
-                            <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                                <Video className="w-4 h-4 text-gray-500" />
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -265,72 +200,8 @@ const TimeRangeSelector = ({ selected, onChange }: { selected: TimeRangeType; on
     </div>
 );
 
-// Specialty Filter Component
-const SpecialtyFilter = ({ selected, onSelect }: { selected: string; onSelect: (specialty: string) => void }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-emerald-500 hover:text-emerald-600 transition-all"
-            >
-                <Filter className="w-4 h-4" />
-                <span className="hidden sm:inline">{selected === "all" ? "All Specialties" : selected}</span>
-                <span className="sm:hidden">Filter</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
-                    <button
-                        onClick={() => { onSelect("all"); setIsOpen(false); }}
-                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                            selected === "all" 
-                                ? "bg-emerald-50 text-emerald-700 font-medium" 
-                                : "hover:bg-gray-50 text-gray-700"
-                        }`}
-                    >
-                        All Specialties
-                    </button>
-                    {specialties.map((spec) => (
-                        <button
-                            key={spec.name}
-                            onClick={() => { onSelect(spec.name); setIsOpen(false); }}
-                            className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${
-                                selected === spec.name 
-                                    ? `bg-${spec.color}-50 text-${spec.color}-700 font-medium` 
-                                    : "hover:bg-gray-50 text-gray-700"
-                            }`}
-                        >
-                            <spec.icon className={`w-4 h-4 text-${spec.color}-500`} />
-                            {spec.name}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
 export default function ReceptionistDashboard() {
     const { user } = useAuthContext();
-    const [showAttendance, setShowAttendance] = useState(false);
-        // ...existing code...
-        // In your return JSX, add:
-        // <div className="flex justify-end mb-4">
-        //     <button
-        //         onClick={() => setShowAttendance((v) => !v)}
-        //         className="px-4 py-2 rounded-lg bg-amber-50 text-amber-700 font-semibold border border-amber-200 hover:bg-amber-100 transition-all"
-        //     >
-        //         {showAttendance ? "Hide Attendance" : "Show Attendance"}
-        //     </button>
-        // </div>
-        // {showAttendance && (
-        //     <div className="mb-8">
-        //         <AttendanceHub roleLabel="Receptionist" accent="amber" userId={user?.id || user?._id} />
-        //     </div>
-        // )}
     
     // State
     const [doctors, setDoctors] = useState<AuthUser[]>([]);
@@ -349,7 +220,7 @@ export default function ReceptionistDashboard() {
     
     // Meta data
     const [orderMeta, setOrderMeta] = useState<{ fallback?: boolean; errorMessage?: string } | null>(null);
-    const [appointmentMeta, setAppointmentMeta] = useState<{ total?: number; page?: number; pages?: number } | null>(null);
+    const [appointmentPagination, setAppointmentPagination] = useState<{ page: number; totalPages: number; totalRecords?: number } | null>(null);
     
     // Pagination
     const [appointmentPage, setAppointmentPage] = useState(1);
@@ -362,11 +233,9 @@ export default function ReceptionistDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>("doctors");
     const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRangeType>("week");
     const [appointmentFilter, setAppointmentFilter] = useState<AppointmentFilterType>("today");
-    const [selectedSpecialty, setSelectedSpecialty] = useState<string>("all");
     
     // UI states
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
     
     // Booking modal
     const [selectedDoctor, setSelectedDoctor] = useState<AuthUser | null>(null);
@@ -397,8 +266,8 @@ export default function ReceptionistDashboard() {
         }
     }, [toast]);
 
-    // Fetch appointments
-    const fetchAppointments = useCallback(async (page: number = 1, filter: string = "today", search: string = "") => {
+    // Fetch appointments - FIXED VERSION
+    const fetchAppointments = useCallback(async (page: number = 1, filterType: string = "today") => {
         try {
             if (page === 1) {
                 setAppointmentLoading(true);
@@ -406,24 +275,30 @@ export default function ReceptionistDashboard() {
                 setAppointmentLoadingMore(true);
             }
             
+            // FIX: Use 'type' parameter (matches backend), not 'filter'
             const response = await receptionistAppointmentService.getAppointments({
                 page,
                 limit: ITEMS_PER_PAGE,
-                filter,
-                search
+                type: filterType,  // ✅ Correct parameter name
             });
             
+            // FIX: Response structure matches GetAppointmentsResponse
             if (response?.success) {
                 if (page === 1) {
                     setAppointments(response.data || []);
                 } else {
                     setAppointments(prev => [...prev, ...(response.data || [])]);
                 }
-                setAppointmentMeta(response.meta);
-                setAppointmentTotalPages(response.meta?.pages || 1);
+                
+                // FIX: Use pagination object
+                if (response.pagination) {
+                    setAppointmentPagination(response.pagination);
+                    setAppointmentTotalPages(response.pagination.totalPages || 1);
+                }
+                
                 setAppointmentError(null);
             } else {
-                setAppointmentError(response?.message || "Failed to load appointments");
+                setAppointmentError("Failed to load appointments");
             }
         } catch (err) {
             console.error("Failed to fetch appointments:", err);
@@ -465,7 +340,7 @@ export default function ReceptionistDashboard() {
                 }
 
                 // Load initial appointments
-                await fetchAppointments(1, "today", "");
+                await fetchAppointments(1, "today");
                 
             } catch (err) {
                 console.error("Failed to load receptionist dashboard", err);
@@ -478,38 +353,40 @@ export default function ReceptionistDashboard() {
         loadData();
     }, [fetchAppointments]);
 
-    // Refresh appointments when filter or search changes
+    // Refresh appointments when filter changes
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setAppointmentPage(1);
-            fetchAppointments(1, appointmentFilter, appointmentSearch);
-        }, 500);
+        setAppointmentPage(1);
+        fetchAppointments(1, appointmentFilter);
+    }, [appointmentFilter, fetchAppointments]);
 
-        return () => clearTimeout(timer);
-    }, [appointmentFilter, appointmentSearch, fetchAppointments]);
-
-    // Filter doctors
-    const filteredDoctors = useMemo(() => {
-        let filtered = doctors;
+    // Filter appointments on frontend (since search isn't in API)
+    const filteredAppointments = useMemo(() => {
+        let filtered = appointments;
         
-        if (doctorSearch.trim()) {
-            const q = doctorSearch.toLowerCase();
-            filtered = filtered.filter((u) =>
-                u.name.toLowerCase().includes(q) ||
-                (u.phone || "").includes(q) ||
-                (u.email || "").toLowerCase().includes(q) ||
-                (u.specialty || "").toLowerCase().includes(q)
-            );
-        }
-        
-        if (selectedSpecialty !== "all") {
-            filtered = filtered.filter((u) => 
-                (u.specialty || "").toLowerCase() === selectedSpecialty.toLowerCase()
+        // Apply search filter on frontend
+        if (appointmentSearch.trim()) {
+            const q = appointmentSearch.toLowerCase();
+            filtered = filtered.filter((a) =>
+                a.patientName.toLowerCase().includes(q) ||
+                a.patientPhone.includes(q) ||
+                (typeof a.doctorId === "object" && a.doctorId?.name?.toLowerCase().includes(q))
             );
         }
         
         return filtered;
-    }, [doctors, doctorSearch, selectedSpecialty]);
+    }, [appointments, appointmentSearch]);
+
+    // Filter doctors
+    const filteredDoctors = useMemo(() => {
+        if (!doctorSearch.trim()) return doctors;
+        const q = doctorSearch.toLowerCase();
+        return doctors.filter((u) =>
+            u.name.toLowerCase().includes(q) ||
+            (u.phone || "").includes(q) ||
+            (u.email || "").toLowerCase().includes(q) ||
+            (u.specialty || "").toLowerCase().includes(q)
+        );
+    }, [doctors, doctorSearch]);
 
     // Filter orders
     const filteredOrders = useMemo(() => {
@@ -523,42 +400,13 @@ export default function ReceptionistDashboard() {
         );
     }, [orders, orderSearch]);
 
-    // Filter appointments for 'today' and 'all'
-    const filteredAppointments = useMemo(() => {
-        let filtered = appointments;
-        if (appointmentFilter === "today") {
-            const today = new Date();
-            filtered = filtered.filter(a => {
-                const apptDate = new Date(a.appointmentDate);
-                return apptDate.getFullYear() === today.getFullYear() &&
-                    apptDate.getMonth() === today.getMonth() &&
-                    apptDate.getDate() === today.getDate();
-            });
-        }
-        if (appointmentSearch.trim()) {
-            const q = appointmentSearch.toLowerCase();
-            filtered = filtered.filter((a) =>
-                a.patientName.toLowerCase().includes(q) ||
-                a.patientPhone.includes(q) ||
-                (typeof a.doctorId === "object" && a.doctorId?.name?.toLowerCase().includes(q))
-            );
-        }
-        return filtered;
-    }, [appointments, appointmentFilter, appointmentSearch]);
-
     // Calculate stats
     const stats = useMemo(() => {
         const now = new Date();
         const today = now.toDateString();
-        const weekAgo = new Date(now.setDate(now.getDate() - 7));
-        const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
 
         const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
-        const weekOrders = orders.filter(o => new Date(o.createdAt) >= weekAgo);
-        const monthOrders = orders.filter(o => new Date(o.createdAt) >= monthAgo);
-
         const totalRevenue = orders.reduce((sum, o) => sum + (o.payableAmount || 0), 0);
-        const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.payableAmount || 0), 0);
         const pendingOrders = orders.filter(o => o.orderStatus?.toLowerCase() === 'pending').length;
 
         const availableDoctors = doctors.filter(d => d.available).length;
@@ -571,13 +419,10 @@ export default function ReceptionistDashboard() {
             availableDoctors,
             totalOrders: orders.length,
             todayOrders: todayOrders.length,
-            weekOrders: weekOrders.length,
-            monthOrders: monthOrders.length,
             totalRevenue,
-            todayRevenue,
+            todayRevenue: todayOrders.reduce((sum, o) => sum + (o.payableAmount || 0), 0),
             pendingOrders,
             todayAppointments,
-            averageOrderValue: orders.length ? Math.round(totalRevenue / orders.length) : 0
         };
     }, [doctors, orders, appointments]);
 
@@ -632,7 +477,7 @@ export default function ReceptionistDashboard() {
                 });
                 
                 // Refresh appointments
-                fetchAppointments(1, appointmentFilter, appointmentSearch);
+                fetchAppointments(1, appointmentFilter);
             } else {
                 setToast({ type: "error", message: response?.message || "Booking failed" });
             }
@@ -648,7 +493,7 @@ export default function ReceptionistDashboard() {
         if (appointmentPage < appointmentTotalPages) {
             const nextPage = appointmentPage + 1;
             setAppointmentPage(nextPage);
-            await fetchAppointments(nextPage, appointmentFilter, appointmentSearch);
+            await fetchAppointments(nextPage, appointmentFilter);
         }
     };
 
@@ -658,7 +503,7 @@ export default function ReceptionistDashboard() {
         try {
             const [doctorRes] = await Promise.all([
                 receptionistService.getAllDoctors(),
-                fetchAppointments(1, appointmentFilter, appointmentSearch)
+                fetchAppointments(1, appointmentFilter)
             ]);
             
             if (doctorRes?.success) {
@@ -778,10 +623,10 @@ export default function ReceptionistDashboard() {
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <TimeRangeSelector 
+                                {/* <TimeRangeSelector 
                                     selected={selectedTimeRange} 
                                     onChange={setSelectedTimeRange} 
-                                />
+                                /> */}
                                 <button
                                     onClick={handleRefresh}
                                     className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -789,9 +634,6 @@ export default function ReceptionistDashboard() {
                                 >
                                     <RefreshCw className="w-4 h-4 text-gray-600" />
                                 </button>
-                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                    <UserCircle className="w-5 h-5 text-gray-600" />
-                                </div>
                             </div>
                         </div>
 
@@ -801,24 +643,21 @@ export default function ReceptionistDashboard() {
                                 title="Doctors" 
                                 value={stats.totalDoctors} 
                                 icon={Stethoscope} 
-                                color="emerald" 
-                                trend={8}
-                                subtitle={`${stats.availableDoctors} available`}
+                                color="emerald"                
                             />
                             <StatCard 
                                 title="Appointments" 
                                 value={stats.todayAppointments} 
                                 icon={Calendar} 
                                 color="blue" 
-                                trend={12}
-                                subtitle="Today"
+                                
                             />
                             <StatCard 
                                 title="Orders" 
                                 value={stats.totalOrders} 
                                 icon={ClipboardList} 
                                 color="purple" 
-                                trend={24}
+                                
                             />
                             <StatCard 
                                 title="Today's Orders" 
@@ -831,14 +670,9 @@ export default function ReceptionistDashboard() {
                                 value={formatAmount(stats.totalRevenue)} 
                                 icon={TrendingUp} 
                                 color="green" 
-                                subtitle={formatAmount(stats.todayRevenue)}
+                                // subtitle={formatAmount(stats.todayRevenue)}
                             />
-                            <StatCard 
-                                title="Pending" 
-                                value={stats.pendingOrders} 
-                                icon={Clock} 
-                                color="rose" 
-                            />
+                    
                         </div>
                     </div>
                 </div>
@@ -876,7 +710,7 @@ export default function ReceptionistDashboard() {
                 {/* Doctors Tab */}
                 {activeTab === "doctors" && (
                     <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                        {/* Header with Search and Filter */}
+                        {/* Header with Search */}
                         <div className="p-4 border-b border-gray-100">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
@@ -888,19 +722,13 @@ export default function ReceptionistDashboard() {
                                     </p>
                                 </div>
                                 
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                    <div className="relative w-full sm:w-56">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                        <input
-                                            value={doctorSearch}
-                                            onChange={(e) => setDoctorSearch(e.target.value)}
-                                            placeholder="Search doctors..."
-                                            className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                        />
-                                    </div>
-                                    <SpecialtyFilter 
-                                        selected={selectedSpecialty} 
-                                        onSelect={setSelectedSpecialty} 
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <input
+                                        value={doctorSearch}
+                                        onChange={(e) => setDoctorSearch(e.target.value)}
+                                        placeholder="Search doctors..."
+                                        className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     />
                                 </div>
                             </div>
@@ -917,19 +745,17 @@ export default function ReceptionistDashboard() {
                                     <Stethoscope className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                                     <p className="text-gray-500 font-medium">No doctors found</p>
                                     <button 
-                                        onClick={() => { setDoctorSearch(""); setSelectedSpecialty("all"); }}
+                                        onClick={() => setDoctorSearch("")}
                                         className="mt-2 text-sm text-emerald-600 hover:text-emerald-700"
                                     >
-                                        Clear filters
+                                        Clear search
                                     </button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {filteredDoctors.map((doc) => {
-                                        const docId = doc._id || doc.id || doc.identifier || "";
+                                        const docId = doc._id || doc.id || "";
                                         const specialty = doc.specialty || "General Medicine";
-                                        const specialtyData = specialties.find(s => s.name === specialty) || specialties[6];
-                                        const IconComponent = specialtyData.icon;
                                         
                                         return (
                                             <div 
@@ -941,9 +767,6 @@ export default function ReceptionistDashboard() {
                                                         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center font-semibold text-lg shadow-sm">
                                                             {doc.name.charAt(0).toUpperCase()}
                                                         </div>
-                                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-${specialtyData.color}-500 border-2 border-white flex items-center justify-center`}>
-                                                            <IconComponent className="w-2 h-2 text-white" />
-                                                        </div>
                                                     </div>
                                                     
                                                     <div className="flex-1 min-w-0">
@@ -952,15 +775,6 @@ export default function ReceptionistDashboard() {
                                                                 <h3 className="font-medium text-gray-900">
                                                                     Dr. {doc.name}
                                                                 </h3>
-                                                                <div className="flex items-center gap-2 mt-0.5">
-                                                                    <span className={`text-xs px-2 py-0.5 rounded-full bg-${specialtyData.color}-50 text-${specialtyData.color}-700`}>
-                                                                        {specialty}
-                                                                    </span>
-                                                                    <div className="flex items-center gap-0.5">
-                                                                        <Star className="w-3 h-3 text-amber-400 fill-current" />
-                                                                        <span className="text-xs text-gray-600">4.8</span>
-                                                                    </div>
-                                                                </div>
                                                             </div>
                                                             <span className={`w-1.5 h-1.5 rounded-full ${doc.available ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'} mt-1.5`} />
                                                         </div>
@@ -1013,7 +827,7 @@ export default function ReceptionistDashboard() {
                                 
                                 <div className="flex flex-col sm:flex-row gap-2">
                                     <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
-                                        {["today", "all"].map((type) => (
+                                        {["today", "month"].map((type) => (
                                             <button
                                                 key={type}
                                                 onClick={() => setAppointmentFilter(type as AppointmentFilterType)}
@@ -1023,7 +837,7 @@ export default function ReceptionistDashboard() {
                                                         : "text-gray-600 hover:text-gray-900"
                                                 }`}
                                             >
-                                                {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
+                                                {type.charAt(0).toUpperCase() + type.slice(1)}
                                             </button>
                                         ))}
                                     </div>
@@ -1074,7 +888,7 @@ export default function ReceptionistDashboard() {
                                             <AppointmentCard 
                                                 key={appointment._id} 
                                                 appointment={appointment}
-                                                onRefresh={() => fetchAppointments(1, appointmentFilter, appointmentSearch)}
+                                                onRefresh={() => fetchAppointments(1, appointmentFilter)}
                                             />
                                         ))}
                                     </div>
@@ -1115,20 +929,14 @@ export default function ReceptionistDashboard() {
                                     </p>
                                 </div>
                                 
-                                <div className="flex gap-2">
-                                    <button className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                                        <Download className="w-4 h-4 text-gray-600" />
-                                    </button>
-                                    
-                                    <div className="relative w-full sm:w-56">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                        <input
-                                            value={orderSearch}
-                                            onChange={(e) => setOrderSearch(e.target.value)}
-                                            placeholder="Search orders..."
-                                            className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        />
-                                    </div>
+                                <div className="relative w-full sm:w-56">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <input
+                                        value={orderSearch}
+                                        onChange={(e) => setOrderSearch(e.target.value)}
+                                        placeholder="Search orders..."
+                                        className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -1175,10 +983,10 @@ export default function ReceptionistDashboard() {
                                                         <img
                                                             src={order.medicine.image}
                                                             alt={order.medicine.name || 'Medicine'}
-                                                            className="w-16 h-16 rounded-lg object-cover border border-gray-200 mr-4"
+                                                            className="w-16 h-16 rounded-lg object-cover border border-gray-200"
                                                         />
                                                     ) : (
-                                                        <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400 font-bold mr-4">
+                                                        <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">
                                                             <Pill className="w-8 h-8" />
                                                         </div>
                                                     )}
@@ -1209,9 +1017,6 @@ export default function ReceptionistDashboard() {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <button className="p-1.5 bg-white rounded-lg hover:bg-gray-100 transition-colors">
-                                                            <MoreVertical className="w-4 h-4 text-gray-600" />
-                                                        </button>
                                                         <Link
                                                             href={`/receptionist/orders/${order.orderId}`}
                                                             className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"

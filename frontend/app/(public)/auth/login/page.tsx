@@ -367,29 +367,6 @@ export default function LoginPage() {
               }
             </button>
 
-            {/* Forgot Password Link - Only show on phone step */}
-            {step === "phone" && (
-              <div className="flex justify-end mt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotModal(true)}
-                  className="text-sm text-cyan-600 hover:text-cyan-700 hover:underline"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-            )}
-
-            {/* Register Link */}
-            <p className="text-center text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                href="/auth/register"
-                className="font-medium text-cyan-600 hover:text-cyan-700"
-              >
-                Register
-              </Link>
-            </p>
           </form>
 
           {/* Back to Home */}

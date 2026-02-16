@@ -29,22 +29,10 @@ export type LoginResponse = {
   token: string;
 };
 
-export type RegisterRequest = {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-};
 
-export type RegisterResponse = {
-  success: boolean;
-  message: string;
-  phone?: string;
-  identifier?: string;
-};
 
 export type VerifyOtpRequest = {
-  identifier: string;
+  phone: string;
   otp: string;
 };
 
@@ -56,13 +44,14 @@ export type VerifyOtpResponse = {
 };
 
 
+
 export const authService = {
   async login(payload: LoginRequest) {
     const res = await apiClient.post<LoginResponse>("/login/send-otp", payload);
     return res.data;
   },
-  async verfiyOtp(payload: VerifyOtpRequest){
+  async verifyOtp(payload: VerifyOtpRequest) {
     const res = await apiClient.post<VerifyOtpResponse>("/login/verify-otp", payload);
-    return res;
-  }
+    return res.data;
+  },
 };

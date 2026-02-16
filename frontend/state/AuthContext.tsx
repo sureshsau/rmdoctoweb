@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { authService, type AuthUser, type LoginRequest, type VerifyOtpRequest } from "@/services/auth.service";
+import { authService, type AuthUser, type LoginRequest } from "@/services/auth.service";
 import { getDecodedToken, getValidToken } from "@/lib/auth";
 import { DASHBOARD_ROUTE_MAP, getDashboardPathForUser } from "@/lib/roleRoutes";
 
@@ -15,7 +15,7 @@ type AuthState = {
   isAuthenticated: boolean;
 
   login: (payload: LoginRequest, redirectTo?: string) => Promise<void>;
-  verifyRegisterOtp: (payload: VerifyOtpRequest, redirectTo?: string) => Promise<void>;
+  verifyRegisterOtp: (payload: { phone: string; otp: string }, redirectTo?: string) => Promise<void>;
   logout: (opts?: { redirectTo?: string }) => void;
 };
 
@@ -78,6 +78,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (payload: LoginRequest, redirectTo?: string) => {
       const data = await authService.login(payload);
+
+    },
+    [router]
+  );
+
+
+
+  const verifyRegisterOtp = useCallback(
+    async (payload: { phone: string; otp: string }, redirectTo?: string) => {
+      const data = await authService.verifyOtp(payload);
       persistSession(data.token, data.user);
       setToken(data.token);
       setUser(data.user);
@@ -88,21 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
-  const verifyRegisterOtp = useCallback(
-    async (payload: VerifyOtpRequest, redirectTo?: string) => {
-      const response = await authService.verfiyOtp(payload);
-      // Access the data property from the response
-      const { token, user } = response.data;
-      
-      persistSession(token, user);
-      setToken(token);
-      setUser(user);
 
-      const target = redirectTo || getDashboardPathForUser(user);
-      router.replace(target);
-    },
-    [router]
-  );
 
   // Global session expiry check (token exp)
   useEffect(() => {
@@ -140,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyRegisterOtp,
       logout,
     }),
-    [login, verifyRegisterOtp, logout, token, user, loading]
+    [login, loading, logout, token, user, verifyRegisterOtp]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

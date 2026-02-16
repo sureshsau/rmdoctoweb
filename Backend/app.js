@@ -24,8 +24,6 @@ import Razorpay from "razorpay";
 import razorpay from "./config/razorpay.config.js";
 import appointmentRoute from './routes/appointment.routes.js';
 import rmcoinRoute from "./routes/rmcoin.route.js";
-import axios from "axios";
-import loginRoute from './routes/login.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -59,15 +57,35 @@ app.use("/appointment",appointmentRoute)
 app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);
 /* ================= ROUTES WITH FILE UPLOAD ================= */
-// multer must receive raw stream → NO body parser before this
+// ❗ multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);
-app.use("/login", loginRoute);
 
 
 
 
+export const createRazorpayOrder = async (req, res) => {
+  try {
+    let amount=100
 
+    const order = await razorpay.orders.create({
+      amount: amount * 100,   // INR → paise
+      currency: "INR",
+      receipt: `rcpt_${Date.now()}`,
+      payment_capture: 1
+    });
 
+    res.json({
+      success: true,
+      order
+    });
+    console.log(order);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
+  }
+};
+app.post('/razorpay',createRazorpayOrder)
 
 
 /* ================= ERROR HANDLER ================= */

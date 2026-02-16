@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const UserSchema = new mongoose.Schema(
   {
     // BASIC IDENTITY
-    name: { type: String, trim: true },
+    name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, index: true, sparse: true },
     phone: { type: String, required: true, index: true },
 

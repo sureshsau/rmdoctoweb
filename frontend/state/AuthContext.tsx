@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { authService, type AuthUser, type LoginRequest, type RegisterRequest } from "@/services/auth.service";
+import { authService, type AuthUser, type LoginRequest, type VerifyOtpRequest } from "@/services/auth.service";
 import { getDecodedToken, getValidToken } from "@/lib/auth";
 import { DASHBOARD_ROUTE_MAP, getDashboardPathForUser } from "@/lib/roleRoutes";
 
@@ -15,13 +15,7 @@ type AuthState = {
   isAuthenticated: boolean;
 
   login: (payload: LoginRequest, redirectTo?: string) => Promise<void>;
-  register: (payload: RegisterRequest) => Promise<{ identifier: string }>;
-  verifyRegisterOtp: (payload: { identifier: string; otp: string }, redirectTo?: string) => Promise<void>;
-
-  sendForgotPasswordOtp: (payload: { identifier: string; type: ForgotType }) => Promise<void>;
-  verifyForgotPasswordOtp: (payload: { identifier: string; type: ForgotType; otp: string }) => Promise<void>;
-  resetPassword: (payload: { identifier: string; type: ForgotType; newPassword: string }) => Promise<void>;
-
+  verifyRegisterOtp: (payload: VerifyOtpRequest, redirectTo?: string) => Promise<void>;
   logout: (opts?: { redirectTo?: string }) => void;
 };
 
@@ -94,37 +88,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
-  const register = useCallback(async (payload: RegisterRequest) => {
-    const data = await authService.register(payload);
-    const identifier = (data.identifier || payload.phone || "").trim();
-    if (!identifier) throw new Error("Missing identifier from register response");
-    return { identifier };
-  }, []);
-
   const verifyRegisterOtp = useCallback(
-    async (payload: { identifier: string; otp: string }, redirectTo?: string) => {
-      const data = await authService.verifyOtp(payload);
-      persistSession(data.token, data.user);
-      setToken(data.token);
-      setUser(data.user);
+    async (payload: VerifyOtpRequest, redirectTo?: string) => {
+      const response = await authService.verfiyOtp(payload);
+      // Access the data property from the response
+      const { token, user } = response.data;
+      
+      persistSession(token, user);
+      setToken(token);
+      setUser(user);
 
-      const target = redirectTo || getDashboardPathForUser(data.user);
+      const target = redirectTo || getDashboardPathForUser(user);
       router.replace(target);
     },
     [router]
   );
-
-  const sendForgotPasswordOtp = useCallback(async (payload: { identifier: string; type: ForgotType }) => {
-    await authService.forgotPasswordSendOtp(payload);
-  }, []);
-
-  const verifyForgotPasswordOtp = useCallback(async (payload: { identifier: string; type: ForgotType; otp: string }) => {
-    await authService.forgotPasswordVerifyOtp(payload);
-  }, []);
-
-  const resetPassword = useCallback(async (payload: { identifier: string; type: ForgotType; newPassword: string }) => {
-    await authService.resetPassword(payload);
-  }, []);
 
   // Global session expiry check (token exp)
   useEffect(() => {
@@ -159,14 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       isAuthenticated: !!token && !!user,
       login,
-      register,
       verifyRegisterOtp,
-      sendForgotPasswordOtp,
-      verifyForgotPasswordOtp,
-      resetPassword,
       logout,
     }),
-    [login, loading, logout, register, resetPassword, sendForgotPasswordOtp, token, user, verifyForgotPasswordOtp, verifyRegisterOtp]
+    [login, verifyRegisterOtp, logout, token, user, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

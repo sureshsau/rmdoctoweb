@@ -34,22 +34,17 @@ export const registerAgentByMarketingAgentService = async ({
   marketingAgentId,
   payload
 }) => {
-  console.log("creating agent");
 
   try {
     const {
       agentName,
       phone,
-      password,
-
       latitude,
       longitude,
-
       address = null,
       city = null,
       state = null,
       pincode = null,
-
       parentAgentId = null
     } = payload;
 
@@ -57,10 +52,18 @@ export const registerAgentByMarketingAgentService = async ({
 
     // 🔍 1. Find user by phone
     let user = await User.findOne({ phone });
-    if(user?.roles?.includes("marketing_agent")||user?.roles?.includes("admin")||user?.roles?.includes("subadmin")){
-            throw new AppError("you can't register this user because this is a existing employee")
-        }
-    if (user?.roles) {
+
+    if (
+      user?.roles?.includes("marketing_agent") ||
+      user?.roles?.includes("admin") ||
+      user?.roles?.includes("subadmin")
+    ) {
+      throw new AppError(
+        "You can't register this user because this is an existing employee"
+      );
+    }
+
+    if (user?.roles?.length) {
       throw new AppError(`${user.roles} are already given to user`, 400);
     }
 
@@ -71,9 +74,14 @@ export const registerAgentByMarketingAgentService = async ({
       );
 
       if (existingAgentProfile) {
+
         if (existingAgentProfile.marketingAgentId) {
-          throw new AppError("Agent is already allocated to a marketing agent", 400);
+          throw new AppError(
+            "Agent is already allocated to a marketing agent",
+            400
+          );
         }
+
         if (existingAgentProfile.parentAgentId) {
           throw new AppError(
             "Agent already belongs to a network. Contact admin for transfer.",
@@ -109,8 +117,9 @@ export const registerAgentByMarketingAgentService = async ({
       }
     }
 
-    // 🌳 MLM level
+    // 🌳 MLM level calculation
     let level = 0;
+
     if (parentAgentId) {
       const parentAgent = await AgentProfile.findById(parentAgentId);
 
@@ -123,8 +132,6 @@ export const registerAgentByMarketingAgentService = async ({
 
     // 🔹 3. Create user if not exists
     if (!user) {
-      const passwordHash = await hashPassword(password);
-
       user = await User.create({
         name: agentName,
         phone,
@@ -136,13 +143,11 @@ export const registerAgentByMarketingAgentService = async ({
           type: "Point",
           coordinates: [longitude, latitude]
         },
-        // NEW RBAC FIELDS
         dashboard: "agent",
         roles: ["agent"],
         permissions: [],
         isActive: true,
         isBlocked: false,
-        passwordHash,
         kycStatus: "none"
       });
     }
@@ -154,15 +159,15 @@ export const registerAgentByMarketingAgentService = async ({
       directDownlineCount: 0,
       totalDownlineCount: 0,
       marketingAgentId,
-      
       registeredBy: "MARKETING_AGENT"
     });
 
     const agentProfileId = agentProfile._id;
 
-    // 🔗 5. Link agent profile + RBAC update
-    const role = await ROLE.findOne({ key: "agent" }).select("permissions").lean();
-
+    // 🔗 5. RBAC update
+    const role = await ROLE.findOne({ key: "agent" })
+      .select("permissions")
+      .lean();
 
     await User.updateOne(
       { _id: user._id },
@@ -171,11 +176,11 @@ export const registerAgentByMarketingAgentService = async ({
           dashboard: "agent",
           roles: ["agent"],
           permissions: role?.permissions || [],
-          "profiles.agentId": agentProfileId,
-
+          "profiles.agentId": agentProfileId
         }
       }
     );
+
     return {
       userId: user._id,
       agentProfileId,
@@ -187,6 +192,7 @@ export const registerAgentByMarketingAgentService = async ({
     throw error;
   }
 };
+
 
 export const getMarketingAgentTree = async ({
   marketingAgentUserId

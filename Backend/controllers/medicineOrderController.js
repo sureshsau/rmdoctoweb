@@ -2,6 +2,9 @@ import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDeta
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
+import mongoose from "mongoose";
+import MedicineOrder from "../models/medicine/medicineOrder.model.js";
+import User from "../models/user.model.js";
 
 
 export const orderMedicine = async (req, res) => {
@@ -241,3 +244,83 @@ export const verifyOnlinePaymentController = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+export const assignRMRiderController = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { userId } = req.body;
+    console.log("Assign RM Rider - orderId:", orderId, "userId:", userId);
+
+    // ----------- ROLE CHECK -----------
+    const allowedRoles = ["admin", "subadmin", "receptionist"];
+
+    const hasAccess = req.user.roles?.some(role =>
+      allowedRoles.includes(role)
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to assign RM Rider"
+      });
+    }
+
+    // ----------- VALIDATION -----------
+    if (
+      !mongoose.Types.ObjectId.isValid(orderId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid orderId or userId"
+      });
+    }
+
+    // ----------- CHECK USER IS RM RIDER -----------
+    const rider = await User.findOne({
+      _id: userId,
+      roles: { $in: ["rmrider"] },
+      isActive: true,
+      isBlocked: false
+    });
+
+    if (!rider) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not a valid RM Rider"
+      });
+    }
+
+    // ----------- UPDATE ORDER -----------
+    const updatedOrder = await MedicineOrder.findByIdAndUpdate(
+      orderId,
+      {
+        deliveryAgentId: userId
+      },
+      { new: true }
+    ).populate("deliveryAgentId", "name phone");
+
+    if (!updatedOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "RM Rider assigned successfully",
+      data: updatedOrder
+    });
+
+  } catch (error) {
+    console.error("Assign RM Rider Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+    });
+  }
+};
+

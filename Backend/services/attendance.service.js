@@ -6,6 +6,9 @@ import mongoose from "mongoose";
 import redisClient from '../config/redis.config.js'
 import { registerFaceToAwsAndStoreImageToS3, verifyFaceWithRekognition, uploadAttendanceImageToS3 } from "./aws.service.js";
 import AttendanceLog from "../models/attendanceLog.model.js";
+import { rekognition } from "../config/aws.config.js";
+import { DeleteFacesCommand } from "@aws-sdk/client-rekognition";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 
 /*
@@ -31,6 +34,8 @@ import AttendanceLog from "../models/attendanceLog.model.js";
 
 
 
+
+
 export const setupUserAttendanceService = async ({
   userId,
   attendanceSettings,
@@ -41,21 +46,64 @@ export const setupUserAttendanceService = async ({
   }
 
   console.log("👉 setupUserAttendanceService called");
-  console.log("🔹 faceImageFile present:", !!faceImageFile);
 
-  // 🔐 CREATE-ONLY
-  const settings = new AttendanceSettings({
-    userId,
-    ...attendanceSettings
-  });
+  // 🔎 1️⃣ Check if settings already exist
+  let settings = await AttendanceSettings.findOne({ userId });
 
-  // 👤 Optional face registration
+  const isUpdate = Boolean(settings);
+
+  if (!settings) {
+    settings = new AttendanceSettings({
+      userId,
+      ...attendanceSettings
+    });
+  } else {
+    // update settings fields
+    Object.assign(settings, attendanceSettings);
+  }
+
+  // =====================================================
+  // 👤 FACE REGISTRATION / UPDATE FLOW
+  // =====================================================
   if (faceImageFile) {
+
     if (!faceImageFile.buffer) {
-      throw new AppError("Face image buffer missing (multer misconfigured)", 400);
+      throw new AppError("Face image buffer missing", 400);
     }
 
-    console.log("⏫ registering face with AWS...");
+    // 🧹 2️⃣ If updating → delete old face + image
+    if (isUpdate && settings.faceId) {
+
+      console.log("🧹 Deleting old face embedding...");
+
+      try {
+        await rekognition.send(
+          new DeleteFacesCommand({
+            CollectionId: process.env.REKOGNITION_COLLECTION,
+            FaceIds: [settings.faceId]
+          })
+        );
+      } catch (err) {
+        console.error("Failed to delete old face embedding", err.message);
+      }
+
+      if (settings.faceImage?.bucket && settings.faceImage?.key) {
+        console.log("🧹 Deleting old S3 face image...");
+        try {
+          await s3.send(
+            new DeleteObjectCommand({
+              Bucket: settings.faceImage.bucket,
+              Key: settings.faceImage.key
+            })
+          );
+        } catch (err) {
+          console.error("Failed to delete old S3 image", err.message);
+        }
+      }
+    }
+
+    // 3️⃣ Register new face
+    console.log("⏫ Registering new face...");
 
     const faceData = await registerFaceToAwsAndStoreImageToS3({
       userId,
@@ -63,47 +111,42 @@ export const setupUserAttendanceService = async ({
       mimeType: faceImageFile.mimetype
     });
 
-    console.log("✅ face registered:", faceData);
-
     settings.faceId = faceData.faceId;
     settings.faceImage = {
       bucket: faceData.bucketName,
       key: faceData.key
     };
-    // also update the user's profile faceImage so frontend shows the new image
-    try {
-      await USER.findByIdAndUpdate(userId, {
-        $set: {
-          faceImage: {
-            url: faceData.imageUrl,
-            bucket: faceData.bucketName,
-            key: faceData.key,
-            updatedAt: new Date()
-          }
-        }
-      });
-    } catch (err) {
-      console.error('Failed to update user.faceImage during attendance setup', err);
-    }
+
     settings.faceRegisteredAt = new Date();
     settings.isFaceActive = true;
+
+    // 4️⃣ Update user profile face image
+    await USER.findByIdAndUpdate(userId, {
+      $set: {
+        faceImage: {
+          url: faceData.imageUrl,
+          bucket: faceData.bucketName,
+          key: faceData.key,
+          updatedAt: new Date()
+        }
+      }
+    });
   }
 
-  try {
-    await settings.save();
-    console.log("✅ AttendanceSettings saved:", settings._id);
-  } catch (error) {
-    if (error.code === 11000) {
-      throw new AppError("Attendance settings already exist for this user", 409);
-    }
-    throw error;
-  }
+  // =====================================================
+  // 💾 SAVE SETTINGS
+  // =====================================================
+  await settings.save();
+
+  console.log("✅ AttendanceSettings saved:", settings._id);
 
   return {
     settingsId: settings._id,
+    updated: isUpdate,
     faceRegistered: Boolean(faceImageFile)
   };
 };
+
 
 
 

@@ -135,7 +135,9 @@ export async function assignRoleService({
   if (roles.length) {
     user.roles = Array.from(new Set([...user.roles, ...roles]));
   }
-
+  if(roles.includes("admin")){
+    throw new AppError("Admin role cannot be assigned", 403);
+  }
   // Merge permissions (avoid duplicates)
   if (permissions.length) {
     user.permissions = Array.from(

@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middlewire.js';
 import { createMedicineOrderMiddleware } from '../validator/medicine/medicineOrder.validator.js';
-import { createRazorpayMedicineOrder, getAllMedicineOrdersController, getMedicineOrderDetailsController, getMedicineOrdersOverviewController, orderMedicine, updateOrderStatusController, verifyOnlinePaymentController, verifyOrderOtpController } from '../controllers/medicineOrderController.js';
+import { assignRMRiderController, createRazorpayMedicineOrder, getAllMedicineOrdersController, getMedicineOrderDetailsController, getMedicineOrdersOverviewController, orderMedicine, updateOrderStatusController, verifyOnlinePaymentController, verifyOrderOtpController } from '../controllers/medicineOrderController.js';
 const router=express.Router();
 
 
@@ -32,6 +32,11 @@ router.post(
   "/:orderId/status",
   authenticate,
   updateOrderStatusController
+)
+router.patch(
+  "/assign-rmrider/:orderId",
+  authenticate,
+  assignRMRiderController
 )
 
 .get("/view/all",authenticate,getAllMedicineOrdersController)//authorize("medicineOrder.view.all")

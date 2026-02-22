@@ -137,6 +137,7 @@ export const createMedicineOrderMiddleware = async (req, res, next) => {
     ======================== */
 
     const errors = validationResult(req);
+    console.log("Validation errors:", errors.array());
     
     if (!errors.isEmpty()) {
       return res.status(422).json({
@@ -159,6 +160,7 @@ export const createMedicineOrderMiddleware = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.error("Error in createMedicineOrderMiddleware:", err);
     return res.status(400).json({
       success: false,
       message: "Invalid request payload",

@@ -160,11 +160,8 @@ export const registerAgentByAgentService = async ({
     const {
       agentName,
       phone,
-      password,
-
       latitude,
       longitude,
-
       address = null,
       city = null,
       state = null,
@@ -189,8 +186,15 @@ export const registerAgentByAgentService = async ({
     ========================= */
     let user = await User.findOne({ phone });
 
-    if(user?.roles?.includes("marketing_agent")||user?.roles?.includes("admin")||user?.roles?.includes("subadmin")){
-        throw new AppError("you can't register this user because this is a existing employee")
+    if (
+      user?.roles?.includes("marketing_agent") ||
+      user?.roles?.includes("admin") ||
+      user?.roles?.includes("subadmin")
+    ) {
+      throw new AppError(
+        "You can't register this user because this is an existing employee",
+        400
+      );
     }
 
     /* =========================
@@ -205,7 +209,6 @@ export const registerAgentByAgentService = async ({
         throw new AppError("Agent profile corrupted", 500);
       }
 
-      // ❌ already belongs to a network
       if (existingAgent.parentAgentId) {
         throw new AppError(
           "Agent already belongs to a network. Contact admin for transfer.",
@@ -213,7 +216,6 @@ export const registerAgentByAgentService = async ({
         );
       }
 
-      // ❌ already linked to marketing agent
       if (existingAgent.marketingAgentId) {
         throw new AppError(
           "Agent already assigned to a marketing agent",
@@ -221,7 +223,6 @@ export const registerAgentByAgentService = async ({
         );
       }
 
-      //  SAFE TO LINK
       await AgentProfile.updateOne(
         { _id: existingAgent._id },
         {
@@ -230,7 +231,6 @@ export const registerAgentByAgentService = async ({
             marketingAgentId: parentAgent.marketingAgentId,
             level: parentAgent.level + 1,
             registeredBy: "AGENT",
-           
             agentName,
             address,
             city,
@@ -244,7 +244,6 @@ export const registerAgentByAgentService = async ({
         }
       );
 
-      // ✅ PUSH INTO PARENT CHILDREN
       await AgentProfile.updateOne(
         { _id: parentAgent._id },
         {
@@ -264,8 +263,6 @@ export const registerAgentByAgentService = async ({
        4. CREATE USER IF NEEDED
     ========================= */
     if (!user) {
-      const passwordHash = await hashPassword(password);
-
       user = await User.create({
         name: agentName,
         phone,
@@ -282,7 +279,6 @@ export const registerAgentByAgentService = async ({
         permissions: [],
         isActive: true,
         isBlocked: false,
-        passwordHash,
         kycStatus: "none"
       });
     }
@@ -323,7 +319,7 @@ export const registerAgentByAgentService = async ({
       {
         $set: {
           dashboard: "agent",
-          role: ["agent"],
+          roles: ["agent"], // fixed from "role" → "roles"
           permissions: role?.permissions || [],
           "profiles.agentId": agentProfile._id
         }
@@ -341,6 +337,7 @@ export const registerAgentByAgentService = async ({
     throw error;
   }
 };
+
 
 
 //view his network

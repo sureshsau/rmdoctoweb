@@ -4,80 +4,62 @@ import { assignRoleService } from "./roleAssignments.service.js";
 
 export const createUserService = async ({
   name,
-  email,
   phone,
-  password,
   roles = [],
   permissions = [],
   dashboard = "user",
-  isActive = true,
+  isActive = true
 }) => {
-  if (!name || !phone) {
-    throw new Error("Name and phone are required");
+
+  if (!phone) {
+    throw new Error("Phone number is required");
   }
 
-  // 1️⃣ Find existing user (phone is primary identity)
-  let user = await User.findOne({ phone });
+  if (!name) {
+    throw new Error("Name is required");
+  }
 
-  const passwordHash = password ? await hashPassword(password) : undefined;
+  // Normalize phone (important)
+  const normalizedPhone = phone.trim();
+
+  // 1️⃣ Find user by phone (primary identity)
+  let user = await User.findOne({ phone: normalizedPhone });
 
   if (user) {
-    // 🔁 UPDATE FLOW
-
-    // Email uniqueness check (only if changed)
-    if (email && email !== user.email) {
-      const emailExists = await User.findOne({
-        email,
-        _id: { $ne: user._id },
-      });
-      if (emailExists) {
-        throw new Error("Email already exists");
-      }
-      user.email = email;
-    }
+    /* ================= UPDATE FLOW ================= */
 
     user.name = name;
     user.isActive = isActive;
 
-    if (passwordHash) {
-      user.passwordHash = passwordHash;
-    }
-
     await user.save();
-  } else {
-    // 🆕 CREATE FLOW
 
-    if (email) {
-      const emailExists = await User.findOne({ email });
-      if (emailExists) {
-        throw new Error("Email already exists");
-      }
-    }
+  } else {
+    /* ================= CREATE FLOW ================= */
 
     user = await User.create({
       name,
-      email: email || undefined,
-      phone,
-      passwordHash,
+      phone: normalizedPhone,
       isActive,
+      dashboard
     });
   }
 
-  // 2️⃣ Assign roles & permissions (idempotent inside service)
+  // 2️⃣ Assign roles & permissions (optional)
   if (roles.length || permissions.length || dashboard) {
     await assignRoleService({
       userId: user._id,
       roles,
       permissions,
-      dashboard,
+      dashboard
     });
   }
 
   // 3️⃣ Return fresh user
   const updatedUser = await User.findById(user._id)
-    .select("_id name email phone roles permissions dashboard isActive profiles")
+    .select("_id name phone roles permissions dashboard isActive profiles rmCoinsBalance")
     .lean();
 
   return updatedUser;
 };
+
 

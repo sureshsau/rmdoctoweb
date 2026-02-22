@@ -14,6 +14,12 @@ const medicineOrderSchema = new mongoose.Schema(
         default:null,
         index: true
     },
+    marketingAgentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default:null,
+        index: true
+    },
 
     items: [
       {

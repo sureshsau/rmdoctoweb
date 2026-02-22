@@ -82,7 +82,7 @@ export const getMedicinesService = async ({
   /* 📦 FETCH DATA */
   const medicines = await Medicine.find(query)
     .select(
-      "name brandName dosageForm pricing.price pricing.mrp pricing.specialPrice images isActive"
+      "name brandName dosageForm pricing.price pricing.mrp pricing.specialPrice images isActive gstPercentage"
     )
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -98,7 +98,7 @@ export const getMedicinesService = async ({
       name: med.name,
       brandName: med.brandName,
       dosageForm: med.dosageForm,
-
+      gstPercentage: med?.gstPercentage,
       price: med.pricing?.price,
       mrp: med.pricing?.mrp,
       specialPrice: med.pricing?.specialPrice,

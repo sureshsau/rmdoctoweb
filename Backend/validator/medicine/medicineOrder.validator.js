@@ -2,6 +2,7 @@ import { body, validationResult } from "express-validator";
 
 export const createMedicineOrderMiddleware = async (req, res, next) => {
   try {
+    console.log(req.body);
     /* =======================
        🔄 PARSE & TYPE CAST
     ======================== */

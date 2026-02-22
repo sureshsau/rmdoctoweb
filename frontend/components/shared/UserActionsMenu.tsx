@@ -40,7 +40,6 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
     marketing_agent: [
-      { id: "view-network", label: "View Network", route: "/marketing_agent/network" },
       { id: "set-attendance", label: "Set Attendance", route: "/admin/users/:id/attendance" },
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
@@ -65,7 +64,7 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
     default: [
-      // No actions for default role (or add others as needed)
+      { id: "give-role", label: "Give Role" },      // No actions for default role (or add others as needed)
     ],
   };
 

@@ -26,7 +26,8 @@ export default function AgentSidebar({ isOpen = true, onClose }: AgentSidebarPro
         { name: "Home", href: "/agent/dashboard", icon: LayoutDashboard },
         { name: "Order Medicine", href: "/medicine-store", icon: ShoppingBag },
         { name: "My Orders", href: "/agent/orders", icon: History },
-        // Attendance link removed
+        { name: "Wallet", href: "/agent/wallet", icon: UserCircle },
+        { name: "My Credits", href: "/agent/credits", icon: Clock },
     ];
 
     return (

@@ -31,6 +31,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
     { name: "My Team", href: "/marketing-agent/team", icon: Users },
     { name: "Recruitment", href: "/marketing-agent/recruit", icon: UserPlus },
     { name: "Attendance", href: "/marketing-agent/attendance", icon: Clock },
+    { name: "Wallet", href: "/marketing-agent/wallet", icon: ShieldCheck },
   ];
 
   return (
@@ -42,7 +43,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
       {/* Brand */}
       <div className="h-16 flex items-center justify-between px-4 lg:px-5 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
+          <div className="w-10 h-10 bg-linear-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
@@ -62,7 +63,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
 
       {/* User card */}
       <div className="px-3 pt-4 pb-2 shrink-0">
-        <div className="p-3.5 bg-gradient-to-br from-slate-50 to-indigo-50/30 rounded-2xl border border-slate-100">
+        <div className="p-3.5 bg-linear-to-br from-slate-50 to-indigo-50/30 rounded-2xl border border-slate-100">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Signed in as</p>
           <p className="text-sm font-bold text-slate-900 truncate mt-1">{user?.name || "Marketing Agent"}</p>
         </div>
@@ -78,7 +79,7 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
               key={link.href}
               href={link.href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all duration-200 min-h-[44px]
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all duration-200 min-h-11
                 ${isActive
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
@@ -97,14 +98,14 @@ export default function MarketingAgentSidebar({ isOpen = false, onClose }: Marke
         <Link
           href="/marketing-agent/settings"
           onClick={onClose}
-          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors min-h-[44px]"
+          className="flex items-center gap-3 px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors min-h-11"
         >
           <Settings className="w-5 h-5 shrink-0 text-slate-400" />
           Settings
         </Link>
         <button
           onClick={() => logout({ redirectTo: "/" })}
-          className="w-full flex items-center gap-3 px-3 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors min-h-[44px]"
+          className="w-full flex items-center gap-3 px-3 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors min-h-11"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           Logout

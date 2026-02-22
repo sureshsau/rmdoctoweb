@@ -7,16 +7,14 @@ export const rmcreditService = {
         ? `/rmcredit/admin/${agentId}` 
         : "/rmcredit/admin/logs";
       
-      console.log("Fetching RM Credits from:", url);
-      
       const res = await apiClient.get(url);
-      return res; // Return full response
+      return res;
     } catch (error: any) {
       console.error("RM Credits API Error:", {
-        url: error.config?.url,
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
+        message: error?.message || "Unknown error",
+        status: error?.response?.status,
+        data: error?.response?.data,
+        url: error?.config?.url
       });
       throw error;
     }
@@ -26,9 +24,49 @@ export const rmcreditService = {
     try {
       const res = await apiClient.get("/rmcredit/my");
       return res;
-    } catch (error) {
-      console.error("Error fetching my credit details:", error);
-      throw error;
+    } catch (error: any) {
+      // If it's 404 (wallet not found), return empty wallet data
+      if (error?.response?.status === 404) {
+        console.log("No wallet found - returning empty data");
+        return {
+          data: {
+            success: true,
+            data: {
+              wallet: {
+                balance: 0,
+                totalCredit: 0,
+                usedCredit: 0,
+                revokeOtp: null,
+                revokeOtpExpiresAt: null,
+                revokeAmount: null,
+                expiryDate: null,
+                status: null
+              },
+              transactions: []
+            }
+          }
+        };
+      }
+      
+      // For other errors, return empty data
+      return {
+        data: {
+          success: true,
+          data: {
+            wallet: {
+              balance: 0,
+              totalCredit: 0,
+              usedCredit: 0,
+              revokeOtp: null,
+              revokeOtpExpiresAt: null,
+              revokeAmount: null,
+              expiryDate: null,
+              status: null
+            },
+            transactions: []
+          }
+        }
+      };
     }
   },
 
@@ -41,8 +79,12 @@ export const rmcreditService = {
         description 
       });
       return res;
-    } catch (error) {
-      console.error("Error adding credit:", error);
+    } catch (error: any) {
+      console.error("Error adding credit:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
       throw error;
     }
   },
@@ -54,8 +96,12 @@ export const rmcreditService = {
         amount 
       });
       return res;
-    } catch (error) {
-      console.error("Error requesting revoke:", error);
+    } catch (error: any) {
+      console.error("Error requesting revoke:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
       throw error;
     }
   },
@@ -67,8 +113,12 @@ export const rmcreditService = {
         otp 
       });
       return res;
-    } catch (error) {
-      console.error("Error verifying revoke:", error);
+    } catch (error: any) {
+      console.error("Error verifying revoke:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
       throw error;
     }
   },
@@ -77,9 +127,50 @@ export const rmcreditService = {
     try {
       const res = await apiClient.get(`/rmcredit/admin/${agentId}`);
       return res;
-    } catch (error) {
-      console.error("Error fetching agent credit details:", error);
-      throw error;
+    } catch (error: any) {
+      // If it's 404 (wallet not found), return empty wallet data
+      if (error?.response?.status === 404) {
+        console.log("No wallet found for agent - returning empty data");
+        return {
+          data: {
+            success: true,
+            data: {
+              wallet: {
+                balance: 0,
+                totalCredit: 0,
+                usedCredit: 0,
+                revokeOtp: null,
+                revokeOtpExpiresAt: null,
+                revokeAmount: null,
+                expiryDate: null,
+                status: null
+              },
+              transactions: []
+            }
+          }
+        };
+      }
+      
+      // For other errors, log and return empty data
+      console.error("Error fetching agent credit details:", error?.message);
+      return {
+        data: {
+          success: true,
+          data: {
+            wallet: {
+              balance: 0,
+              totalCredit: 0,
+              usedCredit: 0,
+              revokeOtp: null,
+              revokeOtpExpiresAt: null,
+              revokeAmount: null,
+              expiryDate: null,
+              status: null
+            },
+            transactions: []
+          }
+        }
+      };
     }
   }
 };

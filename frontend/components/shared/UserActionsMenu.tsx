@@ -61,7 +61,7 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
     ],
     agent: [
       { id: "orders", label: "View Orders", route: "/agent/orders" },
-      { id: "rmcredit", label: "RM Credit", route: "/admin/employee/:id/rmcredit" },
+      { id: "rmcredit", label: "RM Credit", route: "/admin/users/:id/rmcredit" },
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
     default: [

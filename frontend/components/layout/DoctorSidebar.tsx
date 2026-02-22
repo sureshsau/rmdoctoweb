@@ -29,6 +29,7 @@ export default function DoctorSidebar({ isOpen = false, onClose }: DoctorSidebar
         { name: "Overview", href: "/doctor/dashboard", icon: LayoutDashboard },
         { name: "My Wallet", href: "/doctor/wallet", icon: Users },
         { name: "Attendance", href: "/doctor/attendance", icon: Clock },
+        { name: "Wallet", href: "/doctor/wallet", icon: ShieldCheck },
     ];
 
     return (

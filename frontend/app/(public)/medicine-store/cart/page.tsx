@@ -80,7 +80,7 @@ export default function PublicCartPage() {
     const [locLoading, setLocLoading] = useState(false);
 
     const isAgent = useMemo(() =>
-        user?.roles?.some((r) => r.toLowerCase().includes("agent") || r.toLowerCase().includes("admin")) ?? false,
+        user?.roles?.some((r) => r.toLowerCase().includes("agent")) ?? false,
         [user]);
 
     // Financial Breakdown
@@ -332,8 +332,8 @@ if (!razorpayReady || typeof window.Razorpay !== "function") {
                         {step === 'cart' && (
                             <div className="space-y-4 animate-in slide-in-from-bottom-5 duration-500">
                                 {items.map(item => (
-                                    <div key={item._id} className="bg-white p-5 rounded-[32px] shadow-sm border border-gray-100 flex gap-5 group transition-hover">
-                                        <div className="w-24 h-24 bg-gray-50 rounded-[24px] flex items-center justify-center shrink-0 p-4">
+                                    <div key={item._id} className="bg-white p-5 rounded-4xl shadow-sm border border-gray-100 flex gap-5 group transition-hover">
+                                        <div className="w-24 h-24 bg-gray-50 rounded-3xl flex items-center justify-center shrink-0 p-4">
                                             {item.images?.[0]?.url ? (
                                                 <img src={item.images[0].url} className="w-full h-full object-contain mix-blend-multiply" />
                                             ) : <Pill className="text-gray-200 w-10 h-10" />}
@@ -428,11 +428,12 @@ if (!razorpayReady || typeof window.Razorpay !== "function") {
                                         />
                                         <PaymentOption
                                             active={paymentMode === 'RM_CREDIT'}
-                                            onClick={() => setPaymentMode('RM_CREDIT')}
+                                            onClick={isAgent ? () => setPaymentMode('RM_CREDIT') : undefined}
                                             label="RM Docto Credit"
-                                            desc="Use your health points for instant checkout."
+                                            desc={isAgent ? "Use your health points for instant checkout." : "Only available for agents."}
                                             badge="SYSTEM"
                                             icon={<CreditCard className="w-6 h-6" />}
+                                            disabled={!isAgent}
                                         />
                                     </div>
                                 </section>

@@ -216,6 +216,8 @@ export const verifyOtpLogin = async (req, res) => {
         dashboard: user.dashboard,
         roles: user.roles || [],
         permissions: user.permissions || [],
+        profileImage: user.faceImage?.url || null,
+        rmCoinsBalance: user.rmCoinsBalance || 0,
       }
     });
 

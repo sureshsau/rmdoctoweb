@@ -79,4 +79,30 @@ export const getAllDoctorsController = async (req, res) => {
   }
 };
 
+export const getAllRMRidersController = async (req, res) => {
+  try {
+    const riders = await USER.find({
+      roles: { $in: ["rmrider"] },
+      isActive: true,
+      isBlocked: false
+    })
+      .select("_id faceImage.url name email phone dashboard createdAt")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: "RM Riders fetched successfully",
+      count: riders.length,
+      data: riders,
+    });
+
+  } catch (error) {
+    console.error("Error in getAllRMRidersController:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 

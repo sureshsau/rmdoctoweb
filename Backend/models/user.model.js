@@ -46,6 +46,7 @@ const UserSchema = new mongoose.Schema(
         "marketing_agent",
         "receptionist",
         "user",
+        "rmrider"
       ],
       default: "user",
     },

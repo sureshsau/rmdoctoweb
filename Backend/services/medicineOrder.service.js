@@ -76,35 +76,13 @@ export const createMedicineOrder = async ({
       }
     }
 
-    // CASE 2: Not linked OR not an agent → pick random
-    if (!marketingAgentId) {
-      console.log("marketing agent not found assign rendom")
-      const [{ _id } = {}] = await User.aggregate([
-        {
-          $match: {
-            roles: { $in: ["marketing_agent"] },
-            isActive: true,
-            isBlocked: false
-          }
-        },
-        { $project: { _id: 1 } },
-        { $sample: { size: 1 } }
-      ]);
-
-      if (!_id) {
-        throw new AppError("No marketing agent available", 400);
-      }
-
-      marketingAgentId = _id;
-    }
-
     const payableAmount = subtotal + gstTotal;
 
     const [createdOrder] = await MedicineOrder.create(
       [
         {
           userId,
-          deliveryAgentId: marketingAgentId,
+          marketingAgentId,
           items: processedItems,
           pricing: {
             subtotal,
@@ -197,6 +175,7 @@ export const createMedicineOrder = async ({
     return paymentResponse || createdOrder;
 
   } catch (error) {
+    console.error("Error in createMedicineOrder:", error);
     await session.abortTransaction();
     session.endSession();
     throw error;
@@ -403,40 +382,124 @@ export const getAllMedicineOrdersOverview = async ({
   page = 1,
   limit = 20
 }) => {
+
   const currentPage = Number(page) || 1;
   const perPage = Number(limit) || 20;
 
   const query = {};
 
-  if (filters.orderStatus) query.orderStatus = filters.orderStatus;
-  if (filters.paymentStatus) query.paymentStatus = filters.paymentStatus;
-  if (filters.paymentMode) query.paymentMode = filters.paymentMode;
-  if (filters.userId) query.userId = filters.userId;
-  if (filters.deliveryAgentId) query.deliveryAgentId = filters.deliveryAgentId;
-
-  if (filters.fromDate || filters.toDate) {
-    query.createdAt = {};
-    if (filters.fromDate)
-      query.createdAt.$gte = new Date(filters.fromDate);
-    if (filters.toDate) {
-      const end = new Date(filters.toDate);
-      end.setHours(23, 59, 59, 999);
-      query.createdAt.$lte = end;
-    }
+  // ----------- ORDER STATUS -----------
+  if (
+    filters.orderStatus &&
+    filters.orderStatus !== "null" &&
+    filters.orderStatus !== "undefined"
+  ) {
+    query.orderStatus = filters.orderStatus;
   }
 
+  // ----------- PAYMENT STATUS -----------
+  if (
+    filters.paymentStatus &&
+    filters.paymentStatus !== "null" &&
+    filters.paymentStatus !== "undefined"
+  ) {
+    query.paymentStatus = filters.paymentStatus;
+  }
+
+  // ----------- PAYMENT MODE -----------
+  if (
+    filters.paymentMode &&
+    filters.paymentMode !== "null" &&
+    filters.paymentMode !== "undefined"
+  ) {
+    query.paymentMode = filters.paymentMode;
+  }
+
+  // ----------- CUSTOMER FILTER -----------
+  if (
+    filters.userId &&
+    filters.userId !== "null" &&
+    filters.userId !== "undefined" &&
+    mongoose.Types.ObjectId.isValid(filters.userId)
+  ) {
+    query.userId = new mongoose.Types.ObjectId(filters.userId);
+  }
+
+  // ----------- RM RIDER FILTER -----------
+  if (
+    filters.deliveryAgentId &&
+    filters.deliveryAgentId !== "null" &&
+    filters.deliveryAgentId !== "undefined" &&
+    mongoose.Types.ObjectId.isValid(filters.deliveryAgentId)
+  ) {
+    query.deliveryAgentId = new mongoose.Types.ObjectId(
+      filters.deliveryAgentId
+    );
+  }
+
+  // ----------- MARKETING AGENT FILTER -----------
+  if (
+    filters.marketingAgentId &&
+    filters.marketingAgentId !== "null" &&
+    filters.marketingAgentId !== "undefined" &&
+    mongoose.Types.ObjectId.isValid(filters.marketingAgentId)
+  ) {
+    query.marketingAgentId = new mongoose.Types.ObjectId(
+      filters.marketingAgentId
+    );
+  }
+
+  // ----------- DATE FILTER -----------
+  // ----------- DATE FILTER (FIXED) -----------
+
+const isValidFromDate =
+  filters.fromDate &&
+  filters.fromDate !== "null" &&
+  filters.fromDate !== "undefined" &&
+  filters.fromDate !== "" &&
+  !isNaN(new Date(filters.fromDate));
+
+const isValidToDate =
+  filters.toDate &&
+  filters.toDate !== "null" &&
+  filters.toDate !== "undefined" &&
+  filters.toDate !== "" &&
+  !isNaN(new Date(filters.toDate));
+
+if (isValidFromDate || isValidToDate) {
+  query.createdAt = {};
+
+  if (isValidFromDate) {
+    query.createdAt.$gte = new Date(filters.fromDate);
+  }
+
+  if (isValidToDate) {
+    const end = new Date(filters.toDate);
+    end.setHours(23, 59, 59, 999);
+    query.createdAt.$lte = end;
+  }
+}
+
+  console.log("Final Query:", query);
+
+  // ----------- TOTAL COUNT -----------
   const totalRecords = await MedicineOrder.countDocuments(query);
 
+  // ----------- FETCH DATA -----------
   const orders = await MedicineOrder.find(query)
     .sort({ createdAt: -1 })
     .skip((currentPage - 1) * perPage)
     .limit(perPage)
-    .select("items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId createdAt")
+    .select(
+      "items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId marketingAgentId createdAt"
+    )
     .populate("items.medicineId", "name images")
     .populate("userId", "name phone")
     .populate("deliveryAgentId", "name phone")
+    .populate("marketingAgentId", "name phone")
     .lean();
 
+  // ----------- RESPONSE MAPPING -----------
   const data = orders.map(order => {
     const firstItem = order.items?.[0];
 
@@ -448,6 +511,7 @@ export const getAllMedicineOrdersOverview = async ({
       payableAmount: order.pricing?.payableAmount || 0,
       createdAt: order.createdAt,
       customer: order.userId,
+      marketingAgent: order.marketingAgentId,
       deliveryAgent: order.deliveryAgentId,
       medicine: firstItem
         ? {

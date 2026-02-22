@@ -1,494 +1,389 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Plus, Minus, Filter, Download, DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
-import { Card, StatCard } from '@/components/admin/Card';
-import { Table, Pagination } from '@/components/admin/Table';
-import { Input, Select } from '@/components/admin/Input';
-import { Button } from '@/components/admin/Button';
-import { Badge } from '@/components/admin/Badge';
-import { Modal, ModalHeader, ModalFooter } from '@/components/admin/Modal';
+import React, { useEffect, useState } from "react";
+import { walletService } from "@/services/wallet.service";
+import { 
+  Coins, 
+  Loader2, 
+  RefreshCw, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Wallet,
+  AlertCircle 
+} from "lucide-react";
 
-// Utility functions
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const formatTime = (date: string) => {
-  return new Date(date).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-// Mock data
-const transactionData = [
-  {
-    id: 'TXN001',
-    type: 'credit',
-    amount: 5000,
-    description: 'Initial wallet setup',
-    date: '2025-11-29T09:00:00Z',
-    reference: 'INIT-001',
-    status: 'completed',
-  },
-  {
-    id: 'TXN002',
-    type: 'debit',
-    amount: 500,
-    description: 'Employee bonus payment',
-    date: '2025-11-28T14:30:00Z',
-    reference: 'BONUS-EMP001',
-    status: 'completed',
-  },
-  {
-    id: 'TXN003',
-    type: 'credit',
-    amount: 2500,
-    description: 'Monthly revenue addition',
-    date: '2025-11-27T16:45:00Z',
-    reference: 'REV-2025-11',
-    status: 'completed',
-  },
-  {
-    id: 'TXN004',
-    type: 'debit',
-    amount: 300,
-    description: 'Office supplies purchase',
-    date: '2025-11-26T11:15:00Z',
-    reference: 'SUP-001',
-    status: 'completed',
-  },
-  {
-    id: 'TXN005',
-    type: 'debit',
-    amount: 750,
-    description: 'Marketing campaign payment',
-    date: '2025-11-25T13:20:00Z',
-    reference: 'MKT-001',
-    status: 'completed',
-  },
-  {
-    id: 'TXN006',
-    type: 'credit',
-    amount: 1200,
-    description: 'Client payment received',
-    date: '2025-11-24T10:00:00Z',
-    reference: 'CLIENT-PAY-001',
-    status: 'completed',
-  },
-  {
-    id: 'TXN007',
-    type: 'debit',
-    amount: 450,
-    description: 'Utility bill payment',
-    date: '2025-11-23T15:30:00Z',
-    reference: 'UTIL-001',
-    status: 'pending',
-  },
-];
-
-const filterOptions = [
-  { value: 'all', label: 'All Transactions' },
-  { value: 'credit', label: 'Credits' },
-  { value: 'debit', label: 'Debits' },
-];
-
-const timeFilterOptions = [
-  { value: 'all', label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-];
-
-interface Transaction {
-  id: string;
-  type: 'credit' | 'debit';
+interface RMCoinsLog {
+  _id: string;
   amount: number;
+  fromUserId?: { _id: string; name: string } | string;
+  toUserId?: { _id: string; name: string } | string;
+  type: string;
   description: string;
-  date: string;
-  reference: string;
-  status: 'completed' | 'pending' | 'failed';
+  createdAt: string;
 }
 
-export default function WalletPage() {
-  const [transactions, setTransactions] = useState(transactionData);
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAddFundsModalOpen, setIsAddFundsModalOpen] = useState(false);
-  const [isDeductFundsModalOpen, setIsDeductFundsModalOpen] = useState(false);
-  const [fundForm, setFundForm] = useState({
-    amount: '',
-    description: '',
-    reference: '',
-  });
+interface RMCoinsWallet {
+  userId: string;
+  name: string;
+  balance: number;
+  totalSent: number;
+  totalReceived: number;
+}
 
-  const itemsPerPage = 10;
+interface RMCoinsData {
+  wallet: RMCoinsWallet;
+  logs: RMCoinsLog[];
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalRecords: number;
+  };
+}
 
-  // Calculate current balance
-  const currentBalance = transactions
-    .filter(t => t.status === 'completed')
-    .reduce((balance, transaction) => {
-      return transaction.type === 'credit' 
-        ? balance + transaction.amount 
-        : balance - transaction.amount;
-    }, 0);
-
-  // Filter data
-  const filteredData = transactions.filter((item) => {
-    const matchesType = typeFilter === 'all' || item.type === typeFilter;
-    return matchesType;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Calculate stats
-  const totalCredits = transactions
-    .filter(t => t.type === 'credit' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
+export default function AdminWalletPage() {
+  const [rmcoins, setRmcoins] = useState<RMCoinsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  const totalDebits = transactions
-    .filter(t => t.type === 'debit' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Recharge modal state
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [rechargeAmount, setRechargeAmount] = useState("");
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+  const [rechargeError, setRechargeError] = useState("");
+  const [rechargeSuccess, setRechargeSuccess] = useState("");
 
-  const pendingTransactions = transactions.filter(t => t.status === 'pending').length;
-
-  const handleAddFunds = () => {
-    const newTransaction: Transaction = {
-      id: `TXN${String(transactions.length + 1).padStart(3, '0')}`,
-      type: 'credit',
-      amount: parseFloat(fundForm.amount),
-      description: fundForm.description,
-      date: new Date().toISOString(),
-      reference: fundForm.reference || `ADD-${Date.now()}`,
-      status: 'completed',
-    };
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
     
-    setTransactions([newTransaction, ...transactions]);
-    setIsAddFundsModalOpen(false);
-    resetFundForm();
+    try {
+      // Fetch RM Coins data
+      console.log("Fetching RM Coins...");
+      const coinsRes = await walletService.getAdminRMCoinsLogs();
+      console.log("RM Coins response:", coinsRes);
+      
+      // Process RM Coins data
+      if (coinsRes?.data) {
+        // Handle different response structures
+        const coinsData = coinsRes.data.data || coinsRes.data;
+        
+        setRmcoins({
+          wallet: {
+            userId: coinsData.wallet?.userId || '',
+            name: coinsData.wallet?.name || 'Admin',
+            balance: coinsData.wallet?.balance ?? coinsData.balance ?? 0,
+            totalSent: coinsData.wallet?.totalSent ?? 0,
+            totalReceived: coinsData.wallet?.totalReceived ?? 0
+          },
+          logs: Array.isArray(coinsData.logs) ? coinsData.logs : [],
+          pagination: coinsData.pagination || {
+            page: 1,
+            totalPages: 1,
+            totalRecords: 0
+          }
+        });
+      }
+      
+    } catch (err: any) {
+      console.error("Failed to fetch wallet data:", err);
+      setError(err?.message || "Failed to load wallet data");
+      
+      // Set empty data on error
+      setRmcoins({
+        wallet: { userId: '', name: 'Admin', balance: 0, totalSent: 0, totalReceived: 0 },
+        logs: [],
+        pagination: { page: 1, totalPages: 1, totalRecords: 0 }
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeductFunds = () => {
-    const newTransaction: Transaction = {
-      id: `TXN${String(transactions.length + 1).padStart(3, '0')}`,
-      type: 'debit',
-      amount: parseFloat(fundForm.amount),
-      description: fundForm.description,
-      date: new Date().toISOString(),
-      reference: fundForm.reference || `DED-${Date.now()}`,
-      status: 'completed',
-    };
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return "Invalid date";
+    }
+  };
+
+  const getTransactionTypeColor = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'admin_recharge':
+        return 'text-green-600 bg-green-50';
+      case 'admin_transfer':
+        return 'text-blue-600 bg-blue-50';
+      case 'transfer':
+        return 'text-purple-600 bg-purple-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'admin_recharge':
+        return <ArrowDownLeft className="w-3 h-3" />;
+      case 'admin_transfer':
+      case 'transfer':
+        return <ArrowUpRight className="w-3 h-3" />;
+      default:
+        return <Wallet className="w-3 h-3" />;
+    }
+  };
+
+  const getUserName = (user: any) => {
+    if (!user) return 'System';
+    if (typeof user === 'string') return user;
+    return user.name || 'Unknown';
+  };
+
+  const handleRecharge = async () => {
+    setRechargeError("");
+    setRechargeSuccess("");
+    setRechargeLoading(true);
     
-    setTransactions([newTransaction, ...transactions]);
-    setIsDeductFundsModalOpen(false);
-    resetFundForm();
+    try {
+      const amt = Number(rechargeAmount);
+      if (isNaN(amt) || amt <= 0) {
+        setRechargeError("Enter a valid amount");
+        setRechargeLoading(false);
+        return;
+      }
+      
+      const res = await walletService.adminRecharge(amt);
+      
+      if (res.data?.success) {
+        setRechargeSuccess("Recharge successful!");
+        setTimeout(() => {
+          setShowRechargeModal(false);
+          setRechargeAmount("");
+          setRechargeError("");
+          setRechargeSuccess("");
+          fetchData(); // Refresh data
+        }, 1500);
+      } else {
+        setRechargeError(res.data?.message || "Recharge failed");
+      }
+    } catch (err: any) {
+      setRechargeError(err?.response?.data?.message || err?.message || "Recharge failed");
+    } finally {
+      setRechargeLoading(false);
+    }
   };
 
-  const resetFundForm = () => {
-    setFundForm({
-      amount: '',
-      description: '',
-      reference: '',
-    });
-  };
-
-  const handleExportCSV = () => {
-    const headers = ['Transaction ID', 'Type', 'Amount', 'Description', 'Date', 'Reference', 'Status'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredData.map(row => [
-        row.id,
-        row.type,
-        row.amount,
-        row.description,
-        row.date,
-        row.reference,
-        row.status
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wallet-transactions-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const transactionColumns = [
-    {
-      key: 'id',
-      header: 'Transaction ID',
-      className: 'font-medium',
-    },
-    {
-      key: 'type',
-      header: 'Type',
-      render: (value: string) => (
-        <Badge variant={value === 'credit' ? 'success' : 'danger'}>
-          {value.charAt(0).toUpperCase() + value.slice(1)}
-        </Badge>
-      ),
-    },
-    {
-      key: 'amount',
-      header: 'Amount',
-      render: (value: number, row: Transaction) => (
-        <span className={`font-medium ${row.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-          {row.type === 'credit' ? '+' : '-'}{formatCurrency(value)}
-        </span>
-      ),
-    },
-    {
-      key: 'description',
-      header: 'Description',
-    },
-    {
-      key: 'date',
-      header: 'Date & Time',
-      render: (value: string) => (
-        <div>
-          <div className="font-medium">{formatDate(value)}</div>
-          <div className="text-sm text-gray-500">{formatTime(value)}</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-cyan-600 animate-spin" />
+          <p className="text-sm text-gray-500">Loading wallet data...</p>
         </div>
-      ),
-    },
-    {
-      key: 'reference',
-      header: 'Reference',
-      className: 'font-mono text-sm',
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (value: string) => (
-        <Badge variant={
-          value === 'completed' ? 'success' : 
-          value === 'pending' ? 'warning' : 
-          'danger'
-        }>
-          {value.charAt(0).toUpperCase() + value.slice(1)}
-        </Badge>
-      ),
-    },
-  ];
-
-  const FundForm = ({ 
-    onSubmit, 
-    submitLabel, 
-    type 
-  }: { 
-    onSubmit: () => void; 
-    submitLabel: string;
-    type: 'add' | 'deduct';
-  }) => (
-    <div className="space-y-4">
-      <Input
-        label="Amount"
-        type="number"
-        value={fundForm.amount}
-        onChange={(e) => setFundForm({ ...fundForm, amount: e.target.value })}
-        placeholder="0.00"
-        required
-      />
-      
-      <Input
-        label="Description"
-        value={fundForm.description}
-        onChange={(e) => setFundForm({ ...fundForm, description: e.target.value })}
-        placeholder={`Reason for ${type === 'add' ? 'adding' : 'deducting'} funds`}
-        required
-      />
-      
-      <Input
-        label="Reference (Optional)"
-        value={fundForm.reference}
-        onChange={(e) => setFundForm({ ...fundForm, reference: e.target.value })}
-        placeholder="Custom reference number"
-      />
-
-      <ModalFooter>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setIsAddFundsModalOpen(false);
-            setIsDeductFundsModalOpen(false);
-            resetFundForm();
-          }}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={onSubmit}
-          variant={type === 'add' ? 'primary' : 'danger'}
-        >
-          {submitLabel}
-        </Button>
-      </ModalFooter>
-    </div>
-  );
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      {/* Header with Refresh */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Wallet Management</h1>
-          <p className="text-gray-600">Manage organization funds and transaction history</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+            Admin Wallet
+          </h1>
+          <p className="text-gray-500 font-medium mt-1 text-sm sm:text-base">
+            Manage RM Coins and view transaction history
+          </p>
+        </div>
+        <button
+          onClick={fetchData}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition shadow-sm"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+
+      {/* RM Coins Card */}
+      <div className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 rounded-2xl p-6 border border-yellow-200 mb-8">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <Coins className="w-5 h-5" />
+              </div>
+              <h2 className="text-xl font-black text-gray-900">RM Coins Wallet</h2>
+            </div>
+            <p className="text-sm text-gray-600">Transferable coins for users</p>
+          </div>
+          <button
+            onClick={() => setShowRechargeModal(true)}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-xl font-bold text-sm hover:bg-yellow-700 transition shadow-md"
+          >
+            Recharge Wallet
+          </button>
         </div>
         
-        <div className="flex gap-3">
-          <Button
-            onClick={() => setIsAddFundsModalOpen(true)}
-            className="flex items-center gap-2"
-            variant="primary"
-          >
-            <Plus className="h-4 w-4" />
-            Add Funds
-          </Button>
-          <Button
-            onClick={() => setIsDeductFundsModalOpen(true)}
-            className="flex items-center gap-2"
-            variant="danger"
-          >
-            <Minus className="h-4 w-4" />
-            Deduct Funds
-          </Button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white/80 rounded-xl p-4">
+            <p className="text-xs text-gray-500 mb-1">Current Balance</p>
+            <p className="text-2xl font-black text-yellow-700">
+              {rmcoins?.wallet?.balance?.toLocaleString() ?? 0}
+            </p>
+          </div>
+          <div className="bg-white/80 rounded-xl p-4">
+            <p className="text-xs text-gray-500 mb-1">Total Sent</p>
+            <p className="text-xl font-bold text-blue-600">
+              {rmcoins?.wallet?.totalSent?.toLocaleString() ?? 0}
+            </p>
+          </div>
+          <div className="bg-white/80 rounded-xl p-4">
+            <p className="text-xs text-gray-500 mb-1">Total Received</p>
+            <p className="text-xl font-bold text-green-600">
+              {rmcoins?.wallet?.totalReceived?.toLocaleString() ?? 0}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Balance & Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          title="Current Balance"
-          value={formatCurrency(currentBalance)}
-          change="Available funds"
-          changeType="neutral"
-          icon={<DollarSign className="h-6 w-6 text-blue-600" />}
-        />
+      {/* Transaction Logs */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-yellow-50 to-transparent">
+          <h2 className="text-lg font-black text-gray-900">Transaction History</h2>
+          <p className="text-xs text-gray-500">Recent RM Coins transactions</p>
+        </div>
         
-        <StatCard
-          title="Total Credits"
-          value={formatCurrency(totalCredits)}
-          change="+12% this month"
-          changeType="positive"
-          icon={<TrendingUp className="h-6 w-6 text-green-600" />}
-        />
-        
-        <StatCard
-          title="Total Debits"
-          value={formatCurrency(totalDebits)}
-          change="-5% from last month"
-          changeType="negative"
-          icon={<TrendingDown className="h-6 w-6 text-red-600" />}
-        />
-        
-        <Card className="text-center">
-          <div className="text-2xl font-bold text-orange-600">{pendingTransactions}</div>
-          <div className="text-sm text-gray-600 font-medium">Pending Transactions</div>
-        </Card>
-      </div>
+        <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+          {rmcoins?.logs && rmcoins.logs.length > 0 ? (
+            rmcoins.logs.map((log) => (
+              <div key={log._id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`p-1.5 rounded-lg ${getTransactionTypeColor(log.type)}`}>
+                      {getTransactionIcon(log.type)}
+                    </span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {log.type?.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <span className={`text-sm font-black ${
+                    ['admin_recharge', 'credit', 'transfer'].includes(log.type?.toLowerCase()) && 
+                    log.toUserId ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {['admin_recharge', 'credit', 'transfer'].includes(log.type?.toLowerCase()) && 
+                     log.toUserId ? '+' : '-'}{Math.abs(log.amount).toLocaleString()}
+                  </span>
+                </div>
+                
+                <div className="ml-8 space-y-1">
+                  <p className="text-xs text-gray-600">
+                    {log.description || 'No description'}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                    <span>From: {getUserName(log.fromUserId)}</span>
+                    <span>→</span>
+                    <span>To: {getUserName(log.toUserId)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-gray-400">
+                    <span>ID: {log._id.slice(-6)}</span>
+                    <span>{formatDate(log.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-xl mx-auto flex items-center justify-center mb-3">
+                <Coins className="w-6 h-6 text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500">No transactions found</p>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {/* Filters */}
-      <Card>
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-            <Select
-              label="Transaction Type"
-              options={filterOptions}
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            />
+      {/* RM Coins Recharge Modal */}
+      {showRechargeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+              <h2 className="text-xl font-black">Recharge RM Coins</h2>
+              <p className="text-sm opacity-90">Add coins to your admin wallet</p>
+            </div>
             
-            <Select
-              label="Time Period"
-              options={timeFilterOptions}
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-            />
+            <div className="p-6">
+              {rechargeError && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                  {rechargeError}
+                </div>
+              )}
+              
+              {rechargeSuccess && (
+                <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm">
+                  {rechargeSuccess}
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none text-lg font-bold"
+                    placeholder="Enter amount"
+                    disabled={rechargeLoading || rechargeSuccess}
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowRechargeModal(false);
+                      setRechargeAmount("");
+                      setRechargeError("");
+                      setRechargeSuccess("");
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition"
+                    disabled={rechargeLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRecharge}
+                    disabled={rechargeLoading || rechargeSuccess || !rechargeAmount}
+                    className="flex-1 px-4 py-3 bg-yellow-600 text-white rounded-xl font-bold hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {rechargeLoading ? "Processing..." : rechargeSuccess ? "Done" : "Recharge"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
         </div>
-      </Card>
-
-      {/* Transaction History */}
-      <Card 
-        title="Transaction History" 
-        subtitle={`Showing ${paginatedData.length} of ${filteredData.length} transactions`}
-      >
-        <Table
-          columns={transactionColumns}
-          data={paginatedData}
-          emptyMessage="No transactions found"
-        />
-        
-        {totalPages > 1 && (
-          <div className="mt-6">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        )}
-      </Card>
-
-      {/* Add Funds Modal */}
-      <Modal
-        isOpen={isAddFundsModalOpen}
-        onClose={() => setIsAddFundsModalOpen(false)}
-        title="Add Funds to Wallet"
-        size="md"
-      >
-        <FundForm 
-          onSubmit={handleAddFunds} 
-          submitLabel="Add Funds" 
-          type="add"
-        />
-      </Modal>
-
-      {/* Deduct Funds Modal */}
-      <Modal
-        isOpen={isDeductFundsModalOpen}
-        onClose={() => setIsDeductFundsModalOpen(false)}
-        title="Deduct Funds from Wallet"
-        size="md"
-      >
-        <FundForm 
-          onSubmit={handleDeductFunds} 
-          submitLabel="Deduct Funds" 
-          type="deduct"
-        />
-      </Modal>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,90 +1,55 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useEffect } from 'react'; // ✅ added useEffect
-import { useRouter } from "next/navigation";                   // ✅ added
-import { Sidebar } from '@/components/admin/Sidebar';
-import { TopBar } from '@/components/admin/TopBar';
-import { cn } from '@/lib/utils';
-import { getUserFromToken } from "@/lib/auth";                  // ✅ added
-import { requireRole } from "@/lib/roleGuard";
+import { useState } from "react";
+import { Menu } from "lucide-react";
+import AdminSidebar from "@/components/layout/AdminSidebar";
+import RoleGuard from "@/components/RoleGuard";
+
 export default function AdminLayout({
-  children,
+    children,
 }: {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }) {
-  const router = useRouter();                                   // ✅ added
-  const [authChecked, setAuthChecked] = useState(false);        // ✅ added
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarCollapsed(prev => !prev);
-  }, []);
-
-  const toggleMobileSidebar = useCallback(() => {
-    setIsMobileSidebarOpen(prev => !prev);
-  }, []);
-
-  const closeMobileSidebar = useCallback(() => {
-    setIsMobileSidebarOpen(false);
-  }, []);
-
-   useEffect(() => {
-    const ok = requireRole(router, ["admin"]);
-    if (ok) setAuthChecked(true);
-  }, [router]);
-
-  if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-semibold">
-        Verifying admin access...
-      </div>
+        <RoleGuard allowed={["admin", "subadmin"]}>
+            <div className="min-h-screen app-shell flex">
+                <AdminSidebar
+                    isOpen={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                />
+
+                {sidebarOpen && (
+                    <button
+                        type="button"
+                        aria-label="Close sidebar"
+                        className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-[2px]"
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
+
+                <div className="flex-1 min-h-screen min-w-0 lg:ml-64">
+                    <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-100 lg:hidden shrink-0">
+                        <div className="h-14 px-4 flex items-center justify-between">
+                            <button
+                                type="button"
+                                aria-label="Open menu"
+                                className="p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50"
+                                onClick={() => setSidebarOpen(true)}
+                            >
+                                <Menu className="w-5 h-5 text-slate-700" />
+                            </button>
+                            <span className="text-sm font-bold text-slate-800">Admin</span>
+                            <div className="w-10" />
+                        </div>
+                    </header>
+
+                    <main className="app-main">
+                        {children}
+                    </main>
+                </div>
+            </div>
+        </RoleGuard>
     );
-  }
-
-  return (
-    <div className="min-h-screen flex bg-gray-50 fixed inset-0">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block">
-        <Sidebar 
-          isCollapsed={isSidebarCollapsed} 
-          onToggleCollapse={toggleSidebar}
-        />
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {isMobileSidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
-            onClick={closeMobileSidebar}
-          />
-          
-          {/* Sidebar */}
-          <div className="relative transform transition-transform duration-300 ease-in-out">
-            <Sidebar
-              isCollapsed={false}
-              onToggleCollapse={toggleSidebar}
-              isMobile={true}
-              onCloseMobile={closeMobileSidebar}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar 
-          onToggleSidebar={toggleSidebar}
-          onToggleMobileSidebar={toggleMobileSidebar}
-        />
-        
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
 }

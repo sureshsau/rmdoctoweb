@@ -1,20 +1,12 @@
 'use client';
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/layout/Navbar";
 import { usePathname } from 'next/navigation';
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { AuthProvider } from "@/state/AuthContext";
+import { AuthGate } from "@/state/AuthGate";
+import { MedicineCartProvider } from "@/context/MedicineCartContext";
 
 // Note: metadata should be exported from a separate metadata file for client components
 // For now, we'll keep it simple
@@ -24,13 +16,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthRoute = pathname?.startsWith('/auth');
   const isCheckInOut = pathname?.startsWith('/ChekInOut');
+  const isMedicineStore = pathname?.startsWith('/medicine-store');
+  const isMarketingAgentRoute = pathname?.startsWith('/marketing-agent');
+  const isAgentRoute = pathname?.startsWith('/agent');
+  const isDoctorRoute = pathname?.startsWith('/doctor');
+  const isReceptionistRoute = pathname?.startsWith('/receptionist');
+
   return (
     <>
       {/* Show navbar only for non-admin routes */}
-      {(!isAdminRoute && !isAuthRoute && !isCheckInOut ) && <Navbar />}
-      
+      {(!isAdminRoute && !isAuthRoute && !isCheckInOut && !isMedicineStore && !isMarketingAgentRoute && !isAgentRoute && !isDoctorRoute && !isReceptionistRoute) && <Navbar />}
+
       {/* Content wrapper: add top padding for regular pages, none for auth or admin */}
-      <div className={isAdminRoute || isAuthRoute || isCheckInOut ? "" : "pt-20"}>
+      <div className={isAdminRoute || isAuthRoute || isCheckInOut || isMedicineStore || isMarketingAgentRoute || isAgentRoute || isDoctorRoute || isReceptionistRoute ? "" : "pt-20"}>
         {children}
       </div>
     </>
@@ -45,9 +43,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
-        <LayoutContent>{children}</LayoutContent>
+        <AuthProvider>
+          <AuthGate>
+            <MedicineCartProvider>
+              <LayoutContent>{children}</LayoutContent>
+            </MedicineCartProvider>
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

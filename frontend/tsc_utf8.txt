@@ -1,0 +1,19 @@
+﻿app/(public)/auth/verifyOtp/verifyOtp.tsx(161,7): error TS2552: Cannot find name 'setCanResend'. Did you mean 'canResend'?
+app/admin/layout.tsx(12,39): error TS2322: Type '"subadmin"' is not assignable to type 'UserRole'.
+app/admin/medicine/page.tsx(67,17): error TS2304: Cannot find name 'key'.
+app/admin/medicine/page.tsx(68,53): error TS2304: Cannot find name 'value'.
+app/admin/medicine/page.tsx(70,24): error TS2304: Cannot find name 'key'.
+app/admin/medicine/page.tsx(77,47): error TS2304: Cannot find name 'value'.
+app/admin/medicine/page.tsx(78,53): error TS2304: Cannot find name 'value'.
+app/admin/medicine/page.tsx(79,54): error TS2304: Cannot find name 'value'.
+app/admin/medicine/page.tsx(81,29): error TS2304: Cannot find name 'key'.
+app/admin/medicine/page.tsx(81,34): error TS2304: Cannot find name 'value'.
+app/admin/medicine/page.tsx(151,41): error TS2322: Type '{ url: string; key: string; }' is not assignable to type 'string | Blob | undefined'.
+app/admin/medicine/page.tsx(167,75): error TS2322: Type 'string | { name: string; licenseNumber?: string | undefined; address?: string | undefined; }' is not assignable to type 'ReactNode'.
+  Type '{ name: string; licenseNumber?: string | undefined; address?: string | undefined; }' is not assignable to type 'ReactNode'.
+app/admin/medicine/page.tsx(169,86): error TS2339: Property 'price' does not exist on type 'Medicine'.
+app/ChekInOut/page.tsx(144,44): error TS2339: Property 'checkInFace' does not exist on type '{ getGlobalSettings(): Promise<any>; setGlobalSettings(settings: AttendanceSettings): Promise<any>; getMyLogs(): Promise<any>; markAttendance(data: FormData): Promise<...>; }'.
+app/dashboard/medicine/[id]/page.tsx(29,21): error TS2339: Property 'success' does not exist on type 'Medicine'.
+app/dashboard/medicine/[id]/page.tsx(29,36): error TS2339: Property 'data' does not exist on type 'Medicine'.
+app/dashboard/medicine/[id]/page.tsx(30,33): error TS2339: Property 'data' does not exist on type 'Medicine'.
+lib/apiClient.ts(25,5): error TS2578: Unused '@ts-expect-error' directive.

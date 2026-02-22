@@ -1,800 +1,346 @@
-'use client';
+"use client";
 
-import React, {useState,useEffect} from 'react';
-import { Users, UserCheck, DollarSign, Clock, TrendingUp, TrendingDown, Activity, BarChart3, PieChart, Search,Calendar, Bell, Check, X } from 'lucide-react';
-import { Card, StatCard } from '@/components/admin/Card';
-import { Table } from '@/components/admin/Table';
-import { Badge } from '@/components/admin/Badge';
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import axios from "axios";
-import FaceRegister  from "@/components/admin/FaceRegister";
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+    Activity,
+    AlertTriangle,
+    ArrowUpRight,
+    CheckCircle2,
+    Clock,
+    HeartPulse,
+    Package,
+    ShieldCheck,
+    ShoppingBag,
+    Stethoscope,
+    TrendingUp,
+    Users
+} from "lucide-react";
+import { userService } from "@/services/user.service";
+import { orderService, type OrderOverview } from "@/services/order.service";
+import { roleService, type Role } from "@/services/role.service";
+import { type AuthUser } from "@/services/auth.service";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
-// Mock data
-const statsData = [
-  {
-    title: 'Total Employees',
-    value: 248,
-    change: '+12% from last month',
-    changeType: 'positive' as const,
-    icon: <Users className="h-6 w-6 text-blue-600" />,
-    bgColor: 'bg-blue-50',
-  },
-  {
-    title: 'Total Agents',
-    value: 42,
-    change: '+3% from last month',
-    changeType: 'positive' as const,
-    icon: <UserCheck className="h-6 w-6 text-emerald-600" />,
-    bgColor: 'bg-emerald-50',
-  },
-  {
-    title: 'Present Today',
-    value: 215,
-    change: '-2% from yesterday',
-    changeType: 'negative' as const,
-    icon: <Activity className="h-6 w-6 text-amber-600" />,
-    bgColor: 'bg-amber-50',
-  },
-  {
-    title: 'Wallet Balance',
-    value: '$45,250',
-    change: '+8% from last week',
-    changeType: 'positive' as const,
-    icon: <DollarSign className="h-6 w-6 text-violet-600" />,
-    bgColor: 'bg-violet-50',
-  },
-];
-
-// Chart data for monthly attendance overview
-const attendanceChartData = {
-  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-  datasets: [
-    {
-      label: 'Present',
-      data: [210, 215, 220, 225, 218, 230, 235, 240, 228, 232, 238, 215],
-      borderColor: 'rgb(34, 197, 94)',
-      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-      fill: true,
-      tension: 0.4,
-    },
-    {
-      label: 'Absent',
-      data: [38, 33, 28, 23, 30, 18, 13, 8, 20, 16, 10, 33],
-      borderColor: 'rgb(239, 68, 68)',
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      fill: true,
-      tension: 0.4,
-    },
-    {
-      label: 'Late',
-      data: [15, 18, 12, 20, 16, 14, 18, 22, 19, 15, 12, 20],
-      borderColor: 'rgb(245, 158, 11)',
-      backgroundColor: 'rgba(245, 158, 11, 0.1)',
-      fill: true,
-      tension: 0.4,
-    },
-  ],
+type DashboardState = {
+    users: AuthUser[];
+    orders: OrderOverview[];
+    roles: Role[];
 };
 
-const attendanceChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        usePointStyle: true,
-        padding: 20,
-        font: {
-          size: 12,
-          weight: 500,
-        },
-      },
-    },
-    tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      titleColor: 'white',
-      bodyColor: 'white',
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      borderWidth: 1,
-      cornerRadius: 8,
-      displayColors: true,
-    },
-  },
-  scales: {
-    x: {
-      grid: {
-        display: false,
-      },
-      ticks: {
-        font: {
-          size: 11,
-        },
-      },
-    },
-    y: {
-      grid: {
-        color: 'rgba(0, 0, 0, 0.05)',
-      },
-      ticks: {
-        font: {
-          size: 11,
-        },
-      },
-    },
-  },
-  interaction: {
-    intersect: false,
-    mode: 'index' as const,
-  },
-  elements: {
-    point: {
-      radius: 4,
-      hoverRadius: 8,
-    },
-  },
-};
+export default function AdminDashboardPage() {
+    const [data, setData] = useState<DashboardState>({ users: [], orders: [], roles: [] });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-// Department distribution chart
-const departmentChartData = {
-  labels: ['Engineering', 'Marketing', 'Sales', 'HR', 'Finance'],
-  datasets: [
-    {
-      data: [45, 32, 28, 15, 22],
-      backgroundColor: [
-        'rgba(59, 130, 246, 0.8)',
-        'rgba(168, 85, 247, 0.8)',
-        'rgba(34, 197, 94, 0.8)',
-        'rgba(251, 146, 60, 0.8)',
-        'rgba(99, 102, 241, 0.8)',
-      ],
-      borderColor: [
-        'rgba(59, 130, 246, 1)',
-        'rgba(168, 85, 247, 1)',
-        'rgba(34, 197, 94, 1)',
-        'rgba(251, 146, 60, 1)',
-        'rgba(99, 102, 241, 1)',
-      ],
-      borderWidth: 2,
-    },
-  ],
-};
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [usersRes, ordersRes, rolesRes] = await Promise.all([
+                    userService.getAllUsers(),
+                    orderService.getAllOrders({ limit: 25 }),
+                    roleService.getAllRoles()
+                ]);
 
-const departmentChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'bottom' as const,
-      labels: {
-        padding: 15,
-        usePointStyle: true,
-        font: {
-          size: 11,
-        },
-      },
-    },
-    tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      titleColor: 'white',
-      bodyColor: 'white',
-      cornerRadius: 8,
-    },
-  },
-  cutout: '60%',
-};
+                setData({
+                    users: usersRes.success ? usersRes.data : [],
+                    orders: ordersRes.success ? ordersRes.data : [],
+                    roles: rolesRes.success ? rolesRes.data : []
+                });
+            } catch (err) {
+                setError(getApiErrorMessage(err));
+            } finally {
+                setLoading(false);
+            }
+        };
 
-const recentActivityData = [
-  {
-    id: 1,
-    employee: 'John Doe',
-    action: 'Checked In',
-    time: '09:15 AM',
-    status: 'Present',
-    department: 'Engineering',
-  },
-  {
-    id: 2,
-    employee: 'Jane Smith',
-    action: 'Checked Out',
-    time: '06:30 PM',
-    status: 'Present',
-    department: 'Marketing',
-  },
-  {
-    id: 3,
-    employee: 'Mike Johnson',
-    action: 'Late Check In',
-    time: '09:45 AM',
-    status: 'Late',
-    department: 'Sales',
-  },
-  {
-    id: 4,
-    employee: 'Sarah Wilson',
-    action: 'Absent',
-    time: '-',
-    status: 'Absent',
-    department: 'HR',
-  },
-  {
-    id: 5,
-    employee: 'David Brown',
-    action: 'Checked In',
-    time: '08:30 AM',
-    status: 'Present',
-    department: 'Finance',
-  },
-];
+        load();
+    }, []);
 
-const attendanceColumns = [
-  {
-    key: 'employee',
-    header: 'Employee',
-    render: (value: string, row: any) => (
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium">
-          {value.split(' ').map(n => n[0]).join('')}
-        </div>
-        <div>
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-sm text-gray-500">{row.department}</div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: 'action',
-    header: 'Action',
-    render: (value: string) => (
-      <span className="font-medium text-gray-700">{value}</span>
-    ),
-  },
-  {
-    key: 'time',
-    header: 'Time',
-    render: (value: string) => (
-      <div className="flex items-center gap-2">
-        <Clock className="h-4 w-4 text-gray-400" />
-        <span className="text-gray-600">{value}</span>
-      </div>
-    ),
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    render: (value: string) => (
-      <Badge variant={
-        value === 'Present' ? 'success' : 
-        value === 'Late' ? 'warning' : 
-        'danger'
-      }>
-        {value}
-      </Badge>
-    ),
-  },
-];
+    const metrics = useMemo(() => {
+        const { users, orders } = data;
+        const totalUsers = users.length;
+        const active = users.filter((u) => (u as any).isActive).length;
+        const doctors = users.filter((u) => u.roles?.includes("doctor") || u.dashboard === "doctor").length;
+        const agents = users.filter((u) => u.roles?.includes("agent") || u.dashboard === "agent").length;
 
-const accessRequestData = [
-  {
-    id: 'REQ001',
-    name: 'Dr. Emily Carter',
-    role: 'Doctor',
-    request: 'Admin access for new research module.',
-    time: '2 hours ago',
-  },
-  {
-    id: 'REQ002',
-    name: 'Michael Lee',
-    role: 'Receptionist',
-    request: 'Access to the updated billing system.',
-    time: '8 hours ago',
-  },
-  {
-    id: 'REQ003',
-    name: 'Samantha Ray',
-    role: 'Agent',
-    request: 'Higher API rate limits for data sync.',
-    time: '1 day ago',
-  },
-  {
-    id: 'REQ004',
-    name: 'Kevin Harris',
-    role: 'Employee',
-    request: 'Permission to view departmental reports.',
-    time: '2 days ago',
-  },
-];
+        const orderCounts = orders.reduce(
+            (acc, order) => {
+                acc[order.orderStatus] = (acc[order.orderStatus] || 0) + 1;
+                return acc;
+            },
+            {} as Record<string, number>
+        );
 
+        const delivered = orders.filter((o) => o.orderStatus === "DELIVERED");
+        const pending = orders.filter((o) => o.orderStatus !== "DELIVERED" && o.orderStatus !== "CANCELLED");
+        const revenue = delivered.reduce((sum, o) => sum + (o.payableAmount || 0), 0);
+        const averageOrder = orders.length ? revenue / orders.length : 0;
 
+        return {
+            totalUsers,
+            active,
+            doctors,
+            agents,
+            pendingOrders: pending.length,
+            deliveredOrders: delivered.length,
+            revenue,
+            averageOrder,
+            orderCounts
+        };
+    }, [data]);
 
-
-
-export default function DashboardPage() {
-  
-const [selectedUserId, setSelectedUserId] = useState(null);
-    const [showRegisterFace, setShowRegisterFace] = useState(false);
-const [searchQuery, setSearchQuery] = useState("");
-const [users, setUsers] = useState<any[]>([]);
-const [loadingUsers, setLoadingUsers] = useState(false);
-
-const filteredUsers = users.filter(
-  (u) =>
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchQuery.toLowerCase())
-);
-
-
-
-
-
-
-// Role assignment 
-const [isRoleDrawerOpen, setIsRoleDrawerOpen] = useState(false);
-const [selectedUser, setSelectedUser] = useState<any>(null);
-const [roles, setRoles] = useState<any[]>([]);
-const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-const [loadingRoles, setLoadingRoles] = useState(false);
-
-
-
-// Toast
-const [toast, setToast] = useState({
-  message: "",
-  type: "success", // success | error | info
-  visible: false,
-});
-
-const showToast = (message: string, type: "success" | "error" | "info") => {
-  setToast({ message, type, visible: true });
-
-  setTimeout(() => {
-    setToast((prev) => ({ ...prev, visible: false }));
-  }, 3000);
-};
-
-
-
-
-const onRoleAssign = async (user: any) => {
-  setSelectedUser(user);
-  setIsRoleDrawerOpen(true);
-  setLoadingRoles(true);
-
-  try {
-    const res = await axios.get("http://localhost:5000/roles");
-
-    const data = res.data;
-    console.log(data);
-    if (Array.isArray(data)) {
-      setRoles(data);
-    } else if (Array.isArray(data.roles)) {
-      setRoles(data.roles);
-    } else if (Array.isArray(data.data)) {
-      setRoles(data.data);
-    } else {
-      setRoles([]);
-    }
-  } catch (err) {
-    console.error("❌ Failed to fetch roles:", err);
-    showToast("Failed to load roles from backend", "error");
-  } finally {
-    setLoadingRoles(false);
-  }
-};
-
-
-
-const assignRoleToUser = async () => {
-  if (!selectedRoleId || !selectedUser) {
-    showToast("Please select a user and a role", "info");
-    return;
-  }
-
-  try {
-    const res = await axios.post(
-      "http://localhost:5000/role-assignments/assign",
-      {
-        userId: selectedUser._id,
-        roleId: selectedRoleId,
-      }
+    const recentOrders = useMemo(
+        () => [...data.orders]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 6),
+        [data.orders]
     );
 
-    showToast("✅ Role assigned successfully", "success");
+    return (
+        <div className="min-w-0 max-w-6xl mx-auto space-y-6 sm:space-y-8 pb-12">
+            <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wider text-teal-600">Hospital Operations</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight truncate">Admin Dashboard</h1>
+                    <p className="text-slate-500 text-sm mt-1">Overview of users, orders, and system health.</p>
+                </div>
+                <div className="flex items-center gap-3 app-card px-4 py-3 shrink-0">
+                    <ShieldCheck className="text-teal-500" size={18} />
+                    <span className="text-sm font-medium text-slate-700">System healthy</span>
+                    <span className="text-xs font-medium text-slate-400">{new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                </div>
+            </header>
 
-    setIsRoleDrawerOpen(false);
-    setSelectedRoleId("");
-    setSelectedUser(null);
-  } catch (err: any) {
-    console.error("❌ Assign failed", err);
+            {error && (
+                <div className="app-card border-red-200 bg-red-50 text-red-700 rounded-xl p-4 text-sm font-medium">
+                    {error}
+                </div>
+            )}
 
-    const errorMsg =
-      err?.response?.data?.message ||
-      err?.message ||
-      "Failed to assign role";
+            <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+                <StatCard
+                    title="Total Users"
+                    value={metrics.totalUsers}
+                    deltaLabel="Active"
+                    deltaValue={metrics.active}
+                    icon={Users}
+                    accent="from-blue-500 to-indigo-600"
+                    loading={loading}
+                />
+                <StatCard
+                    title="Doctors"
+                    value={metrics.doctors}
+                    deltaLabel="Agents"
+                    deltaValue={metrics.agents}
+                    icon={Stethoscope}
+                    accent="from-emerald-500 to-teal-500"
+                    loading={loading}
+                />
+                <StatCard
+                    title="Open Orders"
+                    value={metrics.pendingOrders}
+                    deltaLabel="Delivered"
+                    deltaValue={metrics.deliveredOrders}
+                    icon={ShoppingBag}
+                    accent="from-orange-500 to-rose-500"
+                    loading={loading}
+                />
+                <StatCard
+                    title="Net Revenue"
+                    value={`₹${metrics.revenue.toLocaleString()}`}
+                    deltaLabel="Avg order"
+                    deltaValue={`₹${metrics.averageOrder.toFixed(0)}`}
+                    icon={TrendingUp}
+                    accent="from-purple-500 to-cyan-500"
+                    loading={loading}
+                />
+            </section>
 
-    showToast(errorMsg, "error");
-  }
-};
-
-
-
-
-
-
-// List all user to assign role 
-useEffect(() => {
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const res = await axios.get("http://localhost:5000/user");
-
-      const data = res.data;
-
-      if (Array.isArray(data)) {
-        setUsers(data);
-      } else if (Array.isArray(data.users)) {
-        setUsers(data.users);
-      } else if (Array.isArray(data.data)) {
-        setUsers(data.data);
-      } else {
-        setUsers([]);
-      }
-    } catch (err) {
-      console.error("❌ Failed to fetch users:", err);
-      showToast("Failed to load users from backend", "error");
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  fetchUsers();
-}, []);
-
-
-
-  return (
-    <div className="min-h-full bg-linear-to-br from-gray-50 via-white to-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Modern Header with better spacing */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-              <p className="text-gray-600">Overview of your hospital management system</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Calendar className="h-4 w-4" />
-              <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Enhanced Stats Cards with improved animations */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {statsData.map((stat, index) => (
-            <div 
-              key={index}
-              className="group bg-white/90 backdrop-blur-lg rounded-3xl p-6 border border-gray-200/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-105"
-              style={{
-                animationDelay: `${index * 100}ms`,
-                animation: 'fadeInUp 0.6s ease-out forwards'
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-600 mb-3">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900 mb-2">{stat.value}</p>
-                  {stat.change && (
-                    <div className="flex items-center gap-1">
-                      {stat.changeType === 'positive' ? (
-                        <TrendingUp className="h-4 w-4 text-emerald-500" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                      )}
-                      <p className={`text-sm font-medium ${
-                        stat.changeType === 'positive' 
-                          ? 'text-emerald-600' 
-                          : 'text-red-600'
-                      }`}>
-                        {stat.change}
-                      </p>
+            <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+                <div className="app-card rounded-2xl p-4 sm:p-6 xl:col-span-2 min-w-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Order Flow</p>
+                            <h2 className="text-xl font-black text-gray-900">Recent orders</h2>
+                        </div>
+                        <a href="/admin/orders" className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1">
+                            View all <ArrowUpRight size={16} />
+                        </a>
                     </div>
-                  )}
-                </div>
-                <div className={`p-4 rounded-2xl ${stat.bgColor} group-hover:scale-110 transition-all duration-300 shadow-lg`}>
-                  {stat.icon}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Main Content Grid with proper spacing */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8 items-start">
-          {/* Left Column: Main Charts and Requests */}
-          <div className="xl:col-span-2">
-            <div className="bg-white/90 backdrop-blur-lg rounded-3xl p-6 border border-gray-200/50 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-1">Monthly Attendance Overview</h3>
-                  <p className="text-sm text-gray-600">Track employee attendance patterns</p>
-                </div>
-                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full">
-                  <BarChart3 className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">Analytics</span>
-                </div>
-              </div>
-              <div className="h-80 relative">
-                <Line data={attendanceChartData} options={attendanceChartOptions} />
-              </div>
-            </div>
-
-
-
-            {/* Access Requests Notification Box */}
-<div className="bg-white/90 backdrop-blur-lg rounded-3xl p-6 border border-gray-200/50 shadow-xl mt-8 min-h-[320px] flex flex-col">
-  <div className="flex items-center justify-between mb-6">
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-linear-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg">
-        <Bell className="h-6 w-6 text-white" />
-      </div>
-      <div>
-        <h3 className="text-xl font-bold text-gray-900">Role Allocation</h3>
-      </div>
-    </div>
-  </div>
-
-  {/* 🔍 Search Input */}
-  <div className="relative mb-6">
-    <input
-      type="text"
-      placeholder="Search user by name or email..."
-      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pl-11 focus:ring-2 focus:ring-rose-500 focus:bg-white focus:border-rose-400 transition-all"
-      onChange={(e) => setSearchQuery(e.target.value)}
-    />
-    <Search className="h-5 w-5 text-gray-500 absolute left-3 top-3.5" />
-  </div>
-
-  {/* User List */}
-  <div className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: "260px" }}>
-    {loadingUsers ? (
-  <p className="text-gray-500 text-sm text-center mt-6">Loading users...</p>
-) : filteredUsers.length === 0 ? (
-      <p className="text-gray-500 text-sm text-center mt-6">No users found</p>
-    ) : (
-      filteredUsers.map((user) => (
-        <div
-          key={user._id}
-          className="p-4 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-between transition-all"
-        >
-          {/* Left: Name + Email */}
-          <div>
-            <p className="font-semibold text-gray-800">{user.name}</p>
-            <p className="text-sm text-gray-500">{user.email}</p>
-          </div>
-            <button
-                onClick={() =>{ setShowRegisterFace(true)
-                  setSelectedUserId(user._id);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
-                Register Face
-          </button>
-          
-          {/* Right: Role Button */}
-          <button onClick={() => onRoleAssign(user)} className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-all">
-            Assign Role
-          </button>
-        </div>
-      ))
-    )}
-  </div>
-</div>
-
-          </div>
-
-          {/* Right Column: Sidebar Stats */}
-          <div className="space-y-6">
-            {/* Quick Stats Card */}
-            <div className="bg-white/90 backdrop-blur-lg rounded-3xl p-6 border border-gray-200/50 shadow-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg">
-                  <PieChart className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Quick Stats</h3>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { label: 'On Time', value: '89%', color: 'text-emerald-600', bg: 'bg-emerald-100', percent: 89 },
-                  { label: 'Late Arrivals', value: '8%', color: 'text-amber-600', bg: 'bg-amber-100', percent: 8 },
-                  { label: 'Absent', value: '3%', color: 'text-red-600', bg: 'bg-red-100', percent: 3 },
-                  { label: 'Average Hours', value: '8.2h', color: 'text-blue-600', bg: 'bg-blue-100', percent: 82 },
-                ].map((stat, index) => (
-                  <div key={index} className="group p-4 rounded-xl hover:bg-gray-50 transition-all duration-300 border border-gray-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-700 font-medium">{stat.label}</span>
-                      <span className={`font-bold text-lg ${stat.color}`}>{stat.value}</span>
+                    <div className="overflow-x-auto min-w-0">
+                        <table className="w-full text-sm min-w-[400px]">
+                            <thead>
+                                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
+                                    <th className="py-3 text-left">Order</th>
+                                    <th className="py-3 text-left">Payment</th>
+                                    <th className="py-3 text-left">Status</th>
+                                    <th className="py-3 text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {loading ? (
+                                    [...Array(5)].map((_, i) => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td className="py-4" colSpan={4}>
+                                                <div className="h-3 bg-gray-50 rounded" />
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : recentOrders.length === 0 ? (
+                                    <tr>
+                                        <td className="py-6 text-center text-gray-500" colSpan={4}>
+                                            No orders yet.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    recentOrders.map((order) => (
+                                        <tr key={order.orderId} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="py-3">
+                                                <div className="font-black text-gray-900">#{order.orderId.slice(-6).toUpperCase()}</div>
+                                                <div className="text-xs text-gray-400 font-bold">
+                                                    {new Date(order.createdAt).toLocaleString()}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 text-xs font-black uppercase tracking-wider text-gray-500">
+                                                {order.paymentStatus}
+                                                <span className="text-[10px] text-gray-400 ml-2">{order.paymentMode}</span>
+                                            </td>
+                                            <td className="py-3">
+                                                <StatusPill status={order.orderStatus} />
+                                            </td>
+                                            <td className="py-3 text-right font-black text-gray-900">
+                                                ₹{order.payableAmount.toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-0 overflow-hidden">
-                      <div 
-                        className={`h-full ${stat.bg.replace('bg-', 'bg-linear-to-r from-')} transition-all duration-1000 ease-out`}
-                        style={{ width: `${stat.percent}%` }}
-                      ></div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="bg-white border border-gray-100 rounded-3xl shadow-sm p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-black text-gray-900">Role coverage</h3>
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Roles</span>
+                        </div>
+                        <div className="space-y-3">
+                            {loading ? (
+                                [...Array(4)].map((_, i) => (
+                                    <div key={i} className="h-10 bg-gray-50 rounded-xl animate-pulse" />
+                                ))
+                            ) : data.roles.length === 0 ? (
+                                <p className="text-sm text-gray-500">No roles configured.</p>
+                            ) : (
+                                data.roles.slice(0, 5).map((role) => {
+                                    const count = data.users.filter((u) => u.roles?.includes(role.key)).length;
+                                    return (
+                                        <div key={role._id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50">
+                                            <div>
+                                                <p className="font-bold text-gray-900">{role.name}</p>
+                                                <p className="text-[11px] text-gray-500 uppercase tracking-widest">{role.key}</p>
+                                            </div>
+                                            <span className="text-sm font-black text-cyan-700">{count}</span>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Department Distribution Chart */}
-            <div className="bg-white/90 backdrop-blur-lg rounded-3xl p-6 border border-gray-200/50 shadow-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-linear-to-br from-violet-500 to-violet-600 rounded-xl shadow-lg shrink-0">
-                  <Users className="h-6 w-6 text-white" />
+                    <div className="bg-gray-900 text-white rounded-3xl shadow-xl p-6 space-y-4 relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl" />
+                        <div className="flex items-center gap-2">
+                            <HeartPulse size={18} className="text-cyan-300" />
+                            <p className="text-xs font-black uppercase tracking-[0.3em] text-white/70">System health</p>
+                        </div>
+                        <div className="flex items-end justify-between">
+                            <div>
+                                <p className="text-4xl font-black leading-tight">{metrics.pendingOrders === 0 ? "Stable" : "Active"}</p>
+                                <p className="text-sm text-white/60">Monitoring orders & user signals</p>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-2xl text-sm font-bold">
+                                <Clock size={16} /> Live
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 pt-2 text-sm">
+                            <HealthStat label="Pending" value={metrics.pendingOrders} />
+                            <HealthStat label="Delivered" value={metrics.deliveredOrders} />
+                            <HealthStat label="Active users" value={metrics.active} />
+                        </div>
+                    </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Department Overview</h3>
-                  <p className="text-sm text-gray-600">Employee distribution across departments</p>
+            </section>
+        </div>
+    );
+}
+
+function StatCard({ title, value, deltaLabel, deltaValue, icon: Icon, accent, loading }: {
+    title: string;
+    value: number | string;
+    deltaLabel: string;
+    deltaValue: number | string;
+    icon: ComponentType<{ size?: number }>;
+    accent: string;
+    loading: boolean;
+}) {
+    return (
+        <div className="bg-white border border-gray-100 rounded-3xl shadow-sm p-5">
+            {loading ? (
+                <div className="space-y-3 animate-pulse">
+                    <div className="h-4 bg-gray-50 rounded" />
+                    <div className="h-6 bg-gray-50 rounded w-2/3" />
+                    <div className="h-3 bg-gray-50 rounded w-1/2" />
                 </div>
-              </div>
-              <div className="h-64 relative mb-4">
-                <Doughnut data={departmentChartData} options={departmentChartOptions} />
-              </div>
-            </div>
-          </div>
+            ) : (
+                <>
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-500">{title}</p>
+                        <span className={`p-3 rounded-2xl bg-gradient-to-br ${accent} text-white shadow-sm`}>
+                            <Icon size={18} />
+                        </span>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-2">
+                        <p className="text-3xl font-black text-gray-900 tracking-tight">{value}</p>
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1">
+                            <ArrowUpRight size={12} />
+                            {deltaLabel}: {deltaValue}
+                        </span>
+                    </div>
+                </>
+            )}
         </div>
+    );
+}
 
-        {/* Enhanced Recent Activity */}
-        <div className="bg-white/90 backdrop-blur-lg rounded-3xl p-8 border border-gray-200/50 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Recent Activity</h3>
-              <p className="text-gray-600">Latest employee check-ins and check-outs</p>
-            </div>
-            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full">
-              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-              <Activity className="h-5 w-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">Live updates</span>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-gray-200">
-            <Table
-              columns={attendanceColumns}
-              data={recentActivityData}
-              emptyMessage="No recent activity"
-            />
-          </div>
+function StatusPill({ status }: { status: string }) {
+    const styleMap: Record<string, { bg: string; text: string; icon: ReactNode }> = {
+        DELIVERED: { bg: "bg-emerald-50 text-emerald-700 border-emerald-100", text: "Delivered", icon: <CheckCircle2 size={14} /> },
+        SHIPPED: { bg: "bg-blue-50 text-blue-700 border-blue-100", text: "Shipped", icon: <Package size={14} /> },
+        CONFIRMED: { bg: "bg-cyan-50 text-cyan-700 border-cyan-100", text: "Confirmed", icon: <ShieldCheck size={14} /> },
+        INITIATED: { bg: "bg-gray-100 text-gray-700 border-gray-200", text: "Initiated", icon: <Clock size={14} /> },
+        CANCELLED: { bg: "bg-red-50 text-red-700 border-red-100", text: "Cancelled", icon: <AlertTriangle size={14} /> }
+    };
+
+    const style = styleMap[status] || styleMap.INITIATED;
+
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest border ${style.bg}`}>
+            {style.icon}
+            {style.text}
+        </span>
+    );
+}
+
+function HealthStat({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="bg-white/5 rounded-2xl p-3 text-center border border-white/10">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/70">{label}</p>
+            <p className="text-xl font-black">{value}</p>
         </div>
-
-      </div>
-
-      {/* Add keyframe animations */}
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-
-      {/* ✅ Side Role Drawer */}
-{isRoleDrawerOpen && (
-  <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-    <div className="w-[400px] h-full bg-white shadow-2xl p-6 flex flex-col animate-slideIn">
-      
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Assign Role</h2>
-        <button onClick={() => setIsRoleDrawerOpen(false)}>
-          <X className="h-6 w-6 text-gray-500 hover:text-gray-800" />
-        </button>
-      </div>
-
-      {/* Selected User */}
-      <div className="mb-4 p-3 rounded-lg border bg-gray-50">
-        <p className="font-semibold">{selectedUser?.name}</p>
-        <p className="text-sm text-gray-600">{selectedUser?.email}</p>
-      </div>
-
-      {/* Role List */}
-      <div className="flex-1 overflow-y-auto space-y-3">
-        {loadingRoles ? (
-          <p className="text-gray-500 text-sm">Loading roles...</p>
-        ) : (
-          roles.map((role) => (
-            <label
-              key={role._id}
-              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all
-                ${selectedRoleId === role._id ? "border-rose-500 bg-rose-50" : "hover:bg-gray-50"}`}
-            >
-              <div>
-                <p className="font-medium text-gray-800">{role.key}</p>
-                <p className="text-xs text-gray-500">{role.description}</p>
-              </div>
-              <input
-                type="radio"
-                name="role"
-                checked={selectedRoleId === role._id}
-                onChange={() => setSelectedRoleId(role._id)}
-              />
-            </label>
-          ))
-        )}
-      </div>
-
-      {/* Action Button */}
-      <button
-        onClick={assignRoleToUser}
-        className="mt-6 w-full py-3 rounded-lg bg-rose-500 text-white font-semibold hover:bg-rose-600 transition-all"
-      >
-        Confirm Assignment
-      </button>
-    </div>
-  </div>
-)}
-
-  {/* ✅ Custom Toast */}
-{toast.visible && (
-  <div className="fixed top-6 right-6 z-[9999] animate-slideIn">
-    <div
-      className={`px-6 py-4 rounded-xl shadow-xl text-white font-semibold ${
-        toast.type === "success"
-          ? "bg-emerald-500"
-          : toast.type === "error"
-          ? "bg-red-500"
-          : "bg-blue-500"
-      }`}
-    >
-      {toast.message}
-    </div>
-  </div>
-)}
-
-      {/* Face Register Modal */}
-{showRegisterFace && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="relative w-full max-w-6xl">
-      
-      {/* Close Button */}
-      <button
-        onClick={() => setShowRegisterFace(false)}
-        className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100">
-        <X className="h-5 w-5 text-gray-700" />
-      </button>
-
-      {/* Face Register Component */}
-      <FaceRegister userId={selectedUserId!} />
-    </div>
-  </div>
-)}
-    </div>
-  );
+    );
 }

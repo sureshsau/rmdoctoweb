@@ -6,8 +6,7 @@ import User from "../models/user.model.js";
 
 export const sendOtpLogin = async (req, res) => {
   try {
-    const { phone } = req.body;
-
+    const { phone } = req.body
     if (!phone || !/^\d{10}$/.test(phone)) {
       return res.status(400).json({
         success: false,

@@ -4,7 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
-type UserRole = "admin" | "doctor" | "receptionist" | "agent" | "user";
+type UserRole = "admin" | "subadmin" | "doctor" | "receptionist" | "agent" | "marketing_agent" | "employee" | "user";
 
 type RoleGuardProps = {
   allowed: UserRole[];
@@ -21,7 +21,9 @@ export default function RoleGuard({ allowed, children }: RoleGuardProps) {
       return;
     }
 
-    if (!loading && user && !allowed.includes(user.role)) {
+    const dashboard = (user?.dashboard || "user") as UserRole;
+
+    if (!loading && user && !allowed.includes(dashboard)) {
       router.push("/unauthorized");
     }
   }, [user, loading, allowed, router]);

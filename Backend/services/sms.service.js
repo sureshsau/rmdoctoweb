@@ -40,7 +40,7 @@ export const sendLoginOtpSms = async ({ mobile, otp }) => {
         }
       }
     );
-
+    console.log(response);
     return response.data;
 
   } catch (err) {

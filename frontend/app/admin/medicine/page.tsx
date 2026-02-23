@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pill, Plus, Trash2, Search, X, Image as ImageIcon, Upload, AlertCircle, XCircle, Edit2 } from "lucide-react";
+import { Pill, Plus, Trash2, Search, X, Image as ImageIcon, Upload, AlertCircle, XCircle, Edit2,IndianRupee, Layers, Building2, Settings,Package, Tag, FlaskRound as Flask } from "lucide-react";
 import { medicineService, Medicine } from "@/services/medicine.service";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import Image from "next/image";
+
+
 
 export default function AdminMedicinePage() {
     const DEFAULT_PRESCRIPTION_TYPE = "RX";
@@ -16,16 +18,27 @@ export default function AdminMedicinePage() {
     const [searchTerm, setSearchTerm] = useState("");
 
     const [formData, setFormData] = useState({
-        name: "",
-        manufacturer: "",
-        price: "",
-        mrp: "",
-        specialPrice: "",
-        stock: "",
-        minAlertQuantity: "",
-        dosageForm: "",
-        brandName: "",
-    });
+    name: "",
+    brandName: "",
+    description: "",
+    dosageForm: "",
+    prescriptionType: "OTC",
+    therapeuticUse: "",
+    tags: "",
+    composition: [{ ingredient: "", strength: "" }],
+    price: "",
+    mrp: "",
+    specialPrice: "",
+    gstPercentage: "",
+    stock: "",
+    minAlertQuantity: "",
+    batches: [{ batchNumber: "", expiryDate: "", quantity: 0 }],
+    manufacturer: "",
+    manufacturerLicense: "",
+    manufacturerAddress: "",
+    isActive: true
+});
+
     const [selectedImages, setSelectedImages] = useState<{ file: File; url: string }[]>([]);
     const [formError, setFormError] = useState<string>("");
     const [banner, setBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
@@ -60,81 +73,135 @@ export default function AdminMedicinePage() {
     }
 
     async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        setFormError("");
-        setBanner(null);
+    e.preventDefault();
+    setFormError("");
+    setBanner(null);
 
-        if (!formData.name.trim()) {
-            setFormError("Name is required");
-            return;
-        }
-        if (!formData.price) {
-            setFormError("Price is required");
-            return;
-        }
-        if (!formData.dosageForm) {
-            setFormError("Dosage form is required");
-            return;
-        }
-        if (selectedImages.length > 5) {
-            setFormError("Maximum 5 images allowed");
-            return;
-        }
-
-        setSubmissionLoading(true);
-        try {
-            const basePayload: any = {
-                name: formData.name,
-                brandName: formData.brandName || undefined,
-                dosageForm: formData.dosageForm,
-                prescriptionType: DEFAULT_PRESCRIPTION_TYPE,
-                pricing: {
-                    price: Number(formData.price || 0),
-                    mrp: Number(formData.mrp || formData.price || 0),
-                    specialPrice: Number(formData.specialPrice || formData.price || 0),
-                },
-            };
-
-            if (formData.manufacturer) {
-                basePayload.manufacturer = { name: formData.manufacturer };
-            }
-
-            const stockPayload: Record<string, number> = {};
-            if (formData.stock) stockPayload.totalQuantity = Number(formData.stock);
-            if (formData.minAlertQuantity) stockPayload.minAlertQuantity = Number(formData.minAlertQuantity);
-            if (Object.keys(stockPayload).length > 0) {
-                basePayload.stock = stockPayload;
-            }
-
-            if (editingId) {
-                await medicineService.updateMedicine(editingId, basePayload);
-                setBanner({ type: "success", message: "Medicine updated" });
-            } else {
-                const data = new FormData();
-                Object.entries(basePayload).forEach(([key, value]) => {
-                    if (value === undefined) return;
-                    if (key === "pricing" || key === "stock" || key === "manufacturer") {
-                        data.append(key, JSON.stringify(value));
-                    } else {
-                        data.append(key, String(value));
-                    }
-                });
-                selectedImages.forEach(({ file }) => data.append("images", file));
-                await medicineService.addMedicine(data);
-                setBanner({ type: "success", message: "Medicine added" });
-            }
-
-            setShowAddModal(false);
-            setFormData({ name: "", manufacturer: "", price: "", mrp: "", specialPrice: "", stock: "", minAlertQuantity: "", dosageForm: "", brandName: "" });
-            setSelectedImages([]);
-            setEditingId(null);
-            loadMedicines();
-        } catch (err) {
-            setFormError(getApiErrorMessage(err));
-        } finally {
-            setSubmissionLoading(false);
-        }
+    // Validation
+    if (!formData.name.trim()) {
+        setFormError("Name is required");
+        return;
     }
+    if (!formData.price) {
+        setFormError("Price is required");
+        return;
+    }
+    if (!formData.dosageForm) {
+        setFormError("Dosage form is required");
+        return;
+    }
+    if (selectedImages.length > 5) {
+        setFormError("Maximum 5 images allowed");
+        return;
+    }
+
+    setSubmissionLoading(true);
+    try {
+        const basePayload: any = {
+            name: formData.name,
+            brandName: formData.brandName || undefined,
+            description: formData.description || undefined,
+            dosageForm: formData.dosageForm,
+            prescriptionType: formData.prescriptionType,
+            therapeuticUse: formData.therapeuticUse || undefined,
+            tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+            composition: formData.composition.filter(c => c.ingredient && c.strength).length > 0 
+                ? formData.composition.filter(c => c.ingredient && c.strength)
+                : undefined,
+            pricing: {
+                price: Number(formData.price || 0),
+                mrp: Number(formData.mrp || formData.price || 0),
+                specialPrice: Number(formData.specialPrice || formData.price || 0),
+            },
+            gstPercentage: formData.gstPercentage ? Number(formData.gstPercentage) : undefined,
+            isActive: formData.isActive
+        };
+
+        // Add manufacturer if provided
+        if (formData.manufacturer || formData.manufacturerLicense || formData.manufacturerAddress) {
+            basePayload.manufacturer = {
+                name: formData.manufacturer || "",
+                licenseNumber: formData.manufacturerLicense || undefined,
+                address: formData.manufacturerAddress || undefined
+            };
+        }
+
+        // Add stock if provided
+        const stockPayload: Record<string, number> = {};
+        if (formData.stock) stockPayload.totalQuantity = Number(formData.stock);
+        if (formData.minAlertQuantity) stockPayload.minAlertQuantity = Number(formData.minAlertQuantity);
+        if (Object.keys(stockPayload).length > 0) {
+            basePayload.stock = stockPayload;
+        }
+
+        // Add batches if provided
+        const validBatches = formData.batches.filter(b => b.batchNumber && b.expiryDate && b.quantity > 0);
+        if (validBatches.length > 0) {
+            basePayload.batches = validBatches.map(batch => ({
+                ...batch,
+                quantity: Number(batch.quantity)
+            }));
+        }
+
+        if (editingId) {
+            await medicineService.updateMedicine(editingId, basePayload);
+            setBanner({ type: "success", message: "Medicine updated" });
+        } else {
+            const data = new FormData();
+            
+            // Append all fields to FormData
+            Object.entries(basePayload).forEach(([key, value]) => {
+                if (value === undefined || value === null) return;
+                
+                if (key === "pricing" || key === "stock" || key === "manufacturer" || key === "composition" || key === "batches") {
+                    data.append(key, JSON.stringify(value));
+                } else if (key === "tags" && Array.isArray(value)) {
+                    data.append(key, JSON.stringify(value));
+                } else {
+                    data.append(key, String(value));
+                }
+            });
+            
+            // Append images
+            selectedImages.forEach(({ file }) => data.append("images", file));
+            
+            await medicineService.addMedicine(data);
+            setBanner({ type: "success", message: "Medicine added" });
+        }
+
+        setShowAddModal(false);
+        // Reset form
+        setFormData({
+            name: "",
+            brandName: "",
+            description: "",
+            dosageForm: "",
+            prescriptionType: "OTC",
+            therapeuticUse: "",
+            tags: "",
+            composition: [{ ingredient: "", strength: "" }],
+            price: "",
+            mrp: "",
+            specialPrice: "",
+            gstPercentage: "",
+            stock: "",
+            minAlertQuantity: "",
+            batches: [{ batchNumber: "", expiryDate: "", quantity: 0 }],
+            manufacturer: "",
+            manufacturerLicense: "",
+            manufacturerAddress: "",
+            isActive: true
+        });
+        setSelectedImages([]);
+        setEditingId(null);
+        loadMedicines();
+    } catch (err) {
+        setFormError(getApiErrorMessage(err));
+    } finally {
+        setSubmissionLoading(false);
+    }
+}
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -201,18 +268,38 @@ export default function AdminMedicinePage() {
                             <span className="text-gray-700 font-semibold">{totalCount}</span> total
                         </div>
                         <button
-                            onClick={() => {
-                                setEditingId(null);
-                                setFormData({ name: "", manufacturer: "", price: "", mrp: "", specialPrice: "", stock: "", minAlertQuantity: "", dosageForm: "", brandName: "" });
-                                setSelectedImages([]);
-                                setFormError("");
-                                setShowAddModal(true);
-                            }}
-                            className="flex items-center gap-2 bg-cyan-600 text-white px-4 py-2.5 rounded-lg hover:bg-cyan-700 transition shadow-sm"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add Medicine
-                        </button>
+    onClick={() => {
+        setEditingId(null);
+        setFormData({
+            name: "",
+            brandName: "",
+            description: "",
+            dosageForm: "",
+            prescriptionType: "OTC",
+            therapeuticUse: "",
+            tags: "",
+            composition: [{ ingredient: "", strength: "" }],
+            price: "",
+            mrp: "",
+            specialPrice: "",
+            gstPercentage: "",
+            stock: "",
+            minAlertQuantity: "",
+            batches: [{ batchNumber: "", expiryDate: "", quantity: 0 }],
+            manufacturer: "",
+            manufacturerLicense: "",
+            manufacturerAddress: "",
+            isActive: true
+        });
+        setSelectedImages([]);
+        setFormError("");
+        setShowAddModal(true);
+    }}
+    className="flex items-center gap-2 bg-cyan-600 text-white px-4 py-2.5 rounded-lg hover:bg-cyan-700 transition shadow-sm"
+>
+    <Plus className="w-4 h-4" />
+    Add Medicine
+</button>
                     </div>
                 </div>
 
@@ -284,28 +371,66 @@ export default function AdminMedicinePage() {
 
                                 <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                                     <button
-                                        onClick={() => {
-                                            setEditingId(item._id);
-                                            setFormError("");
-                                            setBanner(null);
-                                            setSelectedImages([]);
-                                            setFormData({
-                                                name: item.name || "",
-                                                manufacturer: typeof item.manufacturer === "string" ? item.manufacturer : item.manufacturer?.name || (item as any).manufacturerName || "",
-                                                brandName: item.brandName || "",
-                                                dosageForm: item.dosageForm || "",
-                                                price: String(item.pricing?.price ?? (item as any).price ?? ""),
-                                                mrp: String(item.pricing?.mrp ?? (item as any).mrp ?? ""),
-                                                specialPrice: String(item.pricing?.specialPrice ?? (item as any).specialPrice ?? ""),
-                                                stock: String((item as any).stock?.totalQuantity ?? ""),
-                                                minAlertQuantity: String((item as any).stock?.minAlertQuantity ?? ""),
-                                            });
-                                            setShowAddModal(true);
-                                        }}
-                                        className="p-2 bg-white/90 rounded-full text-cyan-600 hover:bg-cyan-50 shadow-sm"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
+    onClick={() => {
+        setEditingId(item._id);
+        setFormError("");
+        setBanner(null);
+        setSelectedImages([]);
+        
+        // Populate ALL form fields from the medicine item
+        setFormData({
+            // Basic Info
+            name: item.name || "",
+            brandName: item.brandName || "",
+            description: item.description || "",
+            
+            // Classification
+            dosageForm: item.dosageForm || "",
+            prescriptionType: item.prescriptionType || "OTC",
+            therapeuticUse: item.therapeuticUse || "",
+            tags: Array.isArray(item.tags) ? item.tags.join(', ') : "",
+            
+            // Composition
+            composition: item.composition && item.composition.length > 0 
+                ? item.composition.map(c => ({ ingredient: c.ingredient || "", strength: c.strength || "" }))
+                : [{ ingredient: "", strength: "" }],
+            
+            // Pricing
+            price: String(item.pricing?.price ?? (item as any).price ?? ""),
+            mrp: String(item.pricing?.mrp ?? (item as any).mrp ?? ""),
+            specialPrice: String(item.pricing?.specialPrice ?? (item as any).specialPrice ?? ""),
+            gstPercentage: item.gstPercentage ? String(item.gstPercentage) : "",
+            
+            // Stock
+            stock: String((item as any).stock?.totalQuantity ?? ""),
+            minAlertQuantity: String((item as any).stock?.minAlertQuantity ?? ""),
+            
+            // Batches
+            batches: item.batches && item.batches.length > 0
+                ? item.batches.map(b => ({
+                    batchNumber: b.batchNumber || "",
+                    expiryDate: b.expiryDate ? b.expiryDate.split('T')[0] : "", // Format date for input
+                    quantity: b.quantity || 0
+                  }))
+                : [{ batchNumber: "", expiryDate: "", quantity: 0 }],
+            
+            // Manufacturer
+            manufacturer: typeof item.manufacturer === "string" 
+                ? item.manufacturer 
+                : item.manufacturer?.name || (item as any).manufacturerName || "",
+            manufacturerLicense: typeof item.manufacturer === "object" ? item.manufacturer?.licenseNumber || "" : "",
+            manufacturerAddress: typeof item.manufacturer === "object" ? item.manufacturer?.address || "" : "",
+            
+            // Status
+            isActive: item.isActive !== undefined ? item.isActive : true
+        });
+        
+        setShowAddModal(true);
+    }}
+    className="p-2 bg-white/90 rounded-full text-cyan-600 hover:bg-cyan-50 shadow-sm"
+>
+    <Edit2 className="w-4 h-4" />
+</button>
                                     <button
                                         onClick={() => handleDelete(item._id)}
                                         className="p-2 bg-white/90 rounded-full text-red-500 hover:bg-red-50 shadow-sm"
@@ -339,90 +464,318 @@ export default function AdminMedicinePage() {
 
             {/* Add Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] border border-gray-100">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-cyan-50 to-white">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[92vh] border border-gray-100">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-cyan-50 to-white">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.15em] text-cyan-700 font-semibold">{editingId ? "Edit Listing" : "New Listing"}</p>
+                    <h2 className="font-bold text-lg text-gray-900">{editingId ? "Update Medicine" : "Add Medicine"}</h2>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition">
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
+                {/* Basic Information Section */}
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <Package className="w-4 h-4 text-cyan-600" />
+                        Basic Information
+                    </h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
                             <div>
-                                <p className="text-xs uppercase tracking-[0.15em] text-cyan-700 font-semibold">{editingId ? "Edit Listing" : "New Listing"}</p>
-                                <h2 className="font-bold text-lg text-gray-900">{editingId ? "Update Medicine" : "Add Medicine"}</h2>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Medicine Name *</label>
+                                <input required name="name" value={formData.name} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Paracetamol 500mg" />
                             </div>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition">
-                                <X className="w-5 h-5" />
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Brand Name</label>
+                                <input name="brandName" value={formData.brandName} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Crocin" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Description</label>
+                            <textarea 
+                                name="description" 
+                                value={formData.description} 
+                                onChange={handleChange}
+                                rows={3}
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" 
+                                placeholder="Brief description of the medicine"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Classification Section */}
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-cyan-600" />
+                            Classification
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dosage Form *</label>
+                                <select
+                                    name="dosageForm"
+                                    value={formData.dosageForm}
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
+                                    required
+                                >
+                                    <option value="" disabled>Select type</option>
+                                    <option value="Tablet">Tablet</option>
+                                    <option value="Capsule">Capsule</option>
+                                    <option value="Syrup">Syrup</option>
+                                    <option value="Injection">Injection</option>
+                                    <option value="Cream">Cream</option>
+                                    <option value="Drops">Drops</option>
+                                    <option value="Inhaler">Inhaler</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Prescription Type</label>
+                                <select
+                                    name="prescriptionType"
+                                    value={formData.prescriptionType}
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
+                                >
+                                    <option value="OTC">OTC (Over The Counter)</option>
+                                    <option value="RX">RX (Prescription Required)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Therapeutic Use</label>
+                                <input 
+                                    name="therapeuticUse" 
+                                    value={formData.therapeuticUse} 
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" 
+                                    placeholder="e.g., Analgesic, Antibiotic"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Tags (comma separated)</label>
+                                <input 
+                                    name="tags" 
+                                    value={formData.tags} 
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" 
+                                    placeholder="e.g., fever, pain, cold"
+                                />
+                                <p className="text-[11px] text-gray-500 mt-1">Separate multiple tags with commas</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Composition Section */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Flask className="w-4 h-4 text-cyan-600" />
+                            Composition
+                        </h3>
+                        <div className="space-y-3">
+                            {formData.composition.map((comp, index) => (
+                                <div key={index} className="flex gap-2 items-start">
+                                    <div className="flex-1">
+                                        <input
+                                            placeholder="Ingredient"
+                                            value={comp.ingredient}
+                                            onChange={(e) => {
+                                                const newComposition = [...formData.composition];
+                                                newComposition[index].ingredient = e.target.value;
+                                                setFormData(prev => ({ ...prev, composition: newComposition }));
+                                            }}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <input
+                                            placeholder="Strength"
+                                            value={comp.strength}
+                                            onChange={(e) => {
+                                                const newComposition = [...formData.composition];
+                                                newComposition[index].strength = e.target.value;
+                                                setFormData(prev => ({ ...prev, composition: newComposition }));
+                                            }}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newComposition = formData.composition.filter((_, i) => i !== index);
+                                            setFormData(prev => ({ ...prev, composition: newComposition }));
+                                        }}
+                                        className="p-2 text-red-500 hover:bg-red-50 rounded"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    composition: [...prev.composition, { ingredient: "", strength: "" }]
+                                }))}
+                                className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> Add Ingredient
                             </button>
                         </div>
+                    </div>
+                </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
-                            <div className="grid md:grid-cols-3 gap-6">
-                                <div className="md:col-span-2 space-y-4">
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Medicine Name</label>
-                                            <input required name="name" value={formData.name} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Paracetamol 500mg" />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dosage Form</label>
-                                            <select
-                                                name="dosageForm"
-                                                value={formData.dosageForm}
-                                                onChange={handleChange}
-                                                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
-                                            >
-                                                <option value="" disabled>Select type</option>
-                                                <option value="Tablet">Tablet</option>
-                                                <option value="Capsule">Capsule</option>
-                                                <option value="Syrup">Syrup</option>
-                                                <option value="Injection">Injection</option>
-                                                <option value="Cream">Cream</option>
-                                                <option value="Drops">Drops</option>
-                                                <option value="Inhaler">Inhaler</option>
-                                                <option value="Other">Other</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Manufacturer</label>
-                                            <input name="manufacturer" value={formData.manufacturer} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Cipla" />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Brand (optional)</label>
-                                            <input name="brandName" value={formData.brandName} onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Crocin" />
-                                        </div>
-                                    </div>
+                {/* Pricing Section */}
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <IndianRupee className="w-4 h-4 text-cyan-600" />
+                        Pricing
+                    </h3>
+                    <div className="grid md:grid-cols-4 gap-4">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Price (₹) *</label>
+                            <input required type="number" min="0" step="0.01" name="price" value={formData.price} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                            <p className="text-[11px] text-gray-500 mt-1">Customer selling price</p>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">MRP (₹)</label>
+                            <input type="number" min="0" step="0.01" name="mrp" value={formData.mrp} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Defaults to price" />
+                            <p className="text-[11px] text-gray-500 mt-1">Shown struck-through</p>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Agent Price (₹)</label>
+                            <input type="number" min="0" step="0.01" name="specialPrice" value={formData.specialPrice} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Optional" />
+                            <p className="text-[11px] text-gray-500 mt-1">Visible for agents/admins</p>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">GST (%)</label>
+                            <input type="number" min="0" max="100" step="0.1" name="gstPercentage" value={formData.gstPercentage} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., 18" />
+                        </div>
+                    </div>
+                </div>
 
-                                    <div className="grid md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Price (₹)</label>
-                                            <input required type="number" min="0" name="price" value={formData.price} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" />
-                                            <p className="text-[11px] text-gray-500 mt-1">Customer selling price</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">MRP (₹)</label>
-                                            <input type="number" min="0" name="mrp" value={formData.mrp} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Defaults to price" />
-                                            <p className="text-[11px] text-gray-500 mt-1">Shown struck-through</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Agent Price (₹)</label>
-                                            <input type="number" min="0" name="specialPrice" value={formData.specialPrice} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Optional" />
-                                            <p className="text-[11px] text-gray-500 mt-1">Visible for agents/admins</p>
-                                        </div>
-                                    </div>
+                {/* Stock & Batches Section */}
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Package className="w-4 h-4 text-cyan-600" />
+                            Stock Management
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Total Stock</label>
+                                <input type="number" min="0" name="stock" value={formData.stock} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Leave blank if unknown" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Low Stock Alert</label>
+                                <input type="number" min="0" name="minAlertQuantity" value={formData.minAlertQuantity} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Minimum quantity before alert" />
+                            </div>
+                        </div>
+                    </div>
 
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Stock (optional)</label>
-                                            <input type="number" min="0" name="stock" value={formData.stock} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Leave blank if unknown" />
-                                            <p className="text-[11px] text-gray-500 mt-1">Sends only if filled</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Low Stock Alert (optional)</label>
-                                            <input type="number" min="0" name="minAlertQuantity" value={formData.minAlertQuantity} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Leave blank to skip" />
-                                            <p className="text-[11px] text-gray-500 mt-1">Sends only if filled</p>
-                                        </div>
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-cyan-600" />
+                            Batches
+                        </h3>
+                        <div className="space-y-4">
+                            {formData.batches.map((batch, index) => (
+                                <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium">Batch {index + 1}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newBatches = formData.batches.filter((_, i) => i !== index);
+                                                setFormData(prev => ({ ...prev, batches: newBatches }));
+                                            }}
+                                            className="text-red-500 hover:bg-red-50 p-1 rounded"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                            placeholder="Batch Number"
+                                            value={batch.batchNumber}
+                                            onChange={(e) => {
+                                                const newBatches = [...formData.batches];
+                                                newBatches[index].batchNumber = e.target.value;
+                                                setFormData(prev => ({ ...prev, batches: newBatches }));
+                                            }}
+                                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                        />
+                                        <input
+                                            type="date"
+                                            value={batch.expiryDate}
+                                            onChange={(e) => {
+                                                const newBatches = [...formData.batches];
+                                                newBatches[index].expiryDate = e.target.value;
+                                                setFormData(prev => ({ ...prev, batches: newBatches }));
+                                            }}
+                                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Quantity"
+                                            value={batch.quantity}
+                                            onChange={(e) => {
+                                                const newBatches = [...formData.batches];
+                                                newBatches[index].quantity = Number(e.target.value);
+                                                setFormData(prev => ({ ...prev, batches: newBatches }));
+                                            }}
+                                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm col-span-2"
+                                        />
                                     </div>
                                 </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    batches: [...prev.batches, { batchNumber: "", expiryDate: "", quantity: 0 }]
+                                }))}
+                                className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> Add Batch
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-                                {!editingId && (
+                {/* Manufacturer Section */}
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-cyan-600" />
+                        Manufacturer
+                    </h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Manufacturer Name</label>
+                            <input name="manufacturer" value={formData.manufacturer} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Cipla" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">License Number</label>
+                            <input name="manufacturerLicense" value={formData.manufacturerLicense} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="License #" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Address</label>
+                            <input name="manufacturerAddress" value={formData.manufacturerAddress} onChange={handleChange} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 mt-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Manufacturer address" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Images Section */}
+                <div className="grid md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2">
+                        {/* Images section remains exactly as before */}
+                                                        {!editingId && (
                                     <div className="space-y-3">
                                         <div className="border border-dashed border-cyan-200 rounded-xl bg-cyan-50/50 p-4">
                                             <div className="flex items-center justify-between">
@@ -460,20 +813,37 @@ export default function AdminMedicinePage() {
                                         </div>
                                     </div>
                                 )}
-                            </div>
-
-                            {formError && <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"><AlertCircle className="w-4 h-4" />{formError}</div>}
-
-                            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
-                                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">Cancel</button>
-                                <button type="submit" disabled={submissionLoading} className="px-5 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 flex items-center gap-2 shadow-sm">
-                                    {submissionLoading ? "Saving..." : <><Upload className="w-4 h-4" /> {editingId ? "Update" : "Save"} Medicine</>}
-                                </button>
-                            </div>
-                        </form>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Settings className="w-4 h-4 text-cyan-600" />
+                            Status
+                        </h3>
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                name="isActive"
+                                checked={formData.isActive}
+                                onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                                className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <span className="text-sm text-gray-700">Active (visible in listings)</span>
+                        </label>
                     </div>
                 </div>
-            )}
+
+                {formError && <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"><AlertCircle className="w-4 h-4" />{formError}</div>}
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                    <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="submit" disabled={submissionLoading} className="px-5 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 flex items-center gap-2 shadow-sm">
+                        {submissionLoading ? "Saving..." : <><Upload className="w-4 h-4" /> {editingId ? "Update" : "Save"} Medicine</>}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
         </div>
     );
 }

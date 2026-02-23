@@ -68,7 +68,7 @@ export default function ReceptionistSidebar({ isOpen = false, onClose }: Recepti
                     const Icon = link.icon;
                     const isActive =
                         pathname === link.href ||
-                        (link.href === "/receptionist/dashboard" && pathname.startsWith("/receptionist")) ||
+                        (link.href === "/receptionist/dashboard" && pathname.startsWith("/receptionist/dashboard")) ||
                         (link.href === "/medicine-store" && pathname.startsWith("/medicine-store"));
 
                     return (

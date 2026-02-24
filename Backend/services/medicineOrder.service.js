@@ -573,21 +573,23 @@ export const updateOrderStatusService = async ({
   newStatus,
   marketingAgentUserId,
   cancelReason,
-  enteredOtp
+  enteredOtp,
+  requester
 }) => {
   const order = await MedicineOrder.findById(orderId);
-
   if (!order) {
     throw new AppError("Order not found", 404);
   }
 
   /* 🔐 AUTHORIZATION */
-  if (
-    !order.deliveryAgentId ||
-    order.deliveryAgentId.toString() !== marketingAgentUserId.toString()
-  ) {
-    throw new AppError("Not authorized to update this order", 403);
-  }
+  const isAdmin = requester.roles?.includes("admin");
+const isAssignedRider =
+  order.deliveryAgentId &&
+  order.deliveryAgentId.toString() === requester.id.toString();
+
+if (!isAdmin && !isAssignedRider) {
+  throw new AppError("Not authorized to update this order", 403);
+}
 
   /* 🔁 VALID STATUS TRANSITION */
   const allowed = VALID_TRANSITIONS[order.orderStatus] || [];

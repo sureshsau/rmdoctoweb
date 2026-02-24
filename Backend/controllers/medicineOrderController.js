@@ -141,7 +141,8 @@ export const updateOrderStatusController = async (req, res, next) => {
       newStatus,
       marketingAgentUserId: req.user.id,
       cancelReason,
-      enteredOtp
+      enteredOtp,
+      requester:req.user
     });
 
     return res.status(200).json({

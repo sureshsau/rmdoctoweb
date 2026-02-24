@@ -270,7 +270,6 @@ export const getAttendanceLogsForUserController = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { from, to, page, limit } = req.query;
-
     // Only admin/subadmin allowed
     const roles = req.user.roles || [];
     if (!roles.includes('admin') && !roles.includes('subadmin')) {
@@ -288,9 +287,10 @@ export const getAttendanceLogsForUserController = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "User attendance logs fetched successfully",
-      data: result
+      ...result
     });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };

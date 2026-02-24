@@ -28,7 +28,7 @@ const AttendanceSettingsSchema = new mongoose.Schema(
     allowedLocation: {
       lat: Number,
       lng: Number,
-      radiusMeters: { type: Number, default: 50 },
+      radiusMeters: { type: Number, default: 120 },
       strict: { type: Boolean, default: true },
     },
 

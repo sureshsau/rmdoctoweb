@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { authenticate, authorize, isAdmin } from "../middlewares/auth.middlewire.js";
 import {
   getAttendanceSettingsController,
   registerFaceEmbeddingController,
@@ -46,24 +46,25 @@ const router = express.Router();
   router.get(
     "/log/:userId",
     authenticate,
+    isAdmin,
     getAttendanceLogsForUserController
   );
 
-  router.get(
-    '/settings',
-    authenticate,
-    authorize(
-      "Attendance.settings:view:self",
-      "Attendance.settings:view:all"
-    ),
-    getAttendanceSettingsController
-  );
+  // router.get(
+  //   '/settings',
+  //   authenticate,
+  //   authorize(
+  //     "Attendance.settings:view:self",
+  //     "Attendance.settings:view:all"
+  //   ),
+  //   getAttendanceSettingsController
+  // );
 
-  router.post(
-    "/setAttendanceSettings",
-    authenticate,
-    authorize("attendance.settings.update"),
-    setAttendanceSettingsForAllUsersController
-  );
+  // router.post(
+  //   "/setAttendanceSettings",
+  //   authenticate,
+  //   authorize("attendance.settings.update"),
+  //   setAttendanceSettingsForAllUsersController
+  // );
 
 export default router;

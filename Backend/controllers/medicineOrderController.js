@@ -1,4 +1,4 @@
-import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getUserMedicineOrdersOverview, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
+import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
@@ -324,3 +324,30 @@ export const assignRMRiderController = async (req, res) => {
   }
 };
 
+
+export const getAssignedOrdersForRider = async (req, res, next) => {
+  try {
+    const id = req.user.id;
+
+    const {
+      status,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    const result = await getOrdersForRmRiderService({
+      rmRiderUserId: id,
+      status,
+      page: Number(page),
+      limit: Number(limit)
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.log("getAssignedOrdersForRider Error:", error);
+    next(error);
+  }
+};

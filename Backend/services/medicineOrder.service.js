@@ -141,6 +141,7 @@ export const createMedicineOrder = async ({
         // Update order as paid
         createdOrder.paymentStatus = "PAID";
         createdOrder.orderStatus = "CONFIRMED";
+        createdOrder.codOtp = generateOTP(); // 🔐 generate OTP for delivery
 
         await createdOrder.save({ session });
 
@@ -667,5 +668,81 @@ export const getUserMedicineOrderTotalService = async ({
   return {
     totalAmount: result[0]?.totalAmount || 0,
     totalOrders: result[0]?.totalOrders || 0,
+  };
+};
+
+
+export const getOrdersForRmRiderService = async ({
+  rmRiderUserId,
+  status,
+  page = 1,
+  limit = 10
+}) => {
+  const query = {
+    deliveryAgentId: rmRiderUserId
+  };
+
+  if (status) {
+    query.orderStatus = status;
+  }
+
+  const skip = (page - 1) * limit;
+
+  /* =========================
+     PARALLEL DB CALLS
+  ========================= */
+  const [orders, totalOrders] = await Promise.all([
+    MedicineOrder.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "userId",
+        select: "name phone"
+      })
+      .populate({
+        path: "items.medicineId",
+        select: "name images"
+      })
+      .lean(),
+
+    MedicineOrder.countDocuments(query)
+  ]);
+
+  /* =========================
+     OVERVIEW SHAPE
+  ========================= */
+  const overviewOrders = orders.map(order => ({
+    orderId: order._id,
+
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMode: order.paymentMode,
+
+    customer: {
+      name: order.userId?.name || null,
+      phone: order.userId?.phone || null
+    },
+
+    itemCount: order.items.length,
+
+    totalAmount: order.pricing.payableAmount,
+
+    deliveryAddress: {
+      addressLine1: order.deliveryAddress.addressLine1,
+      pincode: order.deliveryAddress.pincode
+    },
+
+    createdAt: order.createdAt
+  }));
+
+  return {
+    orders: overviewOrders,
+    pagination: {
+      totalOrders,
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit),
+      limit
+    }
   };
 };

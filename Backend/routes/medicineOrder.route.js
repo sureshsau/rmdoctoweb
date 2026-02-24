@@ -1,44 +1,37 @@
 import express from 'express';
-import { authenticate, authorize } from '../middlewares/auth.middlewire.js';
+import { authenticate } from '../middlewares/auth.middlewire.js';
 import { createMedicineOrderMiddleware } from '../validator/medicine/medicineOrder.validator.js';
-import { assignRMRiderController, createRazorpayMedicineOrder, getAllMedicineOrdersController, getMedicineOrderDetailsController, getMedicineOrdersOverviewController, orderMedicine, updateOrderStatusController, verifyOnlinePaymentController, verifyOrderOtpController } from '../controllers/medicineOrderController.js';
-const router=express.Router();
-
-
-router.post(
-  "/",
-  authenticate,
-  createMedicineOrderMiddleware,
-  orderMedicine
-)
-.get("/",authenticate,getMedicineOrdersOverviewController)
-.get("/:orderId",authenticate,getMedicineOrderDetailsController)
-.post(
-  "/verify-otp",
-  authenticate,
+import {
+  assignRMRiderController,
+  createRazorpayMedicineOrder,
+  getAllMedicineOrdersController,
+  getAssignedOrdersForRider,
+  getMedicineOrderDetailsController,
+  getMedicineOrdersOverviewController,
+  orderMedicine,
+  updateOrderStatusController,
+  verifyOnlinePaymentController,
   verifyOrderOtpController
-)
-.post(
-  "/payments/razorpay/create",
-  authenticate,
-  createRazorpayMedicineOrder
-)
-.post(
-  "/payments/razorpay/verify",
-  authenticate,
-  verifyOnlinePaymentController
-)
-.patch(
-  "/:orderId/status",
-  authenticate,
-  updateOrderStatusController
-)
-router.patch(
-  "/assign-rmrider/:orderId",
-  authenticate,
-  assignRMRiderController
-)
+} from '../controllers/medicineOrderController.js';
 
-.get("/view/all",authenticate,getAllMedicineOrdersController)//authorize("medicineOrder.view.all")
+const router = express.Router();
 
-export default router
+// ---------- STATIC ROUTES FIRST ----------
+router.get("/rider", authenticate, getAssignedOrdersForRider);
+router.get("/view/all", authenticate, getAllMedicineOrdersController);
+
+router.post("/verify-otp", authenticate, verifyOrderOtpController);
+router.post("/payments/razorpay/create", authenticate, createRazorpayMedicineOrder);
+router.post("/payments/razorpay/verify", authenticate, verifyOnlinePaymentController);
+
+router.patch("/assign-rmrider/:orderId", authenticate, assignRMRiderController);
+router.patch("/:orderId/status", authenticate, updateOrderStatusController);
+
+// ---------- MAIN ROUTES ----------
+router.post("/", authenticate, createMedicineOrderMiddleware, orderMedicine);
+router.get("/", authenticate, getMedicineOrdersOverviewController);
+
+// ---------- DYNAMIC ROUTE ALWAYS LAST ----------
+router.get("/:orderId", authenticate, getMedicineOrderDetailsController);
+
+export default router;

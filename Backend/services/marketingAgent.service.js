@@ -295,7 +295,7 @@ export const getOrdersForMarketingAgentService = async ({
   limit = 10
 }) => {
   const query = {
-    deliveryAgentId: marketingAgentUserId
+    marketingAgentId: marketingAgentUserId
   };
 
   if (status) {

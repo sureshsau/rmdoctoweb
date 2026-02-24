@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MoreVertical } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/services/auth.service";
 
@@ -10,10 +9,11 @@ interface UserActionsMenuProps {
   setTransferModal?: (user: AuthUser) => void;
 }
 
-
 export default function UserActionsMenu({ user, onRoleClick, setTransferModal }: UserActionsMenuProps) {
   const [open, setOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -22,17 +22,32 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
         setOpen(false);
       }
     }
+
+    function handleScroll() {
+      if (open) setOpen(false);
+    }
+
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", handleScroll, true);
+      
+      // Calculate position on open
+      if (buttonRef.current) {
+        const buttonRect = buttonRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const spaceAbove = buttonRect.top;
+        const dropdownHeight = 200; // Approximate dropdown height
+        
+        setDropdownPosition(spaceBelow < dropdownHeight && spaceAbove > spaceBelow ? 'top' : 'bottom');
+      }
     }
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [open]);
 
-  // ACTIONS_MAP as per mobile expo, with 'Edit Profile' removed from all roles
   const ACTIONS_MAP: Record<string, Array<{ id: string; label: string; route?: string }>> = {
     admin: [
       { id: "give-role", label: "Give Role" },
@@ -40,7 +55,6 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
     marketing_agent: [
-      { id: "view-network", label: "View Network", route: "/marketing_agent/network" },
       { id: "set-attendance", label: "Set Attendance", route: "/admin/users/:id/attendance" },
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
@@ -65,7 +79,7 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
       { id: "transfer-rmcoin", label: "Transfer RM Coins" },
     ],
     default: [
-      // No actions for default role (or add others as needed)
+      { id: "give-role", label: "Give Role" },
     ],
   };
 
@@ -74,20 +88,22 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
 
   function handleAction(action: { id: string; label: string; route?: string }) {
     setOpen(false);
-    // Transfer RM Coins modal (to be implemented)
+    
     if (action.id === "transfer-rmcoin") {
       if (setTransferModal) setTransferModal(user);
       return;
     }
+    
     if (action.id === "give-role") {
       onRoleClick(user);
       return;
     }
+    
     if (action.route) {
       let route = action.route.includes(":id")
         ? action.route.replace(":id", user._id || user.id || "")
         : action.route;
-      // For RM Credit/RM Coin, pass params
+      
       if (
         action.id === "rmcredit" ||
         action.id === "rmcoin" ||
@@ -99,35 +115,57 @@ export default function UserActionsMenu({ user, onRoleClick, setTransferModal }:
         );
         return;
       }
+      
       router.push(route);
-      return;
     }
   }
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative inline-block" ref={menuRef}>
       <button
-        className="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        ref={buttonRef}
+        onClick={() => setOpen(!open)}
+        className="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 active:bg-gray-200"
         aria-label="More actions"
-        onClick={() => setOpen((v) => !v)}
-        tabIndex={0}
       >
-        <MoreVertical className="w-5 h-5 text-gray-500" />
+        <MoreVertical className="w-5 h-5 text-gray-600" />
       </button>
+
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 flex flex-col text-sm animate-fade-in-up"
-          style={{ minWidth: 180 }}
-        >
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              className="flex items-center gap-2 px-4 py-2 hover:bg-cyan-50 text-gray-700 w-full text-left"
-              onClick={() => handleAction(action)}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+        <>
+          {/* Backdrop for mobile */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+            onClick={() => setOpen(false)}
+          />
+          
+          {/* Dropdown menu - responsive */}
+          <div 
+            className={`
+              fixed md:absolute z-50
+              md:w-48 md:min-w-[180px]
+              left-4 right-4 md:left-auto
+              ${dropdownPosition === 'bottom' 
+                ? 'bottom-4 md:bottom-auto md:top-full md:mt-2' 
+                : 'top-4 md:top-auto md:bottom-full md:mb-2'
+              }
+              md:right-0
+              bg-white rounded-xl shadow-xl border border-gray-200 py-2
+              max-h-[80vh] overflow-y-auto
+              animate-fade-in-up
+            `}
+          >
+            {actions.map((action) => (
+              <button
+                key={action.id}
+                className="w-full text-left px-4 py-3.5 md:py-2.5 hover:bg-cyan-50 text-gray-700 text-base md:text-sm border-b border-gray-50 last:border-0 active:bg-cyan-100"
+                onClick={() => handleAction(action)}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

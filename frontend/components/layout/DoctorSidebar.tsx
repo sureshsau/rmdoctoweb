@@ -67,7 +67,7 @@ export default function DoctorSidebar({ isOpen = false, onClose }: DoctorSidebar
                     const Icon = link.icon;
                     const isActive =
                         pathname === link.href ||
-                        (link.href === "/doctor/dashboard" && pathname.startsWith("/doctor")) ||
+                        (link.href === "/doctor/dashboard" && pathname.startsWith("/doctor/dashboard")) ||
                         (link.href === "/medicine-store" && pathname.startsWith("/medicine-store"));
 
                     return (

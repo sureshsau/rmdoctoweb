@@ -141,7 +141,7 @@ export const createMedicineOrder = async ({
         // Update order as paid
         createdOrder.paymentStatus = "PAID";
         createdOrder.orderStatus = "CONFIRMED";
-        createdOrder.codOtp = generateOTP(); // 🔐 generate OTP for delivery
+        createdOrder.otp = generateOTP(); // 🔐 generate OTP for delivery
 
         await createdOrder.save({ session });
 
@@ -184,47 +184,92 @@ export const createMedicineOrder = async ({
 };
 
 
-export const getUserMedicineOrdersOverview = async ({ userId }) => {
-  const orders = await MedicineOrder.find({
-    userId: new mongoose.Types.ObjectId(userId)
-  })
-    .sort({ createdAt: -1 }) // 🔥 latest first
-    .select({
-      items: { $slice: 1 }, // 🔥 only first medicine
-      pricing: 1,
-      paymentMode: 1,
-      paymentStatus: 1,
-      orderStatus: 1,
-      createdAt: 1
-    })
-    .populate({
-      path: "items.medicineId",
-      select: "name images",
-      options: { limit: 1 }
-    });
+export const getUserMedicineOrdersOverview = async ({
+  userId,
+  page = 1,
+  limit = 10
+}) => {
 
-  // 🔄 Format response (clean & frontend-friendly)
-  return orders.map(order => {
-    const firstItem = order.items[0];
+  const currentPage = Number(page) || 1;
+  const perPage = Number(limit) || 10;
+  const skip = (currentPage - 1) * perPage;
+
+  const matchQuery = {
+    userId: userId   // ❌ REMOVE ObjectId conversion
+  };
+
+  const [orders, totalOrders, totalPaidResult] = await Promise.all([
+
+    MedicineOrder.find(matchQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .select({
+        items: { $slice: 1 },
+        pricing: 1,
+        paymentMode: 1,
+        paymentStatus: 1,
+        orderStatus: 1,
+        createdAt: 1
+      })
+      .populate({
+        path: "items.medicineId",
+        select: "name images"
+      })
+      .lean(),
+
+    MedicineOrder.countDocuments(matchQuery),
+
+    MedicineOrder.aggregate([
+      {
+        $match: {
+          userId: userId,
+          paymentStatus: "PAID"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPaidAmount: { $sum: "$pricing.payableAmount" }
+        }
+      }
+    ])
+  ]);
+
+  const totalPaidAmount =
+    totalPaidResult[0]?.totalPaidAmount || 0;
+
+  const formattedOrders = orders.map(order => {
+    const firstItem = order.items?.[0];
 
     return {
       orderId: order._id,
       orderStatus: order.orderStatus,
       paymentStatus: order.paymentStatus,
       paymentMode: order.paymentMode,
-      payableAmount: order.pricing.payableAmount,
+      payableAmount: order.pricing?.payableAmount || 0,
       createdAt: order.createdAt,
-
       medicine: firstItem
         ? {
-          name: firstItem.medicineId?.name || "",
-          image:
-            firstItem.medicineId?.images?.[0]?.url || null,
-          quantity: firstItem.quantity
-        }
+            name: firstItem.medicineId?.name || "",
+            image:
+              firstItem.medicineId?.images?.[0]?.url || null,
+            quantity: firstItem.quantity
+          }
         : null
     };
   });
+
+  return {
+    orders: formattedOrders,
+    totalPaidAmount,
+    pagination: {
+      totalOrders,
+      currentPage,
+      totalPages: Math.ceil(totalOrders / perPage),
+      limit: perPage
+    }
+  };
 };
 
 export const getMedicineOrderDetails = async ({

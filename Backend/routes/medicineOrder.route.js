@@ -32,6 +32,8 @@ router.post("/", authenticate, createMedicineOrderMiddleware, orderMedicine);
 router.get("/", authenticate, getMedicineOrdersOverviewController);
 
 // ---------- DYNAMIC ROUTE ALWAYS LAST ----------
+
+// ---------- DYNAMIC ROUTE ALWAYS LAST ----------
 router.get("/:orderId", authenticate, getMedicineOrderDetailsController);
 
 export default router;

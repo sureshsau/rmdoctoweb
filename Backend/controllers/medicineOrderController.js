@@ -41,15 +41,21 @@ export const orderMedicine = async (req, res) => {
 
 export const getMedicineOrdersOverviewController = async (req, res) => {
   try {
-    // userId always from auth middleware
-    const userId = req.user.id;
 
-    const orders = await getUserMedicineOrdersOverview({ userId });
+    const userId = req.user.id;
+    const { page = 1, limit = 10 } = req.query;
+
+    const result = await getUserMedicineOrdersOverview({
+      userId,
+      page,
+      limit
+    });
 
     return res.status(200).json({
       success: true,
-      data: orders
+      ...result
     });
+
   } catch (error) {
     return res.status(400).json({
       success: false,

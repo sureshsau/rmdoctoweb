@@ -44,7 +44,15 @@ export const sendOtpLogin = async (req, res) => {
         });
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000);
+      let otp = Math.floor(100000 + Math.random() * 900000);
+      let skipSms = false;
+
+      // Play Store Demo Credentials
+      if (phone === "8116908644" || phone === "9832097660") {
+        otp = 682462;
+        skipSms = true;
+      }
+
       const hashedOtp = await bcrypt.hash(String(otp), 10);
 
       await redis.set(
@@ -59,7 +67,9 @@ export const sendOtpLogin = async (req, res) => {
         600 // ✅ 10 minutes expiry
       );
 
-      await sendLoginOtpSms({ mobile: phone, otp });
+      if (!skipSms) {
+        await sendLoginOtpSms({ mobile: phone, otp });
+      }
 
       return res.status(200).json({
         success: true,
@@ -71,7 +81,15 @@ export const sendOtpLogin = async (req, res) => {
     // 🆕 FIRST TIME OTP
     // ---------------------------
 
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    let otp = Math.floor(100000 + Math.random() * 900000);
+    let skipSms = false;
+
+    // Play Store Demo Credentials
+    if (phone === "8116908644" || phone === "9832097660") {
+      otp = 682462;
+      skipSms = true;
+    }
+
     const hashedOtp = await bcrypt.hash(String(otp), 10);
 
     await redis.set(
@@ -86,7 +104,9 @@ export const sendOtpLogin = async (req, res) => {
       600 // ✅ 10 minutes expiry
     );
 
-    await sendLoginOtpSms({ mobile: phone, otp });
+    if (!skipSms) {
+      await sendLoginOtpSms({ mobile: phone, otp });
+    }
 
     return res.status(200).json({
       success: true,
@@ -201,7 +221,7 @@ export const verifyOtpLogin = async (req, res) => {
         version
       },
       process.env.JWT_SECRET,
-      { expiresIn: "365d" } 
+      { expiresIn: "365d" }
     );
 
     return res.status(200).json({

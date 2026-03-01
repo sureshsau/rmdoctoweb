@@ -30,7 +30,7 @@ import loginRoute from './routes/login.route.js'
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://www.rmdocto.in/", "https://www.rmdocto.in/"],
+    origin: ["http://localhost:3000", "https://www.rmdocto.in", "https://rmdocto.in"],
     credentials: true,
   })
 );

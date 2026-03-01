@@ -30,7 +30,7 @@ import loginRoute from './routes/login.route.js'
 
 app.use(
   cors({
-    origin: ["http://localhost:3000"],
+    origin: ["http://localhost:3000", "https://www.rmdocto.in/", "https://www.rmdocto.in/"],
     credentials: true,
   })
 );
@@ -53,9 +53,9 @@ app.use("/role-assignments", roleAssignmentsRoute);
 app.use("/user", userRoute);
 app.use("/permission", permissionRoute);
 app.use("/agent", agentRoute);
-app.use("/medicine/order",medicineOrderRoute);
-app.use("/marketing-agent",marketingAgentRoute)
-app.use("/appointment",appointmentRoute)
+app.use("/medicine/order", medicineOrderRoute);
+app.use("/marketing-agent", marketingAgentRoute)
+app.use("/appointment", appointmentRoute)
 app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);
 /* ================= ROUTES WITH FILE UPLOAD ================= */

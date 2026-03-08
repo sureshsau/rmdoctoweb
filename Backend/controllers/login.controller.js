@@ -48,7 +48,7 @@ export const sendOtpLogin = async (req, res) => {
       let skipSms = false;
 
       // Play Store Demo Credentials
-      if (phone === "8116908644" || phone === "9832097660") {
+      if (phone === "8116908644" || phone === "9832097660" || phone === "9865365329" || phone === "9142598469" || phone === "9865365329" || phone === "8388865431" || phone === "7542851073") {
         otp = 682462;
         skipSms = true;
       }

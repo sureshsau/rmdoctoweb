@@ -84,11 +84,11 @@ export const sendOtpLogin = async (req, res) => {
     let otp = Math.floor(100000 + Math.random() * 900000);
     let skipSms = false;
 
-    // // Play Store Demo Credentials
-    // if (phone === "8116908644" || phone === "9832097660") {
-    //   otp = 682462;
-    //   skipSms = true;
-    // }
+    // Play Store Demo Credentials
+    if (phone === "8116908644" || phone === "9832097660") {
+      otp = 682462;
+      skipSms = true;
+    }
 
     const hashedOtp = await bcrypt.hash(String(otp), 10);
 

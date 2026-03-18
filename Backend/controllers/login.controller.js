@@ -37,7 +37,7 @@ export const sendOtpLogin = async (req, res) => {
       }
 
       // 🚫 MAX RESEND LIMIT (5)
-      if (parsed.resendCount >= 5) {
+      if (parsed.resendCount >= 10) {
         return res.status(429).json({
           success: false,
           message: "Maximum OTP attempts reached. Try later."
@@ -48,7 +48,7 @@ export const sendOtpLogin = async (req, res) => {
       let skipSms = false;
 
       // Play Store Demo Credentials
-      if (phone === "8116908644" || phone === "9832097660" || phone === "9865365329" || phone === "9142598469" || phone === "9865365329" || phone === "8388865431" || phone === "7542851073") {
+      if (phone === "8116908644" || phone === "9832097660") {
         otp = 682462;
         skipSms = true;
       }
@@ -84,11 +84,11 @@ export const sendOtpLogin = async (req, res) => {
     let otp = Math.floor(100000 + Math.random() * 900000);
     let skipSms = false;
 
-    // Play Store Demo Credentials
-    if (phone === "8116908644" || phone === "9832097660") {
-      otp = 682462;
-      skipSms = true;
-    }
+    // // Play Store Demo Credentials
+    // if (phone === "8116908644" || phone === "9832097660") {
+    //   otp = 682462;
+    //   skipSms = true;
+    // }
 
     const hashedOtp = await bcrypt.hash(String(otp), 10);
 
@@ -131,6 +131,7 @@ export const verifyOtpLogin = async (req, res) => {
     const { phone, otp } = req.body;
     const ip = req.ip;
     const device = req.headers["user-agent"];
+    console.log("for number is ", phone, ":", otp);
 
     if (!phone || !otp) {
       return res.status(400).json({
@@ -152,14 +153,14 @@ export const verifyOtpLogin = async (req, res) => {
     const parsed = JSON.parse(data);
 
     //  Block after 5 failed attempts
-    if (parsed.verifyAttempts >= 5) {
+    if (parsed.verifyAttempts >= 10) {
       return res.status(429).json({
         success: false,
         message: "Too many failed attempts. Try again later."
       });
     }
 
-    const validOtp = await bcrypt.compare(String(otp), parsed.otp);
+    const validOtp = await bcrypt.compare(String(otp).trim(), parsed.otp);
 
     if (!validOtp) {
       parsed.verifyAttempts += 1;

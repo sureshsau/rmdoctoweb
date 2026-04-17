@@ -25,23 +25,23 @@ export const authenticate = async (req, res, next) => {
         "_id dashboard roles permissions webSessionVersion appSessionVersion isBlocked isActive"
       )
       .lean();
-      
+
     if (!user || user.isBlocked || !user.isActive) {
-      return res.status(401).json({success:false, message: "your Account is inactive or blocked" });
+      return res.status(401).json({ success: false, message: "Your account is inactive or blocked" });
     }
 
     // Session validation
     if (decoded.deviceType === "web") {
       if (user.webSessionVersion !== decoded.version) {
-        return res.status(401).json({success:false, message: "Session expired" });
+        return res.status(401).json({ success: false, message: "Session expired" });
       }
     } else {
       if (user.appSessionVersion !== decoded.version) {
-        return res.status(401).json({success:false, message: "Session expired" });
+        return res.status(401).json({ success: false, message: "Session expired" });
       }
     }
 
-    // Attach user (NO DB LOOKUPS ANYMORE)
+    // Attach user to request
     req.user = {
       id: user._id,
       dashboard: user.dashboard,
@@ -59,6 +59,11 @@ export const authenticate = async (req, res, next) => {
 
 
 export function authorize(requiredPermissions) {
+  // Allow no permissions = any authenticated user passes
+  if (!requiredPermissions || (Array.isArray(requiredPermissions) && requiredPermissions.length === 0)) {
+    return (req, res, next) => next();
+  }
+
   if (!Array.isArray(requiredPermissions)) {
     requiredPermissions = [requiredPermissions];
   }
@@ -66,58 +71,42 @@ export function authorize(requiredPermissions) {
   return (req, res, next) => {
     const user = req.user;
 
-    console.log(user);
-
     if (!user || !Array.isArray(user.permissions)) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Unauthorized" });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    //  ADMIN / SUBADMIN FULL ACCESS
-    if (
-      user.roles?.includes("admin") ||
-      user.roles?.includes("subadmin")
-    ) {
+    // ── FULL-ACCESS ROLES ──────────────────────────────────────────
+    // admin, subadmin, and employee get through all route guards
+    const FULL_ACCESS_ROLES = ["admin", "subadmin", "employee"];
+    if (user.roles?.some((r) => FULL_ACCESS_ROLES.includes(r))) {
       return next();
     }
 
     const granted = new Set(user.permissions);
 
-    // SUPER ADMIN / GLOBAL OVERRIDE VIA PERMISSIONS
-    if (
-      granted.has("*") ||
-      granted.has("*:*") ||
-      granted.has("*:*:*")
-    ) {
+    // Global super-admin wildcard override
+    if (granted.has("*") || granted.has("*:*") || granted.has("*:*:*")) {
       return next();
     }
 
     const isAllowed = (neededPerm) => {
-      const [needRes, needAct, needScope] = neededPerm.split(":");
+      const parts = neededPerm.split(".");
 
       for (const perm of granted) {
-        const [res, act, scope] = perm.split(":");
-
         // Exact match
         if (perm === neededPerm) return true;
 
-        // Wildcards
-        if (
-          (res === needRes || res === "*") &&
-          (act === needAct || act === "*") &&
-          (!needScope || scope === needScope || scope === "*")
-        ) {
-          return true;
-        }
+        // Wildcard: e.g. "medicine.*" grants "medicine.create" etc.
+        const permParts = perm.split(".");
+        const allMatch = parts.every(
+          (part, i) => permParts[i] === part || permParts[i] === "*"
+        );
+        if (allMatch && permParts.length === parts.length) return true;
 
-        // 3️⃣ Self-scope
+        // Trailing wildcard: "medicine.*" matches "medicine.create"
         if (
-          needScope === "self" &&
-          res === needRes &&
-          act === needAct &&
-          scope === "self" &&
-          req.params?.id === String(req.user.id)
+          permParts[permParts.length - 1] === "*" &&
+          permParts.slice(0, -1).join(".") === parts.slice(0, permParts.length - 1).join(".")
         ) {
           return true;
         }
@@ -137,6 +126,7 @@ export function authorize(requiredPermissions) {
     next();
   };
 }
+
 
 // ✅ CHECK IF USER IS ADMIN
 export const isAdmin = (req, res, next) => {
@@ -166,3 +156,64 @@ export const isAdmin = (req, res, next) => {
   }
 };
 
+// ✅ CHECK IF USER IS OWNER OF THE RESOURCE OR ADMIN/SUBADMIN
+export const isOwnerOrAdmin = (paramKey = "id") => {
+  return (req, res, next) => {
+    try {
+      const user = req.user;
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      // We typically find the target ID from route params (like /user/:userId => req.params.userId)
+      // or optionally from the request body.
+      const targetId = req.params[paramKey] || req.body[paramKey];
+
+      // Admin or subadmin bypass
+      if (user.roles?.includes("admin") || user.roles?.includes("subadmin")) {
+        return next();
+      }
+
+      // Ownership check
+      if (targetId && user.id.toString() === targetId.toString()) {
+        return next();
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You can only access your own data",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error verifying ownership",
+      });
+    }
+  };
+};
+
+// ✅ ADMIN OR SUBADMIN ONLY — fast role check, no permission scan
+export const isAdminOrSubadmin = (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+
+    if (user.roles?.includes("admin") || user.roles?.includes("subadmin")) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "Forbidden: Admin or Subadmin access only",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Error verifying admin role" });
+  }
+};

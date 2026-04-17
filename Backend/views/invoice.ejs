@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      padding: 15px 20px;
+      color: #000;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 8px;
+      font-weight: bold;
+      border-bottom: 2px solid #000;
+      padding-bottom: 5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+
+    td,
+    th {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    th {
+      background: #f5f5f5;
+      text-align: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .right {
+      text-align: right;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .logo-img {
+      max-height: 45px;
+      max-width: 120px;
+    }
+
+    .signature-logo {
+      max-height: 30px;
+      max-width: 80px;
+    }
+
+    .barcode-img {
+      max-height: 50px;
+      max-width: 180px;
+    }
+
+    .header-section {
+      border: 1.5px solid #000;
+      border-bottom: none;
+    }
+
+    .header-section td {
+      border: 1px solid #000;
+    }
+
+    .address-section {
+      border: 1.5px solid #000;
+      border-bottom: none;
+    }
+
+    .address-section td {
+      border: 1px solid #000;
+    }
+
+    .items-table {
+      border: 1.5px solid #000;
+      border-bottom: none;
+    }
+
+    .items-table td,
+    .items-table th {
+      border: 1px solid #000;
+    }
+
+    .totals-table {
+      border: 1.5px solid #000;
+      border-bottom: none;
+    }
+
+    .totals-table td {
+      border: 1px solid #000;
+    }
+
+    .footer-section {
+      border: 1.5px solid #000;
+    }
+
+    .footer-section td {
+      border: 1px solid #000;
+    }
+
+    .declaration-text {
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .computer-generated {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 11px;
+      font-style: italic;
+      color: #333;
+    }
+
+    .eoe {
+      text-align: right;
+      font-weight: bold;
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Tax Invoice</h2>
+
+  <!-- ========== HEADER (Seller + Invoice/Barcode + Order/Barcode) ========== -->
+  <table class="header-section">
+    <tr>
+      <!-- Seller Info -->
+      <td style="width: 40%;" rowspan="2">
+        <% if (logoBase64) { %>
+          <img src="<%= logoBase64 %>" class="logo-img" /><br />
+          <% } %>
+            <br />
+            <b>Sold By</b><br />
+            <b>
+              <%= seller.name %>
+            </b><br />
+            <%= seller.address %><br />
+              <b>GSTIN:</b>
+              <%= seller.gstin %><br />
+                <b>Mobile:</b>+91<%= seller.mobile %><br />
+                  <b>Email:</b>
+                  <%= seller.email %><br />
+                    <b>Place of Supply :</b>
+                    <%= seller.place %>
+      </td>
+
+      <!-- Invoice Info -->
+      <td style="width: 30%;">
+        <b>Invoice Date :</b>
+        <%= invoice.date %><br />
+          <b>Invoice No.:</b>
+          <%= invoice.no %><br /><br />
+            <% if (invoiceBarcode) { %>
+              <img src="<%= invoiceBarcode %>" class="barcode-img" />
+              <% } %>
+      </td>
+
+      <!-- Order Info -->
+      <td style="width: 30%;">
+        <b>Order Date :</b>
+        <%= invoice.orderDate %><br />
+          <b>Order No :</b>
+          <%= invoice.orderNo %><br /><br />
+            <% if (orderBarcode) { %>
+              <img src="<%= orderBarcode %>" class="barcode-img" />
+              <% } %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== BILL TO / SHIP TO ========== -->
+  <table class="address-section">
+    <tr>
+      <td style="width: 50%;">
+        <b>Bill To:</b><br />
+        <b>
+          <%= customer.name %>
+        </b><br />
+        <%= customer.address %><br />
+          <b>Phone:</b>
+          <%= customer.userPhone %><br />
+            <b>Contact :</b>
+            <%= customer.phone %><br />
+              <b>Place of Delivery :</b>
+              <%= customer.place %>
+      </td>
+
+      <td style="width: 50%;">
+        <b>Ship To:</b><br />
+        <b>
+          <%= customer.name %>
+        </b><br />
+        <%= customer.address %><br />
+          <b>Phone:</b>
+          <%= customer.userPhone %><br />
+            <b>Contact :</b>
+            <%= customer.phone %><br />
+              <b>Place of Delivery :</b>
+              <%= customer.place %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== ITEMS TABLE ========== -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:42%;">Product Name</th>
+        <th style="width:5%;">Qty</th>
+        <th style="width:10%;">Unit Price</th>
+        <th style="width:13%;">Price</th>
+        <th style="width:15%;">IGST<br />Amount &nbsp;|&nbsp; %</th>
+        <th style="width:15%;">Total Amount</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <% let invoiceSubtotal=0; %>
+
+        <% items.forEach(item=> {
+          const taxable = item.qty * item.price - (item.discount || 0);
+          const taxAmt = taxable * (item.tax / 100);
+          const total = taxable + taxAmt;
+          invoiceSubtotal += total;
+          %>
+
+          <tr>
+            <td>
+              <%= item.name %>
+            </td>
+            <td class="center">
+              <%= item.qty %>
+            </td>
+            <td class="right">
+              <%= item.price.toFixed(2) %>
+            </td>
+            <td class="right">
+              <%= taxable.toFixed(2) %>
+            </td>
+            <td class="center">
+              <%= taxAmt.toFixed(2) %> &nbsp;|&nbsp; <%= item.tax %>.00
+            </td>
+            <td class="right">
+              <%= total.toFixed(2) %>
+            </td>
+          </tr>
+
+          <% }) %>
+    </tbody>
+  </table>
+
+  <!-- ========== TOTALS ========== -->
+  <table class="totals-table">
+    <tr>
+      <td colspan="4" class="right bold" style="width:85%;">SUBTOTAL</td>
+      <td class="right bold" style="width:15%;">
+        <%= invoiceSubtotal.toFixed(2) %>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="4" class="right" style="width:85%;">Shipping Charge</td>
+      <td class="right" style="width:15%;">
+        <%= shipping.toFixed(2) %>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="4" class="right bold" style="width:85%;">TOTAL</td>
+      <td class="right bold" style="width:15%;">
+        <%= (invoiceSubtotal + shipping).toFixed(2) %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== FOOTER (Amount in words + Declaration + Signature) ========== -->
+  <table class="footer-section">
+    <tr>
+      <td colspan="2">
+        <b>Amount Chargeable (In word):</b>
+        <%= amountWords %> Rupees Only.
+      </td>
+      <td class="right eoe">E. &amp; O.E</td>
+    </tr>
+    <tr>
+      <td colspan="3">
+        <b>Payment Mode :</b>
+        <%= paymentMode %>
+      </td>
+    </tr>
+    <tr>
+      <!-- Declaration -->
+      <td style="width: 60%; vertical-align: top;">
+        <b>Declaration</b><br />
+        <div class="declaration-text">
+          1. All claims, if any, for shortages or damages must be reported to customer service on the day of delivery
+          through the contact us page on the web store.<br />
+          2. When returning the order (COD &amp; Prepaid), the shipping charges that were paid will not be
+          refunded.<br />
+          3. All Disputes are subject to jurisdiction only.
+        </div>
+      </td>
+
+      <!-- Authorized Signatory -->
+      <td colspan="2" style="width: 40%; text-align: right; vertical-align: top;">
+        <b>For <%= seller.name %> :</b><br /><br />
+        <% if (logoBase64) { %>
+          <img src="<%= logoBase64 %>" class="signature-logo" /><br />
+          <% } %>
+            <b>Authorized Signatory</b>
+      </td>
+    </tr>
+  </table>
+
+  <p class="computer-generated">This is a Computer Generated Invoice</p>
+
+</body>
+
+</html>

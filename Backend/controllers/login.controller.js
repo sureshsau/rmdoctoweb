@@ -185,6 +185,9 @@ export const verifyOtpLogin = async (req, res) => {
         phone,
         isActive: true,
         isBlocked: false,
+        dashboard: "user",
+        roles: [],
+        permissions: []
       });
     }
 

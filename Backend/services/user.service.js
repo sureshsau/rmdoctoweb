@@ -62,4 +62,26 @@ export const createUserService = async ({
   return updatedUser;
 };
 
+export const addSavedAddressService = async (userId, addressData) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
 
+  if (user.savedAddresses && user.savedAddresses.length >= 5) {
+    throw new Error("Maximum of 5 saved addresses allowed. Please delete one first.");
+  }
+
+  user.savedAddresses.push(addressData);
+  await user.save();
+  return user.savedAddresses;
+};
+
+export const deleteSavedAddressService = async (userId, addressId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  user.savedAddresses = user.savedAddresses.filter(
+    (addr) => addr._id.toString() !== addressId.toString()
+  );
+  await user.save();
+  return user.savedAddresses;
+};

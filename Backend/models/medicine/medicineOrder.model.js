@@ -116,7 +116,7 @@ const medicineOrderSchema = new mongoose.Schema(
 
     paymentMode: {
       type: String,
-      enum: ["COD", "ONLINE", "RM_CREDIT"],
+      enum: ["COD", "ONLINE", "RM_CREDIT", "RM_COIN"],
       default:"COD",
       index: true,
     },

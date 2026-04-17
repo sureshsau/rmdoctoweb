@@ -122,8 +122,8 @@ export const createMedicineOrderMiddleware = async (req, res, next) => {
       /* ---------- PAYMENT ---------- */
 
       body("paymentMode")
-        .isIn(["COD", "ONLINE", "RM_CREDIT"])
-        .withMessage("paymentMode must be COD, ONLINE or RM_CREDIT")
+        .isIn(["COD", "ONLINE", "RM_CREDIT", "RM_COIN"])
+        .withMessage("paymentMode must be COD, ONLINE, RM_CREDIT, or RM_COIN")
         .run(req),
 
       body("allowSpecialPrice")

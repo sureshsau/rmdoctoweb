@@ -18,7 +18,7 @@ import medicineRouter from "./routes/medicine.route.js";
 import medicineOrderRoute from './routes/medicineOrder.route.js'
 import rmcreditRoute from "./routes/rmcredit.route.js";
 import AppError from "./utils/AppError.js";
-import { ensureRekognitionCollection } from "./services/aws.service.js";
+import { ensureRekognitionCollection, wipeAllFacesFromRekognition } from "./services/aws.service.js";
 import marketingAgentRoute from './routes/marketingAgent.route.js'
 import Razorpay from "razorpay";
 import razorpay from "./config/razorpay.config.js";
@@ -26,6 +26,7 @@ import appointmentRoute from './routes/appointment.routes.js';
 import rmcoinRoute from "./routes/rmcoin.route.js";
 import axios from "axios";
 import loginRoute from './routes/login.route.js'
+import adminRoute from './routes/admin.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -58,6 +59,7 @@ app.use("/marketing-agent", marketingAgentRoute)
 app.use("/appointment", appointmentRoute)
 app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);
+app.use("/admin", adminRoute);
 /* ================= ROUTES WITH FILE UPLOAD ================= */
 // multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);
@@ -98,7 +100,7 @@ server.listen(port, () => {
 });
 
 try {
-  ensureRekognitionCollection();
+  wipeAllFacesFromRekognition().then(() => ensureRekognitionCollection());
 } catch (err) {
   console.error("Rekognition error", err);
 }

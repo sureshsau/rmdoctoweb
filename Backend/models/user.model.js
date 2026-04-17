@@ -28,11 +28,24 @@ const UserSchema = new mongoose.Schema(
       }
     },
 
+    savedAddresses: [
+      {
+        label: { type: String, enum: ["Home", "Office", "Other"], default: "Other" },
+        addressLine1: { type: String, required: true },
+        pincode: { type: String, required: true },
+        source: { type: String, enum: ["GPS", "MANUAL"], default: "MANUAL" },
+        location: {
+          type: { type: String, enum: ["Point"], default: "Point" },
+          coordinates: { type: [Number], default: [0, 0] }
+        },
+      }
+    ],
+
     // AUTHENTICATION
     passwordHash: { type: String },
 
     // ACCOUNT STATUS
-    isActive: { type: Boolean, default:true },
+    isActive: { type: Boolean, default: true },
     isBlocked: { type: Boolean, default: false },
 
     // DASHBOARD TYPE (UI routing only)
@@ -97,7 +110,7 @@ const UserSchema = new mongoose.Schema(
     },
     kycDocuments: [{ url: String, type: String }],
 
-    // FACE IMAGE (attendance snapshot)
+    // FACE IMAGE (avatar)
     faceImage: {
       url: { type: String, default: null },
       bucket: { type: String, default: null },
@@ -105,10 +118,10 @@ const UserSchema = new mongoose.Schema(
       updatedAt: { type: Date, default: null }
     },
     rmCoinsBalance: {
-  type: Number,
-  default: 0,
-  min: 0
-},
+      type: Number,
+      default: 0,
+      min: 0
+    },
 
     // SECURITY
     failedLoginAttempts: { type: Number, default: 0 },

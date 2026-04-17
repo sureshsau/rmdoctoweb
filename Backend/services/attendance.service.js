@@ -120,17 +120,7 @@ export const setupUserAttendanceService = async ({
     settings.faceRegisteredAt = new Date();
     settings.isFaceActive = true;
 
-    // 4️⃣ Update user profile face image
-    await USER.findByIdAndUpdate(userId, {
-      $set: {
-        faceImage: {
-          url: faceData.imageUrl,
-          bucket: faceData.bucketName,
-          key: faceData.key,
-          updatedAt: new Date()
-        }
-      }
-    });
+    // (Face Image successfully registered to Attendance Settings - skipping User profile update)
   }
 
   // =====================================================
@@ -171,7 +161,7 @@ export async function fetchAllAttendanceSettings() {
   return settings;
 }
 
-export const createAttendanceSetting=async(data)=>{
+export const createAttendanceSetting = async (data) => {
   try {
     if (!data) {
       throw new AppError('missing payload for creating attendance setting');
@@ -199,16 +189,16 @@ export const createAttendanceSetting=async(data)=>{
 
 
 
-export const checkIn=async(data)=>{
-    try{
-        if(!data){
-            throw new AppError('payload is missing',400);
-        }
-        console.log(data);
-
-    }catch(err){
-
+export const checkIn = async (data) => {
+  try {
+    if (!data) {
+      throw new AppError('payload is missing', 400);
     }
+    console.log(data);
+
+  } catch (err) {
+
+  }
 }
 
 /**
@@ -435,7 +425,7 @@ export async function getAttendanceService({
   const fromDate = new Date(from);
   const toDate = new Date(to);
   // Ensure `toDate` covers the whole day by setting to end of day.
-  toDate.setHours(23,59,59,999);
+  toDate.setHours(23, 59, 59, 999);
 
   // Query the AttendanceLog model (historical logs).
   const logs = await AttendanceLog.find({
@@ -459,8 +449,7 @@ export const attendanceMarkServiceByFace = async ({
   userLng
 }) => {
   const now = new Date();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = toUtcMidnight(now); // ✅ UTC midnight — consistent with fetch query
 
   // 1️⃣ Load attendance settings
   const settings = await AttendanceSettings.findOne({
@@ -508,28 +497,7 @@ export const attendanceMarkServiceByFace = async ({
     throw new Error("Face verification failed");
   }
 
-  // 4.5️⃣ Upload attendance snapshot to S3 and update user's faceImage
-  try {
-    const uploaded = await uploadAttendanceImageToS3({
-      userId,
-      imageBuffer: faceImageBuffer,
-      mimeType: 'image/jpeg'
-    });
-
-    await USER.findByIdAndUpdate(userId, {
-      $set: {
-        faceImage: {
-          url: uploaded.url,
-          bucket: uploaded.bucketName,
-          key: uploaded.key,
-          updatedAt: new Date()
-        }
-      }
-    });
-  } catch (err) {
-    console.error('Failed to upload attendance snapshot or update user.faceImage', err);
-    // Do not block attendance flow for upload failures
-  }
+  // Daily attendance snapshots are no longer saved to S3 per latest configuration.
 
   // 5️⃣ CHECK-IN
   if (!attendance) {
@@ -564,72 +532,72 @@ export const attendanceMarkServiceByFace = async ({
 
   // 6️⃣ CHECK-OUT
   // 6️⃣ CHECK-OUT (WITH CALCULATION)
-if (attendance.checkIn?.time && !attendance.checkOut?.time) {
-  attendance.checkOut = {
-    time: now,
-    verifiedBy: "FACE",
-    confidence: faceVerification.confidence,
-    faceIdUsed: faceVerification.faceId
-  };
+  if (attendance.checkIn?.time && !attendance.checkOut?.time) {
+    attendance.checkOut = {
+      time: now,
+      verifiedBy: "FACE",
+      confidence: faceVerification.confidence,
+      faceIdUsed: faceVerification.faceId
+    };
 
-  // ⏱️ WORK DURATION
-  const workedMinutes = diffMinutes(
-    attendance.checkIn.time,
-    now
-  );
+    // ⏱️ WORK DURATION
+    const workedMinutes = diffMinutes(
+      attendance.checkIn.time,
+      now
+    );
 
-  attendance.totalHours = Number(
-    (workedMinutes / 60).toFixed(2)
-  );
+    attendance.totalHours = Number(
+      (workedMinutes / 60).toFixed(2)
+    );
 
-  // 🕘 SHIFT TIMES
-  const shiftStartMin = parseTimeToMinutes(
-    settings.shiftStartTime
-  );
-  const shiftEndMin = parseTimeToMinutes(
-    settings.shiftEndTime
-  );
-  const requiredMin = settings.requiredHoursPerDay * 60;
-  const halfDayMin = settings.halfDayMinHours * 60;
+    // 🕘 SHIFT TIMES
+    const shiftStartMin = parseTimeToMinutes(
+      settings.shiftStartTime
+    );
+    const shiftEndMin = parseTimeToMinutes(
+      settings.shiftEndTime
+    );
+    const requiredMin = settings.requiredHoursPerDay * 60;
+    const halfDayMin = settings.halfDayMinHours * 60;
 
-  const checkInMin =
-    attendance.checkIn.time.getHours() * 60 +
-    attendance.checkIn.time.getMinutes();
+    const checkInMin =
+      attendance.checkIn.time.getHours() * 60 +
+      attendance.checkIn.time.getMinutes();
 
-  const checkOutMin =
-    now.getHours() * 60 +
-    now.getMinutes();
+    const checkOutMin =
+      now.getHours() * 60 +
+      now.getMinutes();
 
-  // ⏰ LATE ENTRY
-  if (checkInMin > shiftStartMin + settings.graceMinutes) {
-    attendance.lateByMinutes =
-      checkInMin - (shiftStartMin + settings.graceMinutes);
+    // ⏰ LATE ENTRY
+    if (checkInMin > shiftStartMin + settings.graceMinutes) {
+      attendance.lateByMinutes =
+        checkInMin - (shiftStartMin + settings.graceMinutes);
+    }
+
+    // 🚪 EARLY LEAVE
+    if (checkOutMin < shiftEndMin) {
+      attendance.earlyLeaveMinutes =
+        shiftEndMin - checkOutMin;
+    }
+
+    // 📊 FINAL STATUS
+    if (workedMinutes >= requiredMin) {
+      attendance.status = "PRESENT_FULL";
+    } else if (workedMinutes >= halfDayMin) {
+      attendance.status = "PRESENT_HALF";
+    } else {
+      attendance.status = "ABSENT";
+    }
+
+    await attendance.save();
+
+    return {
+      action: "CHECK_OUT",
+      time: now,
+      workedHours: attendance.totalHours,
+      status: attendance.status
+    };
   }
-
-  // 🚪 EARLY LEAVE
-  if (checkOutMin < shiftEndMin) {
-    attendance.earlyLeaveMinutes =
-      shiftEndMin - checkOutMin;
-  }
-
-  // 📊 FINAL STATUS
-  if (workedMinutes >= requiredMin) {
-    attendance.status = "PRESENT_FULL";
-  } else if (workedMinutes >= halfDayMin) {
-    attendance.status = "PRESENT_HALF";
-  } else {
-    attendance.status = "ABSENT";
-  }
-
-  await attendance.save();
-
-  return {
-    action: "CHECK_OUT",
-    time: now,
-    workedHours: attendance.totalHours,
-    status: attendance.status
-  };
-}
 
 
   throw new Error("Attendance already completed for today");
@@ -661,9 +629,9 @@ export const calculateDistanceMeters = (
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -684,6 +652,14 @@ const diffMinutes = (start, end) => {
 };
 
 /**
+ * Returns a Date object set to midnight UTC for the given date.
+ * This ensures stored attendanceDate is timezone-neutral.
+ */
+const toUtcMidnight = (d = new Date()) => {
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+};
+
+/**
  * Fetch attendance logs for a user with optional filters and pagination
  * Filters: from, to
  * Pagination: page (default 1), limit (default 10)
@@ -696,6 +672,7 @@ export const fetchUserAttendanceLogsService = async ({
   page = 1,
   limit = 10
 }) => {
+  console.log(userId, from, to, page, limit);
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new AppError("Invalid userId", 400);
@@ -712,11 +689,14 @@ export const fetchUserAttendanceLogsService = async ({
     if (isNaN(startDate)) throw new AppError("Invalid `from` date", 400);
     if (isNaN(endDate)) throw new AppError("Invalid `to` date", 400);
 
-    endDate.setHours(23, 59, 59, 999);
+    // ✅ Normalize to UTC end-of-day
+    endDate = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999));
+    startDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
   } else {
     const now = new Date();
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    // ✅ UTC midnight start of month — matches how attendanceDate is stored
+    startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+    endDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
   }
 
   const query = {

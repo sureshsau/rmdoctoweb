@@ -7,6 +7,7 @@ import AgentProfile from '../models/agentProfile.model.js'
 import User from "../models/user.model.js";
 import RMCredit from "../models/rmcredit/rmcredit.model.js";
 import RMCreditTransaction from "../models/rmcredit/rmcreditTransaction.model.js";
+import RMCoinsTransaction from "../models/rmcoinTransfer.model.js";
 
 export const createMedicineOrder = async ({
   user,
@@ -41,10 +42,10 @@ export const createMedicineOrder = async ({
         ? medicine.pricing.specialPrice ?? medicine.pricing.price
         : medicine.pricing.price;
 
-      const itemSubtotal = unitPrice * item.quantity;
+      const itemSubtotal = Number((unitPrice * item.quantity).toFixed(2));
       const gstPercentage = medicine.gstPercentage || 0;
-      const gstAmount = (itemSubtotal * gstPercentage) / 100;
-      const totalPrice = itemSubtotal + gstAmount;
+      const gstAmount = Number(((itemSubtotal * gstPercentage) / 100).toFixed(2));
+      const totalPrice = Number((itemSubtotal + gstAmount).toFixed(2));
 
       subtotal += itemSubtotal;
       gstTotal += gstAmount;
@@ -76,7 +77,9 @@ export const createMedicineOrder = async ({
       }
     }
 
-    const payableAmount = subtotal + gstTotal;
+    subtotal = parseFloat(subtotal.toFixed(2));
+    gstTotal = parseFloat(gstTotal.toFixed(2));
+    const payableAmount = parseFloat((subtotal + gstTotal).toFixed(2));
 
     const [createdOrder] = await MedicineOrder.create(
       [
@@ -132,9 +135,9 @@ export const createMedicineOrder = async ({
           throw new AppError("Insufficient RM Credit balance", 400);
         }
 
-        // Deduct credit
-        wallet.balance -= payableAmount;
-        wallet.usedCredit += payableAmount;
+        // Deduct credit — use parseFloat + toFixed to prevent floating point drift
+        wallet.balance = parseFloat((wallet.balance - payableAmount).toFixed(2));
+        wallet.usedCredit = parseFloat((wallet.usedCredit + payableAmount).toFixed(2));
 
         await wallet.save({ session });
 
@@ -164,6 +167,45 @@ export const createMedicineOrder = async ({
         paymentResponse = createdOrder;
 
 
+        break;
+
+      case "RM_COIN":
+        // Check balance
+        const userForCoins = await User.findById(userId).session(session);
+        if (!userForCoins) {
+          throw new AppError("User not found", 404);
+        }
+
+        if (userForCoins.rmCoinsBalance < payableAmount) {
+          throw new AppError("Insufficient RM Coin balance", 400);
+        }
+
+        // Deduct coins — use parseFloat + toFixed to prevent floating point drift
+        userForCoins.rmCoinsBalance = parseFloat((userForCoins.rmCoinsBalance - payableAmount).toFixed(2));
+        await userForCoins.save({ session });
+
+        // Update order as paid
+        createdOrder.paymentStatus = "PAID";
+        createdOrder.orderStatus = "CONFIRMED";
+        createdOrder.otp = generateOTP(); // 🔐 generate OTP for delivery
+
+        await createdOrder.save({ session });
+
+        // Create coin transaction log
+        await RMCoinsTransaction.create(
+          [
+            {
+              fromUserId: userId,
+              toUserId: userId, // Using self as destination for burn/spend
+              amount: payableAmount,
+              type: "medicine_order",
+              description: "Medicine purchase via RM Coins"
+            }
+          ],
+          { session }
+        );
+
+        paymentResponse = createdOrder;
         break;
 
       default:
@@ -251,11 +293,11 @@ export const getUserMedicineOrdersOverview = async ({
       createdAt: order.createdAt,
       medicine: firstItem
         ? {
-            name: firstItem.medicineId?.name || "",
-            image:
-              firstItem.medicineId?.images?.[0]?.url || null,
-            quantity: firstItem.quantity
-          }
+          name: firstItem.medicineId?.name || "",
+          image:
+            firstItem.medicineId?.images?.[0]?.url || null,
+          quantity: firstItem.quantity
+        }
         : null
     };
   });
@@ -295,11 +337,11 @@ export const getMedicineOrderDetails = async ({
     order.userId.toString() === requester.id.toString();
 
   const isAdmin =
-    requester.roles?.includes("admin");
+    requester.roles?.some(role => ["admin", "subadmin", "receptionist"].includes(role));
 
-  /* 🔐 OTP VISIBILITY RULE */
+  /* 🔐 STRICT OWNERSHIP CHECK */
   if (!isOwner && !isAdmin) {
-    delete order.otp;
+    throw new AppError("Forbidden: You are not authorized to view this order", 403);
   }
 
   /* 🔐 NEVER EXPOSE PAYMENT SECRETS */
@@ -498,33 +540,33 @@ export const getAllMedicineOrdersOverview = async ({
   // ----------- DATE FILTER -----------
   // ----------- DATE FILTER (FIXED) -----------
 
-const isValidFromDate =
-  filters.fromDate &&
-  filters.fromDate !== "null" &&
-  filters.fromDate !== "undefined" &&
-  filters.fromDate !== "" &&
-  !isNaN(new Date(filters.fromDate));
+  const isValidFromDate =
+    filters.fromDate &&
+    filters.fromDate !== "null" &&
+    filters.fromDate !== "undefined" &&
+    filters.fromDate !== "" &&
+    !isNaN(new Date(filters.fromDate));
 
-const isValidToDate =
-  filters.toDate &&
-  filters.toDate !== "null" &&
-  filters.toDate !== "undefined" &&
-  filters.toDate !== "" &&
-  !isNaN(new Date(filters.toDate));
+  const isValidToDate =
+    filters.toDate &&
+    filters.toDate !== "null" &&
+    filters.toDate !== "undefined" &&
+    filters.toDate !== "" &&
+    !isNaN(new Date(filters.toDate));
 
-if (isValidFromDate || isValidToDate) {
-  query.createdAt = {};
+  if (isValidFromDate || isValidToDate) {
+    query.createdAt = {};
 
-  if (isValidFromDate) {
-    query.createdAt.$gte = new Date(filters.fromDate);
+    if (isValidFromDate) {
+      query.createdAt.$gte = new Date(filters.fromDate);
+    }
+
+    if (isValidToDate) {
+      const end = new Date(filters.toDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt.$lte = end;
+    }
   }
-
-  if (isValidToDate) {
-    const end = new Date(filters.toDate);
-    end.setHours(23, 59, 59, 999);
-    query.createdAt.$lte = end;
-  }
-}
 
   console.log("Final Query:", query);
 
@@ -561,10 +603,10 @@ if (isValidFromDate || isValidToDate) {
       deliveryAgent: order.deliveryAgentId,
       medicine: firstItem
         ? {
-            name: firstItem.medicineId?.name,
-            image: firstItem.medicineId?.images?.[0]?.url,
-            quantity: firstItem.quantity
-          }
+          name: firstItem.medicineId?.name,
+          image: firstItem.medicineId?.images?.[0]?.url,
+          quantity: firstItem.quantity
+        }
         : null
     };
   });
@@ -628,13 +670,13 @@ export const updateOrderStatusService = async ({
 
   /* 🔐 AUTHORIZATION */
   const isAdmin = requester.roles?.includes("admin");
-const isAssignedRider =
-  order.deliveryAgentId &&
-  order.deliveryAgentId.toString() === requester.id.toString();
+  const isAssignedRider =
+    order.deliveryAgentId &&
+    order.deliveryAgentId.toString() === requester.id.toString();
 
-if (!isAdmin && !isAssignedRider) {
-  throw new AppError("Not authorized to update this order", 403);
-}
+  if (!isAdmin && !isAssignedRider) {
+    throw new AppError("Not authorized to update this order", 403);
+  }
 
   /* 🔁 VALID STATUS TRANSITION */
   const allowed = VALID_TRANSITIONS[order.orderStatus] || [];

@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import {  IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand } from "@aws-sdk/client-rekognition";
+import { IndexFacesCommand, SearchFacesByImageCommand, CreateCollectionCommand, ListCollectionsCommand, DeleteFacesCommand, DeleteCollectionCommand } from "@aws-sdk/client-rekognition";
 import { rekognition, s3 } from "../config/aws.config.js";
 
 export const registerFaceToAwsAndStoreImageToS3 = async ({
@@ -10,7 +10,7 @@ export const registerFaceToAwsAndStoreImageToS3 = async ({
   console.log("👉 registerFaceToAwsAndStoreImageToS3 called");
 
   try {
-    const bucketName = process.env.ATTENDANCE_BUCKET;
+    const bucketName = process.env.AWS_BUCKET_NAME;
     const region = process.env.AWS_REGION;
     const collectionId = process.env.REKOGNITION_COLLECTION;
 
@@ -104,11 +104,11 @@ export const uploadAttendanceImageToS3 = async ({
     throw new Error('Missing parameters for attendance image upload');
   }
 
-  const bucketName = process.env.ATTENDANCE_BUCKET;
+  const bucketName = process.env.AWS_BUCKET_NAME;
   const region = process.env.AWS_REGION;
 
   if (!bucketName) {
-    throw new Error('ATTENDANCE_BUCKET is not configured');
+    throw new Error('AWS_BUCKET_NAME is not configured');
   }
 
   const key = `attendance/${userId}/${Date.now()}.jpg`;
@@ -212,7 +212,7 @@ export const uploadKycDocumentToS3 = async ({
   console.log("👉 uploadKycDocumentToS3 called");
 
   try {
-    const bucketName = process.env.KYC_BUCKET;
+    const bucketName = process.env.AWS_BUCKET_NAME;
     const region = process.env.AWS_REGION;
 
 
@@ -265,7 +265,7 @@ export const uploadMedicineImageToS3 = async ({
   mimeType,
   fileName
 }) => {
-  const bucketName = process.env.MEDICINE_BUCKET;
+  const bucketName = process.env.AWS_BUCKET_NAME;
   const region = process.env.AWS_REGION;
 
   if (!imageBuffer || !bucketName) {
@@ -296,7 +296,7 @@ export const deleteMedicineImageFromS3 = async (key) => {
 
   await s3.send(
     new DeleteObjectCommand({
-      Bucket: process.env.MEDICINE_BUCKET,
+      Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
     })
   );
@@ -312,7 +312,7 @@ export const uploadAgreementToS3 = async ({
   console.log("👉 uploadAgreementToS3 called");
 
   try {
-    const bucketName = process.env.AGREEMENT_BUCKET || process.env.KYC_BUCKET;
+    const bucketName = process.env.AWS_BUCKET_NAME;
     const region = process.env.AWS_REGION;
 
     if (!userId || !documentType || !fileBuffer || !bucketName) {
@@ -353,6 +353,76 @@ export const uploadAgreementToS3 = async ({
     console.error("Error message:", error.message);
     console.error("Full error:", error);
     throw error;
+  }
+};
+
+export const uploadProfileImageToS3 = async ({
+  userId,
+  imageBuffer,
+  mimeType,
+  fileName
+}) => {
+  const bucketName = process.env.AWS_BUCKET_NAME;
+  const region = process.env.AWS_REGION;
+
+  if (!imageBuffer || !bucketName) {
+    throw new Error("Missing image upload parameters");
+  }
+
+  const ext = mimeType.split("/")[1] || "jpg";
+  const safeName = fileName ? fileName.replace(/[^a-zA-Z0-9.\-]/g, "") : "pic";
+  const key = `profiles/${userId}/${Date.now()}-${safeName}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType
+    })
+  );
+
+  return {
+    url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
+    key,
+    bucket: bucketName
+  };
+};
+
+export const deleteProfileImageFromS3 = async (bucket, key) => {
+  if (!key || !bucket) return;
+
+  await s3.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    })
+  );
+};
+
+export const wipeAllFacesFromRekognition = async () => {
+  try {
+    const collectionId = process.env.REKOGNITION_COLLECTION;
+    if (!collectionId) throw new Error("REKOGNITION_COLLECTION not defined");
+
+    console.log(`🧹 Attempting to wipe all faces by deleting collection: ${collectionId}`);
+
+    // Delete the collection
+    await rekognition.send(new DeleteCollectionCommand({ CollectionId: collectionId }));
+    console.log(`✅ Deleted collection: ${collectionId}`);
+
+    // Recreate the collection empty
+    await rekognition.send(new CreateCollectionCommand({ CollectionId: collectionId }));
+    console.log(`✅ Recreated empty collection: ${collectionId}`);
+
+    return { success: true, message: "All face vectors have been successfully wiped." };
+  } catch (err) {
+    if (err.name === "ResourceNotFoundException") {
+       console.log("Collection didn't exist, creating a fresh one.");
+       await ensureRekognitionCollection();
+       return;
+    }
+    console.error("❌ Failed to wipe faces from Rekognition", err.message);
   }
 };
 

@@ -1,32 +1,42 @@
-import express from 'express'
-import {authenticate, authorize} from '../middlewares/auth.middlewire.js'
+import express from 'express';
+import { authenticate, authorize } from '../middlewares/auth.middlewire.js';
 import { parseAddMedicinePayload, validateAddMedicine } from '../validator/medicine/addMedicine.validator.js';
 import { addMedicineController, deleteMedicineController, editMedicineController, getMedicineByIdController, getMedicinesController } from '../controllers/medicine.controller.js';
 import { upload } from '../utils/multer.js';
 
-const router=express.Router()
+const router = express.Router();
 
+// Add medicine
 router.post(
-  "/",
+  '/',
   authenticate,
-  authorize(["medicine.create"]),
-  upload.array("images", 5),
+  authorize('medicine.create'),
+  upload.array('images', 5),
   parseAddMedicinePayload,
   validateAddMedicine,
   addMedicineController
-)
-.get("/", getMedicinesController)
-.get("/:medicineId", getMedicineByIdController)
+);
 
-.put(
-  "/:medicineId",
+// View all medicines (public)
+router.get('/', getMedicinesController);
+
+// View single medicine (public)
+router.get('/:medicineId', getMedicineByIdController);
+
+// Update medicine
+router.put(
+  '/:medicineId',
   authenticate,
-  authorize("medicine.update"),
+  authorize('medicine.update'),
   editMedicineController
-)
-.delete('/:medicineId',
+);
+
+// Delete medicine
+router.delete(
+  '/:medicineId',
   authenticate,
-  authorize("medicine.delete"),
+  authorize('medicine.delete'),
   deleteMedicineController
-)
+);
+
 export default router;

@@ -6,9 +6,22 @@ import DoctorProfile from "../models/doctorProfile.schema.js";
 import Role from '../models/role.model.js';
 import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
 
+
 import AppError from "../utils/AppError.js";
 import { createAttendanceSetting } from "./attendance.service.js";
 import AgentProfile from "../models/agentProfile.model.js";
+
+// Maps a role key → the dashboard value it should trigger
+const ROLE_DASHBOARD_MAP = {
+  admin: "admin",
+  subadmin: "admin",
+  doctor: "doctor",
+  employee: "employee",
+  agent: "agent",
+  marketing_agent: "marketing_agent",
+  receptionist: "receptionist",
+  rmrider: "rmrider",
+};
 
 /**
  * Merge permissions from RoleAssignments + userSpecificPermissions
@@ -135,7 +148,7 @@ export async function assignRoleService({
   if (roles.length) {
     user.roles = Array.from(new Set([...user.roles, ...roles]));
   }
-  if(roles.includes("admin")){
+  if (roles.includes("admin")) {
     throw new AppError("Admin role cannot be assigned", 403);
   }
   // Merge permissions (avoid duplicates)
@@ -145,8 +158,15 @@ export async function assignRoleService({
     );
   }
 
-  // Update dashboard (UI only)
-  if (dashboard) {
+  // Auto-resolve dashboard from roles first, fall back to explicit dashboard param
+  const autoDashboard = roles
+    .map((r) => ROLE_DASHBOARD_MAP[r])
+    .find(Boolean);
+
+  if (autoDashboard) {
+    user.dashboard = autoDashboard;
+  } else if (dashboard && dashboard !== "user") {
+    // Only override with explicit value when it's not the generic default
     user.dashboard = dashboard;
   }
 
@@ -277,9 +297,9 @@ export const getRolesAndPermissionsById = async (userId) => {
     throw err instanceof AppError
       ? err
       : new AppError(
-          "Internal server error while fetching roles & permissions",
-          500
-        );
+        "Internal server error while fetching roles & permissions",
+        500
+      );
   }
 };
 

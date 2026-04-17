@@ -204,7 +204,7 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
       passwordHash: parsed.hashPass,
 
       dashboard: "user",
-      role: [],
+      roles: [],
       permissions: [],
 
       isActive: true,

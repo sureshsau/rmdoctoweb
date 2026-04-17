@@ -1,26 +1,17 @@
 import express from 'express';
-import { authenticate, authorize } from '../middlewares/auth.middlewire.js';
+import { authenticate } from '../middlewares/auth.middlewire.js';
 import { getAssignedOrders, marketingAgentNetworkController, registerAgentByMarketingAgentController } from '../controllers/marketingAgentController.js';
 
-const router=express.Router();
+const router = express.Router();
 
+// ── ROLE-INTERNAL (controller enforces 'marketing_agent' role) ───────────────
+// Register agent via marketing agent
+router.post('/register/agent', authenticate, registerAgentByMarketingAgentController);
 
-router
-    .post('/register/agent',
-        authenticate,
-        authorize("agent.create"),
-        registerAgentByMarketingAgentController
-    )
-    .get("/network",
-        authenticate,
-        marketingAgentNetworkController
-    )
-    .get(
-    "/medicine/orders",
-    authenticate,
-    getAssignedOrders
-    )
+// View marketing agent network
+router.get('/network', authenticate, marketingAgentNetworkController);
 
+// View medicine orders assigned to marketing agent
+router.get('/medicine/orders', authenticate, getAssignedOrders);
 
-
-export default router
+export default router;

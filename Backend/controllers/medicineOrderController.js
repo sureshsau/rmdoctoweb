@@ -5,6 +5,15 @@ import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 import mongoose from "mongoose";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import User from "../models/user.model.js";
+import ejs from "ejs";
+import pdf from "html-pdf-node";
+import path from "path";
+import fs from "fs";
+import converter from "number-to-words";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 export const orderMedicine = async (req, res) => {
@@ -133,7 +142,7 @@ export const verifyOrderOtpController = async (req, res) => {
 export const updateOrderStatusController = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const { newStatus="", cancelReason="", enteredOtp } = req.body;
+    const { newStatus = "", cancelReason = "", enteredOtp } = req.body;
 
     if (!newStatus) {
       return res.status(400).json({
@@ -148,7 +157,7 @@ export const updateOrderStatusController = async (req, res, next) => {
       marketingAgentUserId: req.user.id,
       cancelReason,
       enteredOtp,
-      requester:req.user
+      requester: req.user
     });
 
     return res.status(200).json({
@@ -358,3 +367,145 @@ export const getAssignedOrdersForRider = async (req, res, next) => {
     next(error);
   }
 };
+
+export const downloadInvoiceController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ success: false, message: "Invalid Order ID" });
+    }
+
+    const order = await MedicineOrder.findById(orderId)
+      .populate("userId", "name email phone")
+      .populate("items.medicineId", "name");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Role check (Admin, Subadmin, Receptionist, or the Owner)
+    const requesterId = req.user.id;
+    const isAdmin = req.user.roles?.some(role => ["admin", "subadmin", "receptionist"].includes(role));
+
+    if (order.userId._id.toString() !== requesterId.toString() && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Forbidden: Not allowed to view this invoice" });
+    }
+
+    const invoiceNo = `INV-${order._id.toString().slice(-6).toUpperCase()}`;
+    const orderNo = order._id.toString();
+
+    const data = {
+      seller: {
+        name: "RMDOCTO,RMIA HEALTH CARE (OPC) PRIVATE LIMITED",
+        address: "50/G/2, Ground Square Apartment, Churaman Chowdhury Lane, Berhampore, Murshidabad, West Bengal - 742101",
+        gstin: "19AAMCR0757N1ZN",
+        mobile: "9434347825",
+        email: "info@rmdocto.in",
+        place: "West Bengal"
+      },
+      customer: {
+        name: order.deliveryAddress.fullName,
+        address: `${order.deliveryAddress.addressLine1} ${order.deliveryAddress.addressLine2 || ''} - ${order.deliveryAddress.pincode}`,
+        phone: order.deliveryAddress.phone,
+        userPhone: order.userId.phone || order.deliveryAddress.phone,
+        place: "India"
+      },
+      invoice: {
+        no: invoiceNo,
+        date: new Date().toLocaleDateString("en-IN"),
+        orderNo: orderNo,
+        orderDate: new Date(order.createdAt).toLocaleDateString("en-IN")
+      },
+      items: order.items.map(item => ({
+        name: item.medicineId ? item.medicineId.name : "Medicine",
+        hsn: "N/A",
+        qty: item.quantity,
+        price: item.unitPrice,
+        tax: item.gstPercentage || 0,
+        discount: 0
+      })),
+      shipping: order.pricing.deliveryCharge || 0,
+      paymentMode: order.paymentMode
+    };
+
+    // Read the logo as base64 for embedding in PDF
+    const logoPath = path.join(__dirname, "../views/icon.png");
+    let logoBase64 = null;
+    try {
+      const logoBuffer = fs.readFileSync(logoPath);
+      logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+    } catch (err) {
+      console.error("Could not read logo icon:", err.message);
+    }
+    data.logoBase64 = logoBase64;
+
+    // Generate barcodes as base64 PNG images
+    const { default: bwipjs } = await import('bwip-js');
+
+    // Barcode for Invoice No
+    let invoiceBarcodeBase64 = null;
+    try {
+      const invoiceBarcodePng = await bwipjs.toBuffer({
+        bcid: 'code128',
+        text: invoiceNo,
+        scale: 2,
+        height: 10,
+        includetext: true,
+        textxalign: 'center',
+        textsize: 8
+      });
+      invoiceBarcodeBase64 = `data:image/png;base64,${invoiceBarcodePng.toString('base64')}`;
+    } catch (err) {
+      console.error("Invoice barcode generation failed:", err.message);
+    }
+    data.invoiceBarcode = invoiceBarcodeBase64;
+
+    // Barcode for Order No
+    let orderBarcodeBase64 = null;
+    try {
+      const orderBarcodePng = await bwipjs.toBuffer({
+        bcid: 'code128',
+        text: orderNo,
+        scale: 2,
+        height: 10,
+        includetext: true,
+        textxalign: 'center',
+        textsize: 8
+      });
+      orderBarcodeBase64 = `data:image/png;base64,${orderBarcodePng.toString('base64')}`;
+    } catch (err) {
+      console.error("Order barcode generation failed:", err.message);
+    }
+    data.orderBarcode = orderBarcodeBase64;
+
+    const subtotal = data.items.reduce((acc, item) => {
+      const taxable = item.qty * item.price;
+      const taxAmount = taxable * (item.tax / 100);
+      return acc + taxable + taxAmount;
+    }, 0);
+
+    const totalCalculated = Math.round(subtotal + data.shipping);
+    data.amountWords = converter.toWords(totalCalculated).toUpperCase();
+
+    const html = await ejs.renderFile(
+      path.join(__dirname, "../views/invoice.ejs"),
+      data
+    );
+
+    const pdfBuffer = await pdf.generatePdf(
+      { content: html },
+      { format: "A4" }
+    );
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=invoice-${orderId}.pdf`);
+
+    return res.end(pdfBuffer);
+
+  } catch (error) {
+    console.error("PDF Generate Error:", error);
+    next(error);
+  }
+};
+

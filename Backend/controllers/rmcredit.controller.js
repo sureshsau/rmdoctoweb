@@ -226,4 +226,71 @@ export const getAgentCreditDetailsController = async (req, res, next) => {
   }
 };
 
+export const getAdminCreditHistoryController = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, type = null, agentId = null } = req.query;
+
+    const query = {};
+    if (type) {
+      query.type = type;
+    }
+    if (agentId) {
+      query.agentId = agentId;
+    }
+
+    const currentPage = Number(page) || 1;
+    const perPage = Number(limit) || 20;
+
+    const [transactions, totalRecords] = await Promise.all([
+      RMCreditTransaction.find(query)
+        .sort({ createdAt: -1 })
+        .skip((currentPage - 1) * perPage)
+        .limit(perPage)
+        .populate("agentId", "name phone")
+        .populate("performedBy", "name")
+        .populate("walletId", "expiryDate balance")
+        .lean(),
+      RMCreditTransaction.countDocuments(query)
+    ]);
+
+    const data = transactions.map(txn => ({
+      transactionId: txn._id,
+      type: txn.type,
+      amount: txn.amount,
+      description: txn.description,
+      date: txn.createdAt,
+
+      agent: txn.agentId ? {
+        id: txn.agentId._id,
+        name: txn.agentId.name,
+        phone: txn.agentId.phone
+      } : null,
+
+      performedBy: txn.performedBy ? {
+        name: txn.performedBy.name,
+      } : null,
+
+      wallet: txn.walletId ? {
+        currentBalance: txn.walletId.balance,
+        expiryDate: txn.walletId.expiryDate
+      } : null
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        history: data,
+        pagination: {
+          totalRecords,
+          currentPage,
+          totalPages: Math.ceil(totalRecords / perPage),
+          limit: perPage
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

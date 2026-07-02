@@ -79,5 +79,35 @@
       "employee.read.all": "View all employees",
       "employee.attendance.read.all": "View all employee attendance"
     }
+  },
+
+  "lab": {
+    "label": "Lab Management",
+    "permissions": {
+      "lab.create": "Create / register a lab",
+      "lab.read":   "View labs",
+      "lab.update": "Update lab details",
+      "lab.delete": "Deactivate a lab"
+    }
+  },
+
+  "labTest": {
+    "label": "Lab Test Management",
+    "permissions": {
+      "labTest.create": "Add a lab test",
+      "labTest.read":   "View lab tests",
+      "labTest.update": "Update lab test",
+      "labTest.delete": "Deactivate a lab test"
+    }
+  },
+
+  "labOrder": {
+    "label": "Lab Order Management",
+    "permissions": {
+      "labOrder.read.all":        "View all lab orders",
+      "labOrder.assign.collector": "Assign collection agent (RM Rider) to lab order",
+      "labOrder.status.update":   "Update lab order status",
+      "labOrder.report.upload":   "Upload lab report PDF"
+    }
   }
 }

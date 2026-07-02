@@ -27,6 +27,8 @@ import rmcoinRoute from "./routes/rmcoin.route.js";
 import axios from "axios";
 import loginRoute from './routes/login.route.js'
 import adminRoute from './routes/admin.route.js'
+import labRouter from './routes/lab.route.js'
+import labOrderRoute from './routes/labOrder.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -60,10 +62,12 @@ app.use("/appointment", appointmentRoute)
 app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);
 app.use("/admin", adminRoute);
-/* ================= ROUTES WITH FILE UPLOAD ================= */
+app.use("/lab/order", labOrderRoute);
+/* ================= ROUTES WITH FILE UPLOAD =================*/
 // multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);
 app.use("/login", loginRoute);
+app.use("/labs", labRouter);
 
 
 

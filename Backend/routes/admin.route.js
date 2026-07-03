@@ -5,6 +5,7 @@ import {
   adminGetMarketingAgentNetworkController,
   adminGetAllAgentsController,
   adminGetAllMarketingAgentsController,
+  registerAgentByAdminController
 } from "../controllers/admin.network.controller.js";
 import { getAnalyticsReport } from "../controllers/admin.analytics.controller.js";
 
@@ -12,6 +13,10 @@ const router = express.Router();
 
 // All admin routes require authentication + admin role
 router.use(authenticate, isAdmin);
+
+// ── REGISTER ────────────────────────────────────────────────────
+// Register a new root agent
+router.post("/register-agent", registerAgentByAdminController);
 
 // ── ANALYTICS ───────────────────────────────────────────────────
 router.get("/analytics", getAnalyticsReport);

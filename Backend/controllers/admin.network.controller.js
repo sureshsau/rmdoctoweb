@@ -1,4 +1,4 @@
-import { getAgentVisibleNetwork } from "../services/agent.service.js";
+import { getAgentVisibleNetwork, registerAgentByAdminService } from "../services/agent.service.js";
 import { getMarketingAgentTree } from "../services/marketingAgent.service.js";
 import User from "../models/user.model.js";
 
@@ -88,5 +88,25 @@ export const adminGetAllMarketingAgentsController = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const registerAgentByAdminController = async (req, res) => {
+  try {
+      const payload=req.body;
+      const data=await registerAgentByAdminService({payload})
+
+    return res.status(201).json({
+      success: true,
+      message: "Agent registered successfully",
+      data: data,
+    });
+
+  } catch (error) {
+    console.error("❌ Agent registration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
   }
 };

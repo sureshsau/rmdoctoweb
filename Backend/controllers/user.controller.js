@@ -9,7 +9,7 @@ import { uploadProfileImageToS3, deleteProfileImageFromS3, uploadKycDocumentToS3
 export const getAllUserController = async (req, res) => {
   try {
     const users = await USER.find()
-      .select("_id faceImage.url name email phone isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
+      .select("_id faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
       .lean();
     return res.status(200).json({
       success: true,
@@ -242,7 +242,7 @@ export const toggleUserStatusController = async (req, res, next) => {
 export const getMeController = async (req, res, next) => {
   try {
     const user = await USER.findById(req.user.id).select(
-      "_id faceImage.url name email phone isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
+      "_id faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
     ).lean();
 
     if (!user) {
@@ -329,5 +329,24 @@ export const updateKycStatusController = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const updateUserDetailsController = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, address, district, state, pincode } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (address !== undefined) updates.address = address;
+    if (district !== undefined) updates.district = district;
+    if (state !== undefined) updates.state = state;
+    if (pincode !== undefined) updates.pincode = pincode;
+
+    const user = await USER.findByIdAndUpdate(userId, updates, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.status(200).json({ success: true, message: 'User details updated successfully', data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

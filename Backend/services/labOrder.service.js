@@ -27,7 +27,7 @@ export const uploadLabPrescriptionToS3 = async ({
   fileName
 }) => {
   const bucketName = process.env.AWS_BUCKET_NAME;
-  const region     = process.env.AWS_REGION;
+  const region = process.env.AWS_REGION;
 
   if (!fileBuffer || !bucketName) {
     throw new AppError("Missing file upload parameters", 400);
@@ -38,9 +38,9 @@ export const uploadLabPrescriptionToS3 = async ({
 
   await s3.send(
     new PutObjectCommand({
-      Bucket:      bucketName,
-      Key:         key,
-      Body:        fileBuffer,
+      Bucket: bucketName,
+      Key: key,
+      Body: fileBuffer,
       ContentType: mimeType
     })
   );
@@ -82,30 +82,30 @@ export const createLabOrder = async ({
 
     for (const item of items) {
       const test = await LabTest.findOne({
-        _id:      item.testId,
+        _id: item.testId,
         isActive: true
       }).session(session);
 
       if (!test) throw new AppError("Lab test not found or inactive", 400);
 
       // ── DUAL PRICING: agents get agentPrice, users get userPrice ──
-      const isAgent  = user.roles?.includes("agent");
+      const isAgent = user.roles?.includes("agent");
       const unitPrice = isAgent
         ? (test.pricing.agentPrice ?? test.pricing.userPrice)
         : test.pricing.userPrice;
 
-      const qty          = item.quantity || 1;
+      const qty = item.quantity || 1;
       const itemSubtotal = Number((unitPrice * qty).toFixed(2));
-      const gstPct       = test.gstPercentage || 0;
-      const gstAmount    = Number(((itemSubtotal * gstPct) / 100).toFixed(2));
-      const totalPrice   = Number((itemSubtotal + gstAmount).toFixed(2));
+      const gstPct = test.gstPercentage || 0;
+      const gstAmount = Number(((itemSubtotal * gstPct) / 100).toFixed(2));
+      const totalPrice = Number((itemSubtotal + gstAmount).toFixed(2));
 
       subtotal += itemSubtotal;
       gstTotal += gstAmount;
 
       processedItems.push({
-        testId:        test._id,
-        quantity:      qty,
+        testId: test._id,
+        quantity: qty,
         unitPrice,
         gstPercentage: gstPct,
         gstAmount,
@@ -141,11 +141,14 @@ export const createLabOrder = async ({
           items: processedItems,
           pricing: { subtotal, gstTotal, homeCollectionCharge, payableAmount },
           collectionType: collectionType || "HOME",
-          collectionAddress: collectionType === "HOME" ? collectionAddress : undefined,
+          collectionAddress: collectionType === "HOME" ? {
+            ...collectionAddress,
+            location: collectionAddress?.location?.coordinates ? collectionAddress.location : { type: "Point", coordinates: [0, 0] }
+          } : undefined,
           scheduledAt,
           paymentMode,
           paymentStatus: "PENDING",
-          orderStatus:   "INITIATED"
+          orderStatus: "INITIATED"
         }
       ],
       { session }
@@ -177,24 +180,24 @@ export const createLabOrder = async ({
         if (wallet.expiryDate < new Date()) throw new AppError("RM Credit expired", 400);
         if (wallet.balance < payableAmount) throw new AppError("Insufficient RM Credit balance", 400);
 
-        wallet.balance    = parseFloat((wallet.balance - payableAmount).toFixed(2));
+        wallet.balance = parseFloat((wallet.balance - payableAmount).toFixed(2));
         wallet.usedCredit = parseFloat((wallet.usedCredit + payableAmount).toFixed(2));
         await wallet.save({ session });
 
         createdOrder.paymentStatus = "PAID";
-        createdOrder.orderStatus   = "CONFIRMED";
-        createdOrder.otp           = generateOTP();
+        createdOrder.orderStatus = "CONFIRMED";
+        createdOrder.otp = generateOTP();
         await createdOrder.save({ session });
 
         await RMCreditTransaction.create(
           [
             {
-              walletId:     wallet._id,
-              agentId:      userId,
-              amount:       payableAmount,
-              type:         "debit",
-              performedBy:  userId,
-              description:  "Lab booking via RM Credit"
+              walletId: wallet._id,
+              agentId: userId,
+              amount: payableAmount,
+              type: "debit",
+              performedBy: userId,
+              description: "Lab booking via RM Credit"
             }
           ],
           { session }
@@ -216,17 +219,17 @@ export const createLabOrder = async ({
         await userForCoins.save({ session });
 
         createdOrder.paymentStatus = "PAID";
-        createdOrder.orderStatus   = "CONFIRMED";
-        createdOrder.otp           = generateOTP();
+        createdOrder.orderStatus = "CONFIRMED";
+        createdOrder.otp = generateOTP();
         await createdOrder.save({ session });
 
         await RMCoinsTransaction.create(
           [
             {
-              fromUserId:  userId,
-              toUserId:    userId,
-              amount:      payableAmount,
-              type:        "lab_order",
+              fromUserId: userId,
+              toUserId: userId,
+              amount: payableAmount,
+              type: "lab_order",
               description: "Lab booking via RM Coins"
             }
           ],
@@ -257,8 +260,8 @@ export const createLabOrder = async ({
 ════════════════════════════════════════════════ */
 export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 }) => {
   const currentPage = Number(page) || 1;
-  const perPage     = Number(limit) || 10;
-  const skip        = (currentPage - 1) * perPage;
+  const perPage = Number(limit) || 10;
+  const skip = (currentPage - 1) * perPage;
 
   const matchQuery = { userId };
 
@@ -268,13 +271,13 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
       .skip(skip)
       .limit(perPage)
       .select({
-        items:         { $slice: 1 },
-        pricing:       1,
-        paymentMode:   1,
+        items: { $slice: 1 },
+        pricing: 1,
+        paymentMode: 1,
         paymentStatus: 1,
-        orderStatus:   1,
-        scheduledAt:   1,
-        createdAt:     1
+        orderStatus: 1,
+        scheduledAt: 1,
+        createdAt: 1
       })
       .populate({ path: "items.testId", select: "name shortCode category" })
       .populate({ path: "labId", select: "name address.city" })
@@ -293,14 +296,14 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
   const formattedOrders = orders.map((order) => {
     const firstItem = order.items?.[0];
     return {
-      orderId:       order._id,
-      orderStatus:   order.orderStatus,
+      orderId: order._id,
+      orderStatus: order.orderStatus,
       paymentStatus: order.paymentStatus,
-      paymentMode:   order.paymentMode,
+      paymentMode: order.paymentMode,
       payableAmount: order.pricing?.payableAmount || 0,
-      scheduledAt:   order.scheduledAt,
-      lab:           order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
-      test:          firstItem
+      scheduledAt: order.scheduledAt,
+      lab: order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
+      test: firstItem
         ? { name: firstItem.testId?.name || "", shortCode: firstItem.testId?.shortCode || "" }
         : null,
       createdAt: order.createdAt
@@ -329,7 +332,7 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
 
   const order = await LabOrder.findById(orderId)
     .populate({ path: "items.testId", select: "name shortCode category sampleType" })
-    .populate({ path: "labId",             select: "name brandName address phone email" })
+    .populate({ path: "labId", select: "name brandName address phone email" })
     .populate({ path: "collectionAgentId", select: "name phone" })
     .lean();
 
@@ -348,35 +351,35 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
   if (order.razorpay) delete order.razorpay.signature;
 
   return {
-    orderId:        order._id,
-    orderStatus:    order.orderStatus,
-    paymentStatus:  order.paymentStatus,
-    paymentMode:    order.paymentMode,
-    pricing:        order.pricing,
+    orderId: order._id,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMode: order.paymentMode,
+    pricing: order.pricing,
     collectionType: order.collectionType,
-    scheduledAt:    order.scheduledAt,
+    scheduledAt: order.scheduledAt,
     collectionAddress: order.collectionAddress,
-    lab:            order.labId,
+    lab: order.labId,
     collectionAgent: order.collectionAgentId
       ? { id: order.collectionAgentId._id, name: order.collectionAgentId.name, phone: order.collectionAgentId.phone }
       : null,
     items: order.items.map((item) => ({
       test: {
-        id:         item.testId?._id,
-        name:       item.testId?.name,
-        shortCode:  item.testId?.shortCode,
-        category:   item.testId?.category,
+        id: item.testId?._id,
+        name: item.testId?.name,
+        shortCode: item.testId?.shortCode,
+        category: item.testId?.category,
         sampleType: item.testId?.sampleType
       },
-      quantity:      item.quantity,
-      unitPrice:     item.unitPrice,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
       gstPercentage: item.gstPercentage,
-      gstAmount:     item.gstAmount,
-      totalPrice:    item.totalPrice
+      gstAmount: item.gstAmount,
+      totalPrice: item.totalPrice
     })),
-    otp:          order.otp || null,
-    otpVerified:  order.otpVerified,
-    reportUrl:    order.reportUrl || null,
+    otp: order.otp || null,
+    otpVerified: order.otpVerified,
+    reportUrl: order.reportUrl || null,
     prescription: order.prescription?.url
       ? { url: order.prescription.url, uploadedAt: order.prescription.uploadedAt }
       : null,
@@ -389,20 +392,20 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
    GET ALL ORDERS (admin overview)
 ════════════════════════════════════════════════ */
 export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 20 }) => {
-  const currentPage = Number(page)  || 1;
-  const perPage     = Number(limit) || 20;
+  const currentPage = Number(page) || 1;
+  const perPage = Number(limit) || 20;
 
   const query = {};
 
   const isValidId = (v) => v && v !== "null" && v !== "undefined" && mongoose.Types.ObjectId.isValid(v);
   const isValidStr = (v) => v && v !== "null" && v !== "undefined";
 
-  if (isValidStr(filters.orderStatus))    query.orderStatus    = filters.orderStatus;
-  if (isValidStr(filters.paymentStatus))  query.paymentStatus  = filters.paymentStatus;
-  if (isValidStr(filters.paymentMode))    query.paymentMode    = filters.paymentMode;
+  if (isValidStr(filters.orderStatus)) query.orderStatus = filters.orderStatus;
+  if (isValidStr(filters.paymentStatus)) query.paymentStatus = filters.paymentStatus;
+  if (isValidStr(filters.paymentMode)) query.paymentMode = filters.paymentMode;
   if (isValidStr(filters.collectionType)) query.collectionType = filters.collectionType;
-  if (isValidId(filters.userId))          query.userId         = new mongoose.Types.ObjectId(filters.userId);
-  if (isValidId(filters.labId))           query.labId          = new mongoose.Types.ObjectId(filters.labId);
+  if (isValidId(filters.userId)) query.userId = new mongoose.Types.ObjectId(filters.userId);
+  if (isValidId(filters.labId)) query.labId = new mongoose.Types.ObjectId(filters.labId);
   if (isValidId(filters.collectionAgentId)) {
     query.collectionAgentId = new mongoose.Types.ObjectId(filters.collectionAgentId);
   }
@@ -426,24 +429,24 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     .skip((currentPage - 1) * perPage)
     .limit(perPage)
     .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt userId collectionAgentId marketingAgentId labId createdAt")
-    .populate("items.testId",        "name shortCode")
-    .populate("userId",              "name phone")
-    .populate("collectionAgentId",   "name phone")
-    .populate("marketingAgentId",    "name phone")
-    .populate("labId",               "name address.city")
+    .populate("items.testId", "name shortCode")
+    .populate("userId", "name phone")
+    .populate("collectionAgentId", "name phone")
+    .populate("marketingAgentId", "name phone")
+    .populate("labId", "name address.city")
     .lean();
 
   const data = orders.map((order) => ({
-    orderId:          order._id,
-    orderStatus:      order.orderStatus,
-    paymentStatus:    order.paymentStatus,
-    paymentMode:      order.paymentMode,
-    collectionType:   order.collectionType,
-    payableAmount:    order.pricing?.payableAmount || 0,
-    scheduledAt:      order.scheduledAt,
-    lab:              order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
-    user:             order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
-    collectionAgent:  order.collectionAgentId
+    orderId: order._id,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMode: order.paymentMode,
+    collectionType: order.collectionType,
+    payableAmount: order.pricing?.payableAmount || 0,
+    scheduledAt: order.scheduledAt,
+    lab: order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
+    user: order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
+    collectionAgent: order.collectionAgentId
       ? { id: order.collectionAgentId._id, name: order.collectionAgentId.name }
       : null,
     testsCount: order.items?.length || 0,
@@ -453,9 +456,9 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
   return {
     data,
     pagination: {
-      total:      totalRecords,
-      page:       currentPage,
-      limit:      perPage,
+      total: totalRecords,
+      page: currentPage,
+      limit: perPage,
       totalPages: Math.ceil(totalRecords / perPage)
     }
   };
@@ -483,13 +486,13 @@ export const updateLabOrderStatusService = async ({
   if (!isAdmin) throw new AppError("Forbidden", 403);
 
   const VALID_TRANSITIONS = {
-    INITIATED:        ["CONFIRMED", "CANCELLED"],
-    CONFIRMED:        ["SAMPLE_COLLECTED", "CANCELLED"],
+    INITIATED: ["CONFIRMED", "CANCELLED"],
+    CONFIRMED: ["SAMPLE_COLLECTED", "CANCELLED"],
     SAMPLE_COLLECTED: ["REPORT_PENDING"],
-    REPORT_PENDING:   ["REPORT_READY"],
-    REPORT_READY:     ["COMPLETED"],
-    COMPLETED:        [],
-    CANCELLED:        []
+    REPORT_PENDING: ["REPORT_READY"],
+    REPORT_READY: ["COMPLETED"],
+    COMPLETED: [],
+    CANCELLED: []
   };
 
   const allowed = VALID_TRANSITIONS[order.orderStatus] || [];
@@ -571,9 +574,9 @@ export const assignCollectionAgentService = async ({ orderId, agentUserId, reque
   if (!isAdmin) throw new AppError("Forbidden", 403);
 
   const agent = await User.findOne({
-    _id:       agentUserId,
-    roles:     { $in: ["rmrider"] },
-    isActive:  true,
+    _id: agentUserId,
+    roles: { $in: ["rmrider"] },
+    isActive: true,
     isBlocked: false
   });
   if (!agent) throw new AppError("User is not a valid RM Rider", 400);
@@ -619,13 +622,13 @@ export const uploadPrescriptionService = async ({
   const result = await uploadLabPrescriptionToS3({
     orderId,
     fileBuffer: file.buffer,
-    mimeType:   file.mimetype,
-    fileName:   file.originalname
+    mimeType: file.mimetype,
+    fileName: file.originalname
   });
 
   order.prescription = {
-    url:        result.url,
-    key:        result.key,
+    url: result.url,
+    key: result.key,
     uploadedAt: new Date()
   };
 
@@ -686,16 +689,16 @@ export const deletePrescriptionService = async ({ orderId, requester }) => {
 ════════════════════════════════════════════════ */
 export const uploadReportToS3 = async ({ orderId, fileBuffer, mimeType, fileName }) => {
   const bucketName = process.env.AWS_BUCKET_NAME;
-  const region     = process.env.AWS_REGION;
+  const region = process.env.AWS_REGION;
 
   const ext = mimeType === "application/pdf" ? "pdf" : (mimeType.split("/")[1] || "jpg");
   const key = `lab-reports/${orderId}/${Date.now()}-${fileName}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
-      Bucket:      bucketName,
-      Key:         key,
-      Body:        fileBuffer,
+      Bucket: bucketName,
+      Key: key,
+      Body: fileBuffer,
       ContentType: mimeType
     })
   );
@@ -725,13 +728,13 @@ export const uploadLabReportService = async ({ orderId, requester, file }) => {
   const result = await uploadReportToS3({
     orderId,
     fileBuffer: file.buffer,
-    mimeType:   file.mimetype,
-    fileName:   file.originalname
+    mimeType: file.mimetype,
+    fileName: file.originalname
   });
 
-  order.reportUrl    = result.url;
-  order.reportKey    = result.key;
-  order.orderStatus  = "REPORT_READY";
+  order.reportUrl = result.url;
+  order.reportKey = result.key;
+  order.orderStatus = "REPORT_READY";
 
   await order.save();
   return { reportUrl: order.reportUrl, orderStatus: order.orderStatus };
@@ -747,23 +750,23 @@ export const createRazorpayLabOrderService = async ({ orderId, user }) => {
   if (!order) throw new AppError("Order not found", 404);
   if (order.paymentStatus === "PAID") throw new AppError("Order already paid", 400);
 
-  order.paymentMode   = "ONLINE";
+  order.paymentMode = "ONLINE";
   order.paymentStatus = "PENDING";
 
   if (order.razorpay?.orderId) {
     return {
       razorpayOrderId: order.razorpay.orderId,
-      amount:          Math.round(order.pricing.payableAmount * 100),
-      currency:        "INR",
-      key:             process.env.RAZORPAY_KEY_ID
+      amount: Math.round(order.pricing.payableAmount * 100),
+      currency: "INR",
+      key: process.env.RAZORPAY_KEY_ID
     };
   }
 
   const razorpayOrder = await razorpay.orders.create({
-    amount:   Math.round(order.pricing.payableAmount * 100),
+    amount: Math.round(order.pricing.payableAmount * 100),
     currency: "INR",
-    receipt:  `laborder_${order._id}`,
-    notes:    { labOrderId: order._id.toString(), userId: order.userId.toString() }
+    receipt: `laborder_${order._id}`,
+    notes: { labOrderId: order._id.toString(), userId: order.userId.toString() }
   });
 
   order.razorpay = { orderId: razorpayOrder.id };
@@ -771,9 +774,9 @@ export const createRazorpayLabOrderService = async ({ orderId, user }) => {
 
   return {
     razorpayOrderId: razorpayOrder.id,
-    amount:          razorpayOrder.amount,
-    currency:        razorpayOrder.currency,
-    key:             process.env.RAZORPAY_KEY_ID
+    amount: razorpayOrder.amount,
+    currency: razorpayOrder.currency,
+    key: process.env.RAZORPAY_KEY_ID
   };
 };
 
@@ -787,7 +790,7 @@ export const verifyRazorpayLabPaymentService = async ({
   if (!order) throw new AppError("Order not found", 404);
   if (order.paymentStatus === "PAID") throw new AppError("Payment already verified", 400);
 
-  const body     = `${razorpay_order_id}|${razorpay_payment_id}`;
+  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
   const expected = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
     .update(body)
@@ -798,11 +801,11 @@ export const verifyRazorpayLabPaymentService = async ({
   }
 
   order.paymentStatus = "PAID";
-  order.orderStatus   = "CONFIRMED";
-  order.otp           = generateOTP();
-  order.otpVerified   = false;
+  order.orderStatus = "CONFIRMED";
+  order.otp = generateOTP();
+  order.otpVerified = false;
   order.razorpay = {
-    orderId:   razorpay_order_id,
+    orderId: razorpay_order_id,
     paymentId: razorpay_payment_id,
     signature: razorpay_signature
   };

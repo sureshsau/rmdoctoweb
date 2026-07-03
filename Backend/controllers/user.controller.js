@@ -2,16 +2,15 @@ import USER from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import mongoose from "mongoose";
 import { createUserService, addSavedAddressService, deleteSavedAddressService } from '../services/user.service.js';
-import { uploadProfileImageToS3, deleteProfileImageFromS3 } from "../services/aws.service.js";
+import { uploadProfileImageToS3, deleteProfileImageFromS3, uploadKycDocumentToS3 } from "../services/aws.service.js";
 
 
 
 export const getAllUserController = async (req, res) => {
   try {
     const users = await USER.find()
-      .select("_id faceImage.url name email phone isActive isBlocked roles dashboard createdAt  rmCoinsBalance")
+      .select("_id faceImage.url name email phone isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
       .lean();
-
     return res.status(200).json({
       success: true,
       message: "Users fetched successfully",
@@ -61,7 +60,8 @@ export const getAllDoctorsController = async (req, res) => {
       isActive: true,
       isBlocked: false
     })
-      .select("_id faceImage.url name email phone dashboard createdAt")
+      .select("_id faceImage.url name email phone dashboard createdAt profiles")
+      .populate({ path: "profiles.doctorId" })
       .lean();
 
     return res.status(200).json({
@@ -176,7 +176,7 @@ export const getMyAddressesController = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
-    
+
     res.status(200).json({
       success: true,
       message: "Addresses fetched successfully",
@@ -211,6 +211,121 @@ export const deleteMyAddressController = async (req, res, next) => {
       success: true,
       message: "Address deleted successfully",
       data: addresses
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const toggleUserStatusController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const user = await USER.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.isActive = !user.isActive;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `User is now ${user.isActive ? 'Active' : 'Inactive'}`,
+      isActive: user.isActive
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMeController = async (req, res, next) => {
+  try {
+    const user = await USER.findById(req.user.id).select(
+      "_id faceImage.url name email phone isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User fetched successfully",
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadKycDocumentController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { documentType } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: "No document file provided" });
+    }
+
+    const user = await USER.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const s3Result = await uploadKycDocumentToS3({
+      userId,
+      documentType: documentType || "document",
+      imageBuffer: file.buffer,
+      mimeType: file.mimetype
+    });
+
+    user.kycDocuments.push({
+      url: s3Result.url,
+      documentType: documentType || "document"
+    });
+    user.kycStatus = "pending";
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "KYC Document uploaded successfully",
+      kycStatus: user.kycStatus,
+      kycDocuments: user.kycDocuments
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateKycStatusController = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body;
+
+    if (!["verified", "rejected"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid KYC status" });
+    }
+
+    const user = await USER.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.kycStatus = status;
+    
+    // Clear documents if rejected so they can re-upload fresh ones
+    if (status === "rejected") {
+       user.kycDocuments = [];
+    }
+    
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `KYC status updated to ${status}`,
+      kycStatus: user.kycStatus
     });
   } catch (error) {
     next(error);

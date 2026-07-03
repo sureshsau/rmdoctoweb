@@ -31,7 +31,7 @@ export const createAppointmentController = async (req, res) => {
     if (!appointmentDate || !appointmentTime)
       throw new AppError("Appointment date and time are required", 400);
 
-    if (!consultationFee)
+    if (consultationFee === undefined || consultationFee === null)
       throw new AppError("Consultation fee is required", 400);
 
     const appointment = await createAppointmentService({

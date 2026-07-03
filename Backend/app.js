@@ -33,7 +33,13 @@ import labOrderRoute from './routes/labOrder.route.js'
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://www.rmdocto.in", "https://rmdocto.in"],
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:8081",
+      "http://172.20.10.2:8081",
+      "https://www.rmdocto.in",
+      "https://rmdocto.in",
+    ],
     credentials: true,
   })
 );

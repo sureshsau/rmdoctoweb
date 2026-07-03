@@ -6,11 +6,15 @@ import {
   adminGetAllAgentsController,
   adminGetAllMarketingAgentsController,
 } from "../controllers/admin.network.controller.js";
+import { getAnalyticsReport } from "../controllers/admin.analytics.controller.js";
 
 const router = express.Router();
 
 // All admin routes require authentication + admin role
 router.use(authenticate, isAdmin);
+
+// ── ANALYTICS ───────────────────────────────────────────────────
+router.get("/analytics", getAnalyticsReport);
 
 // ── PICK LISTS ──────────────────────────────────────────────────
 // List all agents (for the selection screen)

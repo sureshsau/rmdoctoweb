@@ -108,7 +108,10 @@ const UserSchema = new mongoose.Schema(
       enum: ["none", "pending", "verified", "rejected"],
       default: "none",
     },
-    kycDocuments: [{ url: String, type: String }],
+    kycDocuments: [{
+      url: { type: String },
+      documentType: { type: String }
+    }],
 
     // FACE IMAGE (avatar)
     faceImage: {

@@ -241,6 +241,8 @@ export const verifyOtpLogin = async (req, res) => {
         permissions: user.permissions || [],
         profileImage: user.faceImage?.url || null,
         rmCoinsBalance: user.rmCoinsBalance || 0,
+        kycStatus: user.kycStatus || "none",
+        kycDocuments: user.kycDocuments || [],
       }
     });
 

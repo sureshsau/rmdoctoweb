@@ -50,10 +50,7 @@ export const registerFaceToAwsAndStoreImageToS3 = async ({
       new IndexFacesCommand({
         CollectionId: collectionId,
         Image: {
-          S3Object: {
-            Bucket: bucketName,
-            Name: key
-          }
+          Bytes: imageBuffer
         },
         ExternalImageId: userId,
         MaxFaces: 1,
@@ -294,12 +291,16 @@ export const uploadMedicineImageToS3 = async ({
 export const deleteMedicineImageFromS3 = async (key) => {
   if (!key) return;
 
-  await s3.send(
-    new DeleteObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: key,
-    })
-  );
+  try {
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+      })
+    );
+  } catch (error) {
+    console.warn(`Failed to delete S3 object (${key}):`, error.message);
+  }
 };
 
 
@@ -392,12 +393,16 @@ export const uploadProfileImageToS3 = async ({
 export const deleteProfileImageFromS3 = async (bucket, key) => {
   if (!key || !bucket) return;
 
-  await s3.send(
-    new DeleteObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    })
-  );
+  try {
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      })
+    );
+  } catch (error) {
+    console.warn(`Failed to delete S3 object (${key}):`, error.message);
+  }
 };
 
 export const wipeAllFacesFromRekognition = async () => {

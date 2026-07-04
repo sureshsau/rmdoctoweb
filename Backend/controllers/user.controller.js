@@ -9,7 +9,7 @@ import { uploadProfileImageToS3, deleteProfileImageFromS3, uploadKycDocumentToS3
 export const getAllUserController = async (req, res) => {
   try {
     const users = await USER.find()
-      .select("_id faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
+      .select("_id faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
       .lean();
     return res.status(200).json({
       success: true,
@@ -335,13 +335,15 @@ export const updateKycStatusController = async (req, res, next) => {
 export const updateUserDetailsController = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, address, district, state, pincode } = req.body;
+    const { name, email, address, district, state, pincode, bankDetails } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email;
     if (address !== undefined) updates.address = address;
     if (district !== undefined) updates.district = district;
     if (state !== undefined) updates.state = state;
     if (pincode !== undefined) updates.pincode = pincode;
+    if (bankDetails !== undefined) updates.bankDetails = bankDetails;
 
     const user = await USER.findByIdAndUpdate(userId, updates, { new: true });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });

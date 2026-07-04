@@ -82,6 +82,17 @@ const DoctorProfileSchema = new mongoose.Schema(
       }
     ],
 
+    // 🪪 KYC
+    kycStatus: {
+      type: String,
+      enum: ["none", "pending", "verified", "rejected"],
+      default: "none",
+    },
+    kycDocuments: [{
+      url: { type: String },
+      documentType: { type: String }
+    }],
+
     // Audit fields
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }

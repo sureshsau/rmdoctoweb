@@ -161,7 +161,22 @@ export const getMyCreditDetailsController = async (req, res, next) => {
     const wallet = await RMCredit.findOne({ agentId });
 
     if (!wallet) {
-      return next(new AppError("Wallet not found", 404));
+      return res.status(200).json({
+        success: true,
+        data: {
+          wallet: {
+            balance: 0,
+            totalCredit: 0,
+            usedCredit: 0,
+            expiryDate: null,
+            status: "inactive",
+            revokeOtp: null,
+            revokeOtpExpiresAt: null,
+            revokeAmount: null
+          },
+          transactions: []
+        }
+      });
     }
 
     const transactions = await RMCreditTransaction.find({ agentId })

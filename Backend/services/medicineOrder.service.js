@@ -339,8 +339,12 @@ export const getMedicineOrderDetails = async ({
   const isAdmin =
     requester.roles?.some(role => ["admin", "subadmin", "receptionist"].includes(role));
 
+  const isAssignedRider =
+    order.deliveryAgentId &&
+    order.deliveryAgentId._id.toString() === requester.id.toString();
+
   /* 🔐 STRICT OWNERSHIP CHECK */
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin && !isAssignedRider) {
     throw new AppError("Forbidden: You are not authorized to view this order", 403);
   }
 

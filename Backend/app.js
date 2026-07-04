@@ -110,7 +110,7 @@ server.listen(port, () => {
 });
 
 try {
-  wipeAllFacesFromRekognition().then(() => ensureRekognitionCollection());
+  // wipeAllFacesFromRekognition().then(() => ensureRekognitionCollection());
 } catch (err) {
   console.error("Rekognition error", err);
 }

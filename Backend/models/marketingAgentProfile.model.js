@@ -64,6 +64,17 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       type: String
     },
 
+    // 🪪 KYC
+    kycStatus: {
+      type: String,
+      enum: ["none", "pending", "verified", "rejected"],
+      default: "none",
+    },
+    kycDocuments: [{
+      url: { type: String },
+      documentType: { type: String }
+    }],
+
     // 🧠 Activity Tracking
     lastVisitMarkedAt: {
       type: Date

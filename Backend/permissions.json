@@ -23,6 +23,7 @@
     "label": "Medicine Order Management",
     "permissions": {
       "medicineOrder.read.all": "View all medicine orders",
+      "medicineOrder.read.rider": "View assigned orders",
       "medicineOrder.assign.rider": "Assign RM Rider to order",
       "medicineOrder.status.update": "Update order status"
     }

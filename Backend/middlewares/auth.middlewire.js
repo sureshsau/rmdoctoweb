@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import USER from "../models/user.model.js";
+import { ROLE_PERMISSIONS } from "../config/rolePermissions.js";
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -41,12 +42,22 @@ export const authenticate = async (req, res, next) => {
       }
     }
 
+    // Compute permissions from static configuration
+    const userPermissions = new Set();
+    if (user.roles) {
+      for (const role of user.roles) {
+        if (ROLE_PERMISSIONS[role]) {
+          ROLE_PERMISSIONS[role].forEach(p => userPermissions.add(p));
+        }
+      }
+    }
+
     // Attach user to request
     req.user = {
       id: user._id,
       dashboard: user.dashboard,
       roles: user.roles || [],
-      permissions: user.permissions || [],
+      permissions: Array.from(userPermissions),
       deviceType: decoded.deviceType,
     };
 

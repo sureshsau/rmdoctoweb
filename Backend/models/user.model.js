@@ -72,10 +72,6 @@ const UserSchema = new mongoose.Schema(
       index: true,
     },
 
-    permissions: {
-      type: [String], // e.g. ["appointment.create", "patient.read"]
-      default: [],
-    },
 
     // PROFILE LINKS
     profiles: {
@@ -89,6 +85,7 @@ const UserSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "MarketingAgentProfile",
       },
+      riderId: { type: mongoose.Schema.Types.ObjectId, ref: "RiderProfile" },
     },
 
     // SESSION CONTROL
@@ -113,6 +110,12 @@ const UserSchema = new mongoose.Schema(
       url: { type: String },
       documentType: { type: String }
     }],
+    bankDetails: {
+      accountNumber: { type: String, default: null },
+      ifscCode: { type: String, default: null },
+      accountHolderName: { type: String, default: null },
+      bankName: { type: String, default: null }
+    },
 
     // FACE IMAGE (avatar)
     faceImage: {

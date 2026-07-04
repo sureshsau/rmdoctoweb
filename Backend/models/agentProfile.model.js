@@ -50,7 +50,15 @@ const agentProfileSchema = new mongoose.Schema(
     },
   
     /* 🪪 KYC */
-    // kycDocuments: [ /* unchanged */ ],
+    kycStatus: {
+      type: String,
+      enum: ["none", "pending", "verified", "rejected"],
+      default: "none",
+    },
+    kycDocuments: [{
+      url: { type: String },
+      documentType: { type: String }
+    }],
 
     registeredBy: {
       type: String,

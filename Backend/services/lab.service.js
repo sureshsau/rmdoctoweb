@@ -43,9 +43,13 @@ export const uploadLabImageToS3 = async ({
 
 export const deleteLabImageFromS3 = async (key) => {
   if (!key) return;
-  await s3.send(
-    new DeleteObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: key })
-  );
+  try {
+    await s3.send(
+      new DeleteObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: key })
+    );
+  } catch (error) {
+    console.warn(`Failed to delete S3 object (${key}):`, error.message);
+  }
 };
 
 /* ═══════════════════════════════════════════════════

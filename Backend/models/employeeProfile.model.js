@@ -54,6 +54,17 @@ const EmployeeProfileSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    // 🪪 KYC
+    kycStatus: {
+      type: String,
+      enum: ["none", "pending", "verified", "rejected"],
+      default: "none",
+    },
+    kycDocuments: [{
+      url: { type: String },
+      documentType: { type: String }
+    }],
   },
   { timestamps: true }
 );

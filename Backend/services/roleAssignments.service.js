@@ -28,29 +28,22 @@ const ROLE_DASHBOARD_MAP = {
  * and save into User.permissionsCached & User.rolesCached.
 */
 export async function rebuildUserPermissions(userId) {
-  const assignments = await RoleAssignment.find({ userId, active: true }).populate("roleId", "key permissions coreProfile");
+  const assignments = await RoleAssignment.find({ userId, active: true }).populate("roleId", "key coreProfile");
 
-  const permSet = new Set();
   const rolesCached = [];
 
   for (const a of assignments) {
     if (!a.roleId) continue;
     rolesCached.push(a.roleId.key);
-    (a.roleId.permissions || []).forEach(p => permSet.add(p));
   }
 
   const user = await User.findById(userId);
   if (!user) throw new AppError("User not found", 404);
 
-  if (Array.isArray(user.userSpecificPermissions)) {
-    user.userSpecificPermissions.forEach(p => permSet.add(p));
-  }
-
   user.rolesCached = rolesCached;
-  user.permissionsCached = [...permSet];
-
   await user.save();
-  return { roles: rolesCached, permissions: [...permSet] };
+  
+  return { roles: rolesCached, permissions: [] };
 }
 
 
@@ -138,7 +131,6 @@ export async function ensureCoreProfileForUser(user, role) {
 export async function assignRoleService({
   userId,
   roles = [],
-  permissions = [],
   dashboard = "user",
 }) {
   const user = await User.findById(userId);
@@ -150,12 +142,6 @@ export async function assignRoleService({
   }
   if (roles.includes("admin")) {
     throw new AppError("Admin role cannot be assigned", 403);
-  }
-  // Merge permissions (avoid duplicates)
-  if (permissions.length) {
-    user.permissions = Array.from(
-      new Set([...user.permissions, ...permissions])
-    );
   }
 
   // Auto-resolve dashboard from roles first, fall back to explicit dashboard param

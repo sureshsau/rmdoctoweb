@@ -12,7 +12,7 @@ import AppError from "../utils/AppError.js";
 // assign single role
 export const assignRole = async (req, res, next) => {
   try {
-    const { userId, roles, permissions, dashboard } = req.body;
+    const { userId, roles, permissions, dashboard, specialization } = req.body;
 
     if (!userId) {
       return next(new AppError("userId is required", 400));
@@ -23,6 +23,7 @@ export const assignRole = async (req, res, next) => {
       roles,
       permissions,
       dashboard,
+      specialization,
     });
 
     return res.status(200).json({

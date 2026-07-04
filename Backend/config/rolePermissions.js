@@ -27,7 +27,9 @@ export const ROLE_PERMISSIONS = {
   ],
   
   rmrider: [
-    "medicineOrder.read.rider"
+    "medicineOrder.read.rider",
+    "labOrder.read.rider",
+    "labOrder.status.update"
   ],
   
   user: []

@@ -47,7 +47,7 @@ export async function rebuildUserPermissions(userId) {
 }
 
 
-export async function ensureCoreProfileForUser(user, role) {
+export async function ensureCoreProfileForUser(user, role, extraData = {}) {
   const profileMap = {
     doctor: {
       key: "doctorId",
@@ -56,6 +56,7 @@ export async function ensureCoreProfileForUser(user, role) {
         userId: user._id,
         doctorName: user.name,
         phone: user.phone,
+        specialization: extraData.specialization || "General Physician",
         registeredBy: "admin",
       }),
     },
@@ -90,11 +91,7 @@ export async function ensureCoreProfileForUser(user, role) {
 
   if (!user.profiles) user.profiles = {};
 
-  // ✅ Already linked → done
-  if (user.profiles[key]) return;
-
   let profile;
-
   try {
     // 1️⃣ Try finding existing profile
     profile = await ProfileModel.findOne({ userId: user._id });
@@ -102,9 +99,15 @@ export async function ensureCoreProfileForUser(user, role) {
     // 2️⃣ Create only if not exists
     if (!profile) {
       profile = await ProfileModel.create(build());
+    } else {
+      // 3️⃣ Update existing if doctor
+      if (role === "doctor" && extraData.specialization) {
+        profile.specialization = extraData.specialization;
+        await profile.save();
+      }
     }
   } catch (err) {
-    // 3️⃣ Handle race-condition duplicate key
+    // Handle race-condition duplicate key
     if (err.code === 11000) {
       profile = await ProfileModel.findOne({ userId: user._id });
     } else {
@@ -132,6 +135,7 @@ export async function assignRoleService({
   userId,
   roles = [],
   dashboard = "user",
+  specialization,
 }) {
   const user = await User.findById(userId);
   if (!user) throw new AppError("User not found", 404);
@@ -158,7 +162,7 @@ export async function assignRoleService({
 
   // Auto-create core profiles based on roles
   for (const role of roles) {
-    await ensureCoreProfileForUser(user, role);
+    await ensureCoreProfileForUser(user, role, { specialization });
   }
 
   await user.save();

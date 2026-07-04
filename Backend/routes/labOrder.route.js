@@ -14,7 +14,8 @@ import {
   deletePrescriptionController,
   uploadLabReportController,
   createRazorpayLabOrderController,
-  verifyRazorpayLabPaymentController
+  verifyRazorpayLabPaymentController,
+  getAssignedLabOrdersForRiderController
 } from "../controllers/labOrder.controller.js";
 
 const router = express.Router();
@@ -30,6 +31,15 @@ router.get(
   authenticate,
   authorize("labOrder.read.all"),
   getAllLabOrdersController
+);
+
+// Rider: view assigned lab orders
+// GET /lab/order/rider
+router.get(
+  "/rider",
+  authenticate,
+  authorize("labOrder.read.rider"),
+  getAssignedLabOrdersForRiderController
 );
 
 // OTP verify for sample collection

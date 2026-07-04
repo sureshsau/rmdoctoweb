@@ -33,15 +33,17 @@ export const uploadLabPrescriptionToS3 = async ({
     throw new AppError("Missing file upload parameters", 400);
   }
 
+  const safeFileName = decodeURIComponent(fileName).replace(/[^a-zA-Z0-9.\-]/g, "_");
   const ext = mimeType === "application/pdf" ? "pdf" : (mimeType.split("/")[1] || "jpg");
-  const key = `lab-prescriptions/${orderId}/${Date.now()}-${fileName}.${ext}`;
+  const key = `lab-prescriptions/${orderId}/${Date.now()}-${safeFileName}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
       Body: fileBuffer,
-      ContentType: mimeType
+      ContentType: mimeType,
+      ContentDisposition: "inline"
     })
   );
 
@@ -342,12 +344,15 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
 
   if (!order) throw new AppError("Order not found", 404);
 
-  const isOwner = order.userId.toString() === requester.id.toString();
+  const isOwner = order.userId && order.userId._id ? order.userId._id.toString() === requester.id.toString() : false;
   const isAdmin = requester.roles?.some((r) =>
     ["admin", "subadmin", "receptionist"].includes(r)
   );
+  const isCollectionAgent = order.collectionAgentId && order.collectionAgentId._id 
+    ? order.collectionAgentId._id.toString() === requester.id.toString()
+    : false;
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin && !isCollectionAgent) {
     throw new AppError("Forbidden: You are not authorized to view this order", 403);
   }
 
@@ -466,6 +471,35 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
       totalPages: Math.ceil(totalRecords / perPage)
     }
   };
+};
+
+/* ════════════════════════════════════════════════
+   GET RIDER ASSIGNED LAB ORDERS
+════════════════════════════════════════════════ */
+export const getAssignedLabOrdersForRiderService = async (riderId) => {
+  const orders = await LabOrder.find({ collectionAgentId: riderId })
+    .sort({ createdAt: -1 })
+    .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt collectionAddress userId labId createdAt")
+    .populate("items.testId", "name shortCode")
+    .populate("userId", "name phone")
+    .populate("labId", "name address.city")
+    .lean();
+
+  return orders.map((order) => ({
+    orderId: order._id,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMode: order.paymentMode,
+    collectionType: order.collectionType,
+    payableAmount: order.pricing?.payableAmount || 0,
+    scheduledAt: order.scheduledAt,
+    collectionAddress: order.collectionAddress,
+    user: order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
+    lab: order.labId ? { id: order.labId._id, name: order.labId.name, city: order.labId.address?.city } : null,
+    itemsCount: order.items.length,
+    tests: order.items.map((i) => i.testId?.name).filter(Boolean),
+    createdAt: order.createdAt
+  }));
 };
 
 /* ════════════════════════════════════════════════
@@ -695,15 +729,17 @@ export const uploadReportToS3 = async ({ orderId, fileBuffer, mimeType, fileName
   const bucketName = process.env.AWS_BUCKET_NAME;
   const region = process.env.AWS_REGION;
 
+  const safeFileName = decodeURIComponent(fileName).replace(/[^a-zA-Z0-9.\-]/g, "_");
   const ext = mimeType === "application/pdf" ? "pdf" : (mimeType.split("/")[1] || "jpg");
-  const key = `lab-reports/${orderId}/${Date.now()}-${fileName}.${ext}`;
+  const key = `lab-reports/${orderId}/${Date.now()}-${safeFileName}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
       Body: fileBuffer,
-      ContentType: mimeType
+      ContentType: mimeType,
+      ContentDisposition: "inline"
     })
   );
 

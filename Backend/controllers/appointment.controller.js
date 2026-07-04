@@ -245,19 +245,8 @@ export const getMyAppointmentsController = async (req, res) => {
 
     const userId = req.user.id;
 
-    // Find user phone number
-    const user = await User.findById(userId).select("phone");
-
-    if (!user) {
-      throw new AppError("User not found", 404);
-    }
-
-    if (!user.phone) {
-      throw new AppError("User phone not available", 400);
-    }
-
     const filter = {
-      patientPhone: user.phone
+      bookedBy: userId
     };
 
     const totalRecords = await Appointment.countDocuments(filter);

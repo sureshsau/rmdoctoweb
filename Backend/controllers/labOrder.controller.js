@@ -13,7 +13,8 @@ import {
   deletePrescriptionService,
   uploadLabReportService,
   createRazorpayLabOrderService,
-  verifyRazorpayLabPaymentService
+  verifyRazorpayLabPaymentService,
+  getAssignedLabOrdersForRiderService
 } from "../services/labOrder.service.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
@@ -105,6 +106,20 @@ export const getAllLabOrdersController = async (req, res) => {
 };
 
 /* ═══════════════════════════════════════════════
+   GET ASSIGNED RIDER LAB ORDERS
+═══════════════════════════════════════════════ */
+export const getAssignedLabOrdersForRiderController = async (req, res) => {
+  try {
+    const riderId = req.user._id || req.user.id;
+    const orders = await getAssignedLabOrdersForRiderService(riderId);
+
+    return res.status(200).json({ success: true, orders });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* ═══════════════════════════════════════════════
    UPDATE ORDER STATUS
 ═══════════════════════════════════════════════ */
 export const updateLabOrderStatusController = async (req, res) => {
@@ -147,7 +162,7 @@ export const verifyLabOtpController = async (req, res) => {
     const result = await verifyLabOtpService({
       orderId,
       otp,
-      requester: { id: req.user._id, roles: req.user.roles }
+      requester: { id: req.user.id || req.user._id, roles: req.user.roles }
     });
 
     return res.status(200).json({ success: true, message: "Sample collection confirmed", data: result });

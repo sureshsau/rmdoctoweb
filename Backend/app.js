@@ -29,6 +29,8 @@ import loginRoute from './routes/login.route.js'
 import adminRoute from './routes/admin.route.js'
 import labRouter from './routes/lab.route.js'
 import labOrderRoute from './routes/labOrder.route.js'
+import offerRoute from './routes/offer.route.js'
+import targetOfferRoute from './routes/targetOffer.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -69,6 +71,8 @@ app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);
 app.use("/admin", adminRoute);
 app.use("/lab/order", labOrderRoute);
+app.use("/offers", offerRoute);
+app.use("/target-offers", targetOfferRoute);
 /* ================= ROUTES WITH FILE UPLOAD =================*/
 // multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);

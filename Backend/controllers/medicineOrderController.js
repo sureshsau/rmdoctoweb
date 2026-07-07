@@ -23,7 +23,8 @@ export const orderMedicine = async (req, res) => {
     const {
       items,            // [{ medicineId, quantity }]
       deliveryAddress,  // full address + phone + lat/lng
-      paymentMode
+      paymentMode,
+      promoCode         // Optional promo code
     } = req.body;
 
     const result = await createMedicineOrder({
@@ -31,7 +32,8 @@ export const orderMedicine = async (req, res) => {
       userId: user.id,
       items,
       deliveryAddress,
-      paymentMode
+      paymentMode,
+      promoCode
     });
 
     res.status(201).json({

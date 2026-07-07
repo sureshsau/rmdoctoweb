@@ -56,10 +56,21 @@ const medicineOrderSchema = new mongoose.Schema(
       }
     ],
 
+    appliedPromoCode: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Offer",
+      default: null
+    },
+
     pricing: {
       subtotal: {
         type: Number,
         required: true
+      },
+
+      discountAmount: {
+        type: Number,
+        default: 0
       },
 
       gstTotal: {

@@ -15,6 +15,7 @@ export const createMedicineOrder = async ({
   items,
   deliveryAddress,
   paymentMode,
+  promoCode,
   allowSpecialPrice = false
 }) => {
   const session = await mongoose.startSession();
@@ -79,7 +80,52 @@ export const createMedicineOrder = async ({
 
     subtotal = parseFloat(subtotal.toFixed(2));
     gstTotal = parseFloat(gstTotal.toFixed(2));
-    const payableAmount = parseFloat((subtotal + gstTotal).toFixed(2));
+    let payableAmount = parseFloat((subtotal + gstTotal).toFixed(2));
+    let discountAmount = 0;
+    let appliedOfferId = null;
+
+    // Handle Promo Code
+    if (promoCode) {
+      // Import here to avoid circular dependency if any, or at top
+      const Offer = (await import("../models/offer.model.js")).default;
+      const offer = await Offer.findOne({ code: promoCode.toUpperCase() }).session(session);
+
+      if (!offer) {
+        throw new AppError("Invalid promo code", 400);
+      }
+      if (!offer.isActive || new Date(offer.expiryDate) < new Date()) {
+        throw new AppError("Promo code is expired or inactive", 400);
+      }
+      if (payableAmount < offer.minOrderValue) {
+        throw new AppError(`Minimum order value to apply this code is ₹${offer.minOrderValue}`, 400);
+      }
+      if (offer.usageLimit !== null && offer.usageLimit <= 0) {
+        throw new AppError("This offer's usage limit has been reached", 400);
+      }
+      
+      // Calculate discount
+      if (offer.discountType === "FLAT") {
+        discountAmount = offer.discountValue;
+      } else if (offer.discountType === "PERCENTAGE") {
+        discountAmount = (payableAmount * offer.discountValue) / 100;
+        if (offer.maxDiscountAmount && discountAmount > offer.maxDiscountAmount) {
+          discountAmount = offer.maxDiscountAmount;
+        }
+      }
+
+      if (discountAmount > payableAmount) {
+        discountAmount = payableAmount;
+      }
+
+      payableAmount = parseFloat((payableAmount - discountAmount).toFixed(2));
+      appliedOfferId = offer._id;
+
+      // Update offer usage limit
+      if (offer.usageLimit !== null) {
+        offer.usageLimit -= 1;
+        await offer.save({ session });
+      }
+    }
 
     const [createdOrder] = await MedicineOrder.create(
       [
@@ -87,9 +133,11 @@ export const createMedicineOrder = async ({
           userId,
           marketingAgentId,
           items: processedItems,
+          appliedPromoCode: appliedOfferId,
           pricing: {
             subtotal,
             gstTotal,
+            discountAmount,
             payableAmount
           },
           deliveryAddress,

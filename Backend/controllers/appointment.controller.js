@@ -1,9 +1,15 @@
 
 import Appointment from "../models/appointment.model.js";
-import { createAppointmentService } from "../services/appointment.service.js";
+import {
+  createAppointmentService,
+  uploadAppointmentPrescriptionService,
+  getAppointmentPrescriptionService,
+  deleteAppointmentPrescriptionService,
+} from "../services/appointment.service.js";
 import { fetchAttendanceLogs } from "../services/appointment.service.js";
 import AppError from "../utils/AppError.js";
 import User from "../models/user.model.js";
+import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
 export const createAppointmentController = async (req, res) => {
   try {
@@ -31,30 +37,45 @@ export const createAppointmentController = async (req, res) => {
     if (!appointmentDate || !appointmentTime)
       throw new AppError("Appointment date and time are required", 400);
 
-    if (consultationFee === undefined || consultationFee === null)
+    if (consultationFee === undefined || consultationFee === null || consultationFee === "")
       throw new AppError("Consultation fee is required", 400);
 
-    const appointment = await createAppointmentService({
+    /* ===== Numeric fields arrive as strings on multipart requests ===== */
+    const parsedFee = Number(consultationFee);
+    if (Number.isNaN(parsedFee))
+      throw new AppError("Consultation fee must be a number", 400);
+
+    let parsedAge;
+    if (patientAge !== undefined && patientAge !== null && patientAge !== "") {
+      parsedAge = Number(patientAge);
+      if (Number.isNaN(parsedAge))
+        throw new AppError("Patient age must be a number", 400);
+    }
+
+    const { appointment, prescriptionError } = await createAppointmentService({
       bookedById: req.user.id, // user who is booking
       doctorId,
       patientData: {
         patientName,
         patientPhone,
-        patientAge,
+        patientAge: parsedAge,
         patientGender,
       },
       appointmentData: {
         appointmentDate: new Date(appointmentDate),
         appointmentTime,
-        consultationFee,
+        consultationFee: parsedFee,
         symptoms,
         notes,
       },
+      // Optional — only present when the client posts multipart/form-data
+      prescriptionFile: req.file || null,
     });
 
     res.status(201).json({
       success: true,
       message: "Appointment booked successfully",
+      warning: prescriptionError || undefined,
       data: appointment,
     });
 
@@ -62,6 +83,83 @@ export const createAppointmentController = async (req, res) => {
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Internal Server Error",
+    });
+  } finally {
+    cleanupUploadedFile(req);
+  }
+};
+
+
+/* ═══════════════════════════════════════════════
+   PRESCRIPTION — UPLOAD / REPLACE
+═══════════════════════════════════════════════ */
+export const uploadAppointmentPrescriptionController = async (req, res) => {
+  try {
+    if (!req.file) {
+      throw new AppError("Prescription file is required", 400);
+    }
+
+    const result = await uploadAppointmentPrescriptionService({
+      appointmentId: req.params.appointmentId,
+      requester: req.user,
+      file: req.file,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Prescription uploaded successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("uploadAppointmentPrescriptionController:", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  } finally {
+    cleanupUploadedFile(req);
+  }
+};
+
+
+/* ═══════════════════════════════════════════════
+   PRESCRIPTION — VIEW
+═══════════════════════════════════════════════ */
+export const getAppointmentPrescriptionController = async (req, res) => {
+  try {
+    const result = await getAppointmentPrescriptionService({
+      appointmentId: req.params.appointmentId,
+      requester: req.user,
+    });
+
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res.status(error.statusCode || 404).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+/* ═══════════════════════════════════════════════
+   PRESCRIPTION — DELETE
+═══════════════════════════════════════════════ */
+export const deleteAppointmentPrescriptionController = async (req, res) => {
+  try {
+    await deleteAppointmentPrescriptionService({
+      appointmentId: req.params.appointmentId,
+      requester: req.user,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Prescription deleted successfully",
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

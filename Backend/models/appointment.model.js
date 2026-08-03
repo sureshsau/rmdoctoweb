@@ -65,6 +65,18 @@ const appointmentSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
+
+    /* ========== PRESCRIPTION (optional upload) ========== */
+    prescription: {
+      url: { type: String, default: null },
+      key: { type: String, default: null },
+      uploadedAt: { type: Date, default: null },
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    },
   },
   { timestamps: true }
 );

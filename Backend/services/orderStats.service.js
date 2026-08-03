@@ -54,6 +54,163 @@ export const buildDateRange = ({ range, from, to }) => {
 };
 
 
+/* ════════════════════════════════════════════════════════════
+   AGENT ORDER ALERTS
+   Follow-up list for admin / marketing agent: every agent in
+   scope with what they ordered in the period, so under-ordering
+   agents can be called directly.
+════════════════════════════════════════════════════════════ */
+
+const DEFAULT_LOW_THRESHOLD = 5000;
+
+/**
+ * @param scope        "all" (admin/subadmin) or "network" (marketing agent)
+ * @param requesterId  required when scope is "network"
+ * @param lowThreshold order value below which an agent is flagged LOW
+ */
+export const getAgentOrderAlertsService = async ({
+  scope,
+  requesterId,
+  range,
+  from,
+  to,
+  lowThreshold = DEFAULT_LOW_THRESHOLD
+}) => {
+  const threshold = Number(lowThreshold);
+  if (Number.isNaN(threshold) || threshold < 0) {
+    throw new AppError("lowThreshold must be a non-negative number", 400);
+  }
+
+  /* 1. Which agents are in scope? */
+  const profileQuery = {};
+
+  if (scope === "network") {
+    if (!mongoose.Types.ObjectId.isValid(requesterId)) {
+      throw new AppError("Invalid marketing agent id", 400);
+    }
+    profileQuery.marketingAgentId = new mongoose.Types.ObjectId(requesterId);
+  }
+
+  const agentProfiles = await AgentProfile.find(profileQuery)
+    .select("userId marketingAgentId level directDownlineCount totalDownlineCount lastVisitedAt")
+    .lean();
+
+  if (!agentProfiles.length) {
+    return {
+      scope,
+      range: range || "all",
+      lowThreshold: threshold,
+      summary: { totalAgents: 0, noOrderAgents: 0, lowAgents: 0, activeAgents: 0, totalOrderValue: 0 },
+      agents: []
+    };
+  }
+
+  const agentUserIds = agentProfiles.map((p) => p.userId);
+
+  /* 2. Order totals per agent for the period.
+        Cancelled orders are excluded — they are not sales. */
+  const dateFilter = buildDateRange({ range, from, to });
+
+  const perAgent = await MedicineOrder.aggregate([
+    {
+      $match: {
+        userId: { $in: agentUserIds },
+        orderStatus: { $ne: "CANCELLED" },
+        ...(Object.keys(dateFilter).length && { createdAt: dateFilter })
+      }
+    },
+    {
+      $group: {
+        _id: "$userId",
+        orderCount: { $sum: 1 },
+        totalOrderValue: { $sum: "$pricing.payableAmount" },
+        lastOrderAt: { $max: "$createdAt" }
+      }
+    }
+  ]);
+
+  const statsByUser = Object.fromEntries(
+    perAgent.map((s) => [s._id.toString(), s])
+  );
+
+  /* 3. Contact details — the point of the screen is calling these agents */
+  const users = await User.find({ _id: { $in: agentUserIds } })
+    .select("name phone address city district state pincode isActive isBlocked")
+    .lean();
+
+  const userById = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
+
+  /* 4. Merge — agents with no orders are kept, they matter most here */
+  const agents = agentProfiles
+    .map((profile) => {
+      const key = profile.userId.toString();
+      const user = userById[key];
+      if (!user) return null; // orphaned profile
+
+      const stats = statsByUser[key];
+      const orderCount = stats?.orderCount || 0;
+      const totalOrderValue = Number((stats?.totalOrderValue || 0).toFixed(2));
+
+      let alertLevel;
+      if (orderCount === 0) alertLevel = "NO_ORDERS";
+      else if (totalOrderValue < threshold) alertLevel = "LOW";
+      else alertLevel = "ACTIVE";
+
+      return {
+        userId: user._id,
+        name: user.name || "Unnamed agent",
+        phone: user.phone || null,
+        address:
+          [user.address, user.city, user.district, user.state, user.pincode]
+            .filter(Boolean)
+            .join(", ") || null,
+        isActive: user.isActive !== false && !user.isBlocked,
+        level: profile.level ?? 0,
+        directDownlineCount: profile.directDownlineCount || 0,
+        lastVisitedAt: profile.lastVisitedAt || null,
+        orderCount,
+        totalOrderValue,
+        lastOrderAt: stats?.lastOrderAt || null,
+        alertLevel
+      };
+    })
+    .filter(Boolean);
+
+  /* 5. Sort so the agents worth calling come first:
+        no orders → low value (lowest first) → active (highest first) */
+  const severity = { NO_ORDERS: 0, LOW: 1, ACTIVE: 2 };
+
+  agents.sort((a, b) => {
+    if (severity[a.alertLevel] !== severity[b.alertLevel]) {
+      return severity[a.alertLevel] - severity[b.alertLevel];
+    }
+    if (a.alertLevel === "ACTIVE") return b.totalOrderValue - a.totalOrderValue;
+    return a.totalOrderValue - b.totalOrderValue;
+  });
+
+  const summary = agents.reduce(
+    (acc, a) => {
+      acc.totalOrderValue += a.totalOrderValue;
+      if (a.alertLevel === "NO_ORDERS") acc.noOrderAgents += 1;
+      else if (a.alertLevel === "LOW") acc.lowAgents += 1;
+      else acc.activeAgents += 1;
+      return acc;
+    },
+    { totalAgents: agents.length, noOrderAgents: 0, lowAgents: 0, activeAgents: 0, totalOrderValue: 0 }
+  );
+
+  summary.totalOrderValue = Number(summary.totalOrderValue.toFixed(2));
+
+  return {
+    scope,
+    range: range || "all",
+    lowThreshold: threshold,
+    summary,
+    agents
+  };
+};
+
+
 // ============================================================
 // 1️⃣ ADMIN: Orders by a specific user
 // ============================================================

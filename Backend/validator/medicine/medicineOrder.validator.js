@@ -1,5 +1,57 @@
 import { body, validationResult } from "express-validator";
 
+/**
+ * Staff (admin / receptionist) placing an order for a customer.
+ * Validates the `customer` block, then reuses the standard order validation
+ * for items / address / payment mode.
+ */
+export const createOrderForCustomerMiddleware = async (req, res, next) => {
+  try {
+    if (typeof req.body.customer === "string") {
+      req.body.customer = JSON.parse(req.body.customer);
+    }
+  } catch {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid customer payload",
+    });
+  }
+
+  const customer = req.body.customer;
+
+  if (!customer || typeof customer !== "object") {
+    return res.status(422).json({
+      success: false,
+      message: "Validation failed",
+      errors: [{ field: "customer", message: "customer must be an object" }],
+    });
+  }
+
+  const phone = String(customer.phone || "").trim();
+  const name = String(customer.name || "").trim();
+  const errors = [];
+
+  if (!/^\d{10,15}$/.test(phone)) {
+    errors.push({ field: "customer.phone", message: "customer phone must be 10–15 digits" });
+  }
+
+  if (name.length < 2) {
+    errors.push({ field: "customer.name", message: "customer name must be at least 2 characters" });
+  }
+
+  if (errors.length) {
+    return res.status(422).json({
+      success: false,
+      message: "Validation failed",
+      errors,
+    });
+  }
+
+  req.body.customer = { name, phone };
+
+  return createMedicineOrderMiddleware(req, res, next);
+};
+
 export const createMedicineOrderMiddleware = async (req, res, next) => {
   try {
     console.log(req.body);

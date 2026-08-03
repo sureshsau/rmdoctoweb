@@ -9,6 +9,85 @@ import RMCredit from "../models/rmcredit/rmcredit.model.js";
 import RMCreditTransaction from "../models/rmcredit/rmcreditTransaction.model.js";
 import RMCoinsTransaction from "../models/rmcoinTransfer.model.js";
 
+/**
+ * Resolve the customer a staff-placed order belongs to.
+ *
+ * Matches on phone (the primary identity in this system). An existing user is
+ * reused as-is — the staff-typed name never overwrites a registered account's
+ * name. If no account exists, a minimal one is created so the order lands in a
+ * real history the customer can see once they sign up with that number.
+ */
+export const resolveOrCreateCustomer = async ({ name, phone }) => {
+  const normalizedPhone = String(phone || "").trim();
+
+  if (!normalizedPhone) {
+    throw new AppError("Customer phone is required", 400);
+  }
+
+  if (!/^\d{10,15}$/.test(normalizedPhone)) {
+    throw new AppError("Customer phone must be 10–15 digits", 400);
+  }
+
+  const existing = await User.findOne({ phone: normalizedPhone });
+
+  if (existing) {
+    if (existing.isBlocked) {
+      throw new AppError("This customer's account is blocked", 400);
+    }
+    return { customer: existing, created: false };
+  }
+
+  const trimmedName = String(name || "").trim();
+  if (!trimmedName) {
+    throw new AppError("Customer name is required for a new customer", 400);
+  }
+
+  const customer = await User.create({
+    name: trimmedName,
+    phone: normalizedPhone,
+    dashboard: "user",
+    roles: [],
+    isActive: true
+  });
+
+  return { customer, created: true };
+};
+
+/**
+ * Staff-facing lookup: is this phone number already a customer?
+ * Returns just enough to confirm identity at the counter.
+ */
+export const lookupCustomerByPhone = async (phone) => {
+  const normalizedPhone = String(phone || "").trim();
+
+  if (!/^\d{10,15}$/.test(normalizedPhone)) {
+    throw new AppError("Phone must be 10–15 digits", 400);
+  }
+
+  const customer = await User.findOne({ phone: normalizedPhone })
+    .select("_id name phone roles isBlocked")
+    .lean();
+
+  // A brand-new customer has no roles, so standard pricing applies
+  if (!customer) return { exists: false, customer: null, isAgent: false };
+
+  const isAgent = (customer.roles || []).includes("agent");
+
+  return {
+    exists: true,
+    // Drives which price tier the staff order screen quotes — agents are
+    // charged specialPrice by createMedicineOrder
+    isAgent,
+    customer: {
+      id: customer._id,
+      name: customer.name || null,
+      phone: customer.phone,
+      isAgent,
+      isBlocked: !!customer.isBlocked
+    }
+  };
+};
+
 export const createMedicineOrder = async ({
   user,
   userId,
@@ -16,6 +95,7 @@ export const createMedicineOrder = async ({
   deliveryAddress,
   paymentMode,
   promoCode,
+  placedBy = null,
   allowSpecialPrice = false
 }) => {
   const session = await mongoose.startSession();
@@ -132,6 +212,7 @@ export const createMedicineOrder = async ({
         {
           userId,
           marketingAgentId,
+          placedBy,
           items: processedItems,
           appliedPromoCode: appliedOfferId,
           pricing: {
@@ -375,6 +456,10 @@ export const getMedicineOrderDetails = async ({
       path: "deliveryAgentId",
       select: "name phone"
     })
+    .populate({
+      path: "placedBy",
+      select: "name phone roles"
+    })
     .lean();
 
   if (!order) {
@@ -423,6 +508,16 @@ export const getMedicineOrderDetails = async ({
     deliveryAddress: order.deliveryAddress,
 
     deliveryAgent, // ✅ null if not assigned
+
+    // Staff member who placed this order at the counter — null for self-service
+    placedBy: order.placedBy
+      ? {
+          id: order.placedBy._id,
+          name: order.placedBy.name || null,
+          phone: order.placedBy.phone || null,
+          roles: order.placedBy.roles || []
+        }
+      : null,
 
     items: order.items.map(item => ({
       medicine: {
@@ -631,12 +726,13 @@ export const getAllMedicineOrdersOverview = async ({
     .skip((currentPage - 1) * perPage)
     .limit(perPage)
     .select(
-      "items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId marketingAgentId createdAt"
+      "items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId marketingAgentId placedBy createdAt"
     )
     .populate("items.medicineId", "name images")
     .populate("userId", "name phone")
     .populate("deliveryAgentId", "name phone")
     .populate("marketingAgentId", "name phone")
+    .populate("placedBy", "name phone roles")
     .lean();
 
   // ----------- RESPONSE MAPPING -----------
@@ -653,6 +749,7 @@ export const getAllMedicineOrdersOverview = async ({
       customer: order.userId,
       marketingAgent: order.marketingAgentId,
       deliveryAgent: order.deliveryAgentId,
+      placedBy: order.placedBy || null,
       medicine: firstItem
         ? {
           name: firstItem.medicineId?.name,

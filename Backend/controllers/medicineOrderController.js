@@ -1,4 +1,4 @@
-import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
+import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, lookupCustomerByPhone, resolveOrCreateCustomer, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
@@ -44,6 +44,91 @@ export const orderMedicine = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Staff checks whether a phone number already belongs to a customer, so the
+ * counter can confirm the name instead of creating a duplicate-looking record.
+ */
+export const lookupCustomerController = async (req, res) => {
+  try {
+    const result = await lookupCustomerByPhone(req.query.phone);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Admin / receptionist places an order on behalf of a customer.
+ * The customer is identified by phone (created if new), and the order is
+ * stored under *their* account so it shows up in their order history.
+ */
+export const createOrderForCustomerController = async (req, res) => {
+  try {
+    const {
+      customer,         // { name, phone }
+      items,            // [{ medicineId, quantity }]
+      deliveryAddress,  // full address + phone + lat/lng
+      paymentMode = "COD",
+      promoCode
+    } = req.body;
+
+    if (!customer?.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer phone is required"
+      });
+    }
+
+    // Staff cannot spend a customer's RM Credit / RM Coin wallet, and cannot
+    // complete an online payment for them — counter orders are cash on delivery.
+    if (paymentMode !== "COD") {
+      return res.status(400).json({
+        success: false,
+        message: "Staff-placed orders support COD only"
+      });
+    }
+
+    const { customer: customerUser, created } = await resolveOrCreateCustomer({
+      name: customer.name,
+      phone: customer.phone
+    });
+
+    const result = await createMedicineOrder({
+      user: customerUser,
+      userId: customerUser._id,
+      items,
+      deliveryAddress,
+      paymentMode,
+      promoCode,
+      placedBy: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: created
+        ? "Order placed — a new customer record was created for this phone number"
+        : "Order placed for existing customer",
+      customer: {
+        id: customerUser._id,
+        name: customerUser.name,
+        phone: customerUser.phone,
+        isNewCustomer: created
+      },
+      data: result
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(error.statusCode || 400).json({
       success: false,
       message: error.message
     });

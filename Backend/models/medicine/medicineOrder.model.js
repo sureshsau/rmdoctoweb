@@ -21,6 +21,15 @@ const medicineOrderSchema = new mongoose.Schema(
         index: true
     },
 
+    // Staff member (admin / receptionist) who placed this order on the
+    // customer's behalf. null for orders the customer placed themselves.
+    placedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+        index: true
+    },
+
     items: [
       {
         medicineId: {

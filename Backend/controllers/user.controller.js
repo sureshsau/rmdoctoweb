@@ -43,6 +43,10 @@ export const createUserController = async (req, res) => {
         roles: user.roles,
         permissions: user.permissions,
         dashboard: user.dashboard,
+        kycStatus: user.kycStatus,
+        // Shown to the admin once so they can pass it to the new user
+        isNew: user.isNew,
+        tempPassword: user.tempPassword,
       },
     });
   } catch (error) {

@@ -12,6 +12,7 @@ export const ROLE_PERMISSIONS = {
     "appointment.read.all",
     "appointment.create",
     "medicineOrder.read.all",
+    "medicineOrder.create.forCustomer",
     "labOrder.read.all",
     "user.read.all"
   ],

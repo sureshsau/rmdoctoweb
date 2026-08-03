@@ -1,9 +1,52 @@
 import {
   getOrdersByUserService,
   getAgentDownlineOrderStatsService,
-  getMarketingAgentNetworkOrderStatsService
+  getMarketingAgentNetworkOrderStatsService,
+  getAgentOrderAlertsService
 } from "../services/orderStats.service.js";
 import AppError from "../utils/AppError.js";
+
+/**
+ * ADMIN / SUBADMIN / MARKETING AGENT
+ * GET /medicine/order/stats/agent-alerts?range=month&lowThreshold=5000
+ *
+ * Follow-up list of agents and what they ordered in the period, including
+ * agents with no orders at all. Admin sees every agent; a marketing agent
+ * sees only the agents assigned to them.
+ */
+export const getAgentOrderAlertsController = async (req, res, next) => {
+  try {
+    const roles = req.user.roles || [];
+
+    const isAdmin = roles.includes("admin") || roles.includes("subadmin");
+    const isMarketingAgent = roles.includes("marketing_agent");
+
+    if (!isAdmin && !isMarketingAgent) {
+      throw new AppError("Forbidden: Admin or Marketing Agent only", 403);
+    }
+
+    const { range, from, to, lowThreshold } = req.query;
+
+    const data = await getAgentOrderAlertsService({
+      // Admin wins when a user holds both roles — the wider view is the useful one
+      scope: isAdmin ? "all" : "network",
+      requesterId: req.user.id,
+      range,
+      from,
+      to,
+      lowThreshold: lowThreshold ?? undefined
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Agent order alerts fetched",
+      rangeApplied: range || "all",
+      ...data
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 /**
  * ADMIN / SUBADMIN

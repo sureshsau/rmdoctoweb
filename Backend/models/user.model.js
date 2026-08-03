@@ -1,5 +1,21 @@
 import mongoose from "mongoose";
 
+/* One entry per device the user is signed in on. FCM issues a token per
+   app-install, so a user with a phone and a tablet has two. */
+const deviceTokenSchema = new mongoose.Schema(
+  {
+    token: { type: String, required: true },
+    platform: {
+      type: String,
+      enum: ["android", "ios", "web"],
+      default: "android",
+    },
+    deviceId: { type: String, default: null },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     // BASIC IDENTITY
@@ -136,9 +152,13 @@ const UserSchema = new mongoose.Schema(
 
     // NOTIFICATIONS
     pushToken: { type: String },
-    fcmTokens: [{ type: String }],
+    fcmTokens: { type: [deviceTokenSchema], default: [] },
   },
   { timestamps: true }
 );
+
+// Lets us find (and steal) a device token that is still attached to a previous
+// account when someone else logs in on the same phone.
+UserSchema.index({ "fcmTokens.token": 1 });
 
 export default mongoose.model("User", UserSchema);

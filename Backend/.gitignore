@@ -2,3 +2,11 @@ node_modules
 package-lock.json
 .env
 
+# .env backups (set-firebase-credentials.mjs writes these) — they contain every
+# other secret in .env, so they must never be committed either
+.env.bak-*
+
+# Firebase service-account keys — never commit these
+firebase-service-account*.json
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json

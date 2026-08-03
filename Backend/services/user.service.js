@@ -1,6 +1,18 @@
+import crypto from "crypto";
 import User from "../models/user.model.js";
 import { hashPassword } from "../utils/password.js";
 import { assignRoleService } from "./roleAssignments.service.js";
+
+/**
+ * Sign-in credential for a staff account created by an admin.
+ *
+ * Login is password-based and self-registration rejects a phone that already
+ * exists, so an admin-created account with no passwordHash could never sign in.
+ * The account therefore gets a temporary password, returned to the admin once
+ * so they can hand it over. 8 chars, digits only after the prefix — easy to
+ * read out over a phone call.
+ */
+const generateTempPassword = () => `RM${crypto.randomInt(100000, 1000000)}`;
 
 export const createUserService = async ({
   name,
@@ -8,7 +20,8 @@ export const createUserService = async ({
   roles = [],
   permissions = [],
   dashboard = "user",
-  isActive = true
+  isActive = true,
+  password
 }) => {
 
   if (!phone) {
@@ -22,11 +35,19 @@ export const createUserService = async ({
   // Normalize phone (important)
   const normalizedPhone = phone.trim();
 
+  // Login and self-registration both key off a 10-digit number
+  if (!/^\d{10}$/.test(normalizedPhone)) {
+    throw new Error("Phone number must be exactly 10 digits");
+  }
+
   // 1️⃣ Find user by phone (primary identity)
   let user = await User.findOne({ phone: normalizedPhone });
 
+  let tempPassword = null;
+
   if (user) {
     /* ================= UPDATE FLOW ================= */
+    // An existing account keeps its own password — never reset it silently
 
     user.name = name;
     user.isActive = isActive;
@@ -36,11 +57,14 @@ export const createUserService = async ({
   } else {
     /* ================= CREATE FLOW ================= */
 
+    tempPassword = password || generateTempPassword();
+
     user = await User.create({
       name,
       phone: normalizedPhone,
       isActive,
-      dashboard
+      dashboard,
+      passwordHash: await hashPassword(tempPassword)
     });
   }
 
@@ -56,10 +80,12 @@ export const createUserService = async ({
 
   // 3️⃣ Return fresh user
   const updatedUser = await User.findById(user._id)
-    .select("_id name phone roles permissions dashboard isActive profiles rmCoinsBalance")
+    .select("_id name phone roles permissions dashboard isActive kycStatus profiles rmCoinsBalance")
     .lean();
 
-  return updatedUser;
+  // tempPassword is only ever set on the create path, and is the one moment it
+  // can be shown — it is not recoverable afterwards
+  return { ...updatedUser, isNew: Boolean(tempPassword), tempPassword };
 };
 
 export const addSavedAddressService = async (userId, addressData) => {

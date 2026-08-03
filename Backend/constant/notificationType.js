@@ -1,4 +1,7 @@
 const NOTIFICATION_TYPES = {
+  // Manual push sent from the admin panel (no template involved)
+  ADMIN_BROADCAST: "ADMIN_BROADCAST",
+
   // User Registration Flow
   NEW_USER_REQUEST: "NEW_USER_REQUEST",
   USER_APPROVED: "USER_APPROVED",

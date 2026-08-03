@@ -1,9 +1,11 @@
 import express from 'express';
 import { authenticate, authorize, isAdminOrSubadmin } from '../middlewares/auth.middlewire.js';
-import { createMedicineOrderMiddleware } from '../validator/medicine/medicineOrder.validator.js';
+import { createMedicineOrderMiddleware, createOrderForCustomerMiddleware } from '../validator/medicine/medicineOrder.validator.js';
 import {
   assignRMRiderController,
+  createOrderForCustomerController,
   createRazorpayMedicineOrder,
+  lookupCustomerController,
   getAllMedicineOrdersController,
   getAssignedOrdersForRider,
   getMedicineOrderDetailsController,
@@ -17,7 +19,8 @@ import {
 import {
   getOrdersByUserController,
   getAgentDownlineOrderStatsController,
-  getMarketingAgentNetworkOrderStatsController
+  getMarketingAgentNetworkOrderStatsController,
+  getAgentOrderAlertsController
 } from '../controllers/orderStats.controller.js';
 
 
@@ -39,12 +42,34 @@ router.get('/stats/agent/downline', authenticate, getAgentDownlineOrderStatsCont
 // GET /stats/marketing-agent/network?range=today
 router.get('/stats/marketing-agent/network', authenticate, getMarketingAgentNetworkOrderStatsController);
 
+// Admin / Marketing Agent: agent follow-up list with order value + contact details
+// GET /stats/agent-alerts?range=month&lowThreshold=5000
+// Controller scopes the result: admin sees all agents, marketing agent sees only theirs
+router.get('/stats/agent-alerts', authenticate, getAgentOrderAlertsController);
+
 // ── EXISTING ROUTES ───────────────────────────────────────────────────────────
 // Rider: view assigned orders
 router.get('/rider', authenticate, authorize('medicineOrder.read.rider'), getAssignedOrdersForRider);
 
 // Admin: view all orders
 router.get('/view/all', authenticate, authorize('medicineOrder.read.all'), getAllMedicineOrdersController);
+
+// Admin / Receptionist: does this phone already belong to a customer?
+router.get(
+  '/for-customer/lookup',
+  authenticate,
+  authorize('medicineOrder.create.forCustomer'),
+  lookupCustomerController
+);
+
+// Admin / Receptionist: place an order on behalf of a customer (name + phone + address)
+router.post(
+  '/for-customer',
+  authenticate,
+  authorize('medicineOrder.create.forCustomer'),
+  createOrderForCustomerMiddleware,
+  createOrderForCustomerController
+);
 
 // Verify delivery OTP
 router.post('/verify-otp', authenticate, verifyOrderOtpController);

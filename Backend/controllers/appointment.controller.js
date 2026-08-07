@@ -268,7 +268,7 @@ export const getAgentAppointmentsController = async (req, res) => {
 
     // Only agent allowed
     if (!roles.includes("agent")) {
-      throw new AppError("Only agents allowed", 403);
+      throw new AppError("Only RM Members allowed", 403);
     }
 
     const { page = 1, limit = 10 } = req.query;
@@ -288,7 +288,7 @@ export const getAgentAppointmentsController = async (req, res) => {
     const agent = await User.findById(agentId).select("phone");
 
     if (!agent) {
-      throw new AppError("Agent not found", 404);
+      throw new AppError("RM Member not found", 404);
     }
 
     const filter = {

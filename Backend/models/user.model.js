@@ -25,6 +25,7 @@ const UserSchema = new mongoose.Schema(
 
 
     address: { type: String, default: null },
+    landmark: { type: String, default: null },
     city: { type: String, default: null },
     district: { type: String, default: null },
     state: { type: String, default: null },

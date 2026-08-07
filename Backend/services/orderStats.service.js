@@ -86,7 +86,7 @@ export const getAgentOrderAlertsService = async ({
 
   if (scope === "network") {
     if (!mongoose.Types.ObjectId.isValid(requesterId)) {
-      throw new AppError("Invalid marketing agent id", 400);
+      throw new AppError("Invalid Marketing Executive id", 400);
     }
     profileQuery.marketingAgentId = new mongoose.Types.ObjectId(requesterId);
   }
@@ -158,7 +158,7 @@ export const getAgentOrderAlertsService = async ({
 
       return {
         userId: user._id,
-        name: user.name || "Unnamed agent",
+        name: user.name || "Unnamed RM Member",
         phone: user.phone || null,
         address:
           [user.address, user.city, user.district, user.state, user.pincode]
@@ -263,7 +263,7 @@ export const getAgentDownlineOrderStatsService = async ({ agentUserId, range, fr
 
   // 1. Get all agents (self + downline) under this agent's subtree
   const selfProfile = await AgentProfile.findOne({ userId: agentUserId }).lean();
-  if (!selfProfile) throw new AppError("Agent profile not found", 404);
+  if (!selfProfile) throw new AppError("RM Member profile not found", 404);
 
   // BFS to collect all agent userIds in the downline
   const allAgentProfileIds = [selfProfile._id];

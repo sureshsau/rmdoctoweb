@@ -22,7 +22,7 @@ export const getAgentOrderAlertsController = async (req, res, next) => {
     const isMarketingAgent = roles.includes("marketing_agent");
 
     if (!isAdmin && !isMarketingAgent) {
-      throw new AppError("Forbidden: Admin or Marketing Agent only", 403);
+      throw new AppError("Forbidden: Admin or Marketing Executive only", 403);
     }
 
     const { range, from, to, lowThreshold } = req.query;
@@ -39,7 +39,7 @@ export const getAgentOrderAlertsController = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Agent order alerts fetched",
+      message: "RM Member order alerts fetched",
       rangeApplied: range || "all",
       ...data
     });
@@ -90,7 +90,7 @@ export const getAgentDownlineOrderStatsController = async (req, res, next) => {
   try {
     const roles = req.user.roles || [];
     if (!roles.includes("agent")) {
-      throw new AppError("Forbidden: Agent only", 403);
+      throw new AppError("Forbidden: RM Member only", 403);
     }
 
     const { range, from, to } = req.query;
@@ -104,7 +104,7 @@ export const getAgentDownlineOrderStatsController = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Agent downline order stats fetched",
+      message: "RM Member downline order stats fetched",
       rangeApplied: range || "all",
       ...data
     });
@@ -125,7 +125,7 @@ export const getMarketingAgentNetworkOrderStatsController = async (req, res, nex
   try {
     const roles = req.user.roles || [];
     if (!roles.includes("marketing_agent")) {
-      throw new AppError("Forbidden: Marketing Agent only", 403);
+      throw new AppError("Forbidden: Marketing Executive only", 403);
     }
 
     const { range, from, to } = req.query;
@@ -139,7 +139,7 @@ export const getMarketingAgentNetworkOrderStatsController = async (req, res, nex
 
     return res.status(200).json({
       success: true,
-      message: "Marketing agent network order stats fetched",
+      message: "Marketing Executive network order stats fetched",
       rangeApplied: range || "all",
       ...data
     });

@@ -31,7 +31,7 @@ export const registerAgentController = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Agent registered successfully",
+      message: "RM Member registered successfully",
       data: data,
     });
 
@@ -86,7 +86,7 @@ export const uploadAgreementEnsureProfileController = async (req, res) => {
     if (!user.roles || !user.roles.includes("agent")) {
       return res.status(403).json({
         success: false,
-        message: "User is not an agent"
+        message: "User is not an RM Member"
       });
     }
 

@@ -178,7 +178,7 @@ export const createLabOrder = async ({
 
       case "RM_CREDIT":
         if (!user.roles?.includes("agent")) {
-          throw new AppError("Only agents can use RM Credit", 403);
+          throw new AppError("Only RM Members can use RM Credit", 403);
         }
 
         const wallet = await RMCredit.findOne({ agentId: userId }).session(session);

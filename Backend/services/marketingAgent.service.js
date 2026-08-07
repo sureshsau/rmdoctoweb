@@ -42,6 +42,7 @@ export const registerAgentByMarketingAgentService = async ({
       latitude,
       longitude,
       address = null,
+      landmark = null,
       city = null,
       state = null,
       pincode = null,
@@ -77,14 +78,14 @@ export const registerAgentByMarketingAgentService = async ({
 
         if (existingAgentProfile.marketingAgentId) {
           throw new AppError(
-            "Agent is already allocated to a marketing agent",
+            "RM Member is already allocated to a Marketing Executive",
             400
           );
         }
 
         if (existingAgentProfile.parentAgentId) {
           throw new AppError(
-            "Agent already belongs to a network. Contact admin for transfer.",
+            "RM Member already belongs to a network. Contact admin for transfer.",
             400
           );
         }
@@ -112,7 +113,7 @@ export const registerAgentByMarketingAgentService = async ({
         return {
           userId: user._id,
           agentProfileId: existingAgentProfile._id,
-          message: "Existing agent assigned under marketing agent successfully"
+          message: "Existing RM Member assigned under Marketing Executive successfully"
         };
       }
     }
@@ -124,7 +125,7 @@ export const registerAgentByMarketingAgentService = async ({
       const parentAgent = await AgentProfile.findById(parentAgentId);
 
       if (!parentAgent) {
-        throw new Error("Parent agent not found");
+        throw new Error("Parent RM Member not found");
       }
 
       level = parentAgent.level + 1;
@@ -136,6 +137,7 @@ export const registerAgentByMarketingAgentService = async ({
         name: agentName,
         phone,
         address,
+        landmark,
         city,
         state,
         pincode,
@@ -184,7 +186,7 @@ export const registerAgentByMarketingAgentService = async ({
     return {
       userId: user._id,
       agentProfileId,
-      message: "New agent registered successfully"
+      message: "New RM Member registered successfully"
     };
 
   } catch (error) {

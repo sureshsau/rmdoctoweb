@@ -6,6 +6,7 @@ import {
   createOrderForCustomerController,
   createRazorpayMedicineOrder,
   lookupCustomerController,
+  searchAgentsForStaffOrderController,
   getAllMedicineOrdersController,
   getAssignedOrdersForRider,
   getMedicineOrderDetailsController,
@@ -60,6 +61,14 @@ router.get(
   authenticate,
   authorize('medicineOrder.create.forCustomer'),
   lookupCustomerController
+);
+
+// Admin / Receptionist: pick an agent to place an order for (agent pricing)
+router.get(
+  '/for-customer/agents',
+  authenticate,
+  authorize('medicineOrder.create.forCustomer'),
+  searchAgentsForStaffOrderController
 );
 
 // Admin / Receptionist: place an order on behalf of a customer (name + phone + address)

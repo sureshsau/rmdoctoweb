@@ -61,7 +61,7 @@ export const requestRevokeCreditController = async (req, res, next) => {
     const amount = Number(req.body.amount);
 
     if (!agentId || isNaN(amount) || amount <= 0) {
-      return next(new AppError("Valid agent and amount required", 400));
+      return next(new AppError("Valid RM Member and amount required", 400));
     }
 
     const wallet = await RMCredit.findOne({ agentId });
@@ -99,7 +99,7 @@ export const verifyRevokeCreditController = async (req, res, next) => {
     const otp = String(req.body.otp);
 
     if (!agentId || !otp) {
-      return next(new AppError("Agent and OTP required", 400));
+      return next(new AppError("RM Member and OTP required", 400));
     }
 
     const wallet = await RMCredit.findOne({ agentId });

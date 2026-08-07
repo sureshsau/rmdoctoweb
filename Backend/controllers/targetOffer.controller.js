@@ -155,7 +155,7 @@ export const getMyTargetProgress = async (req, res) => {
     const agentProfile = await AgentProfile.findOne({ userId });
     
     if (!agentProfile) {
-      return res.status(404).json({ success: false, message: "Agent profile not found" });
+      return res.status(404).json({ success: false, message: "RM Member profile not found" });
     }
 
     // Find all users belonging to this agent

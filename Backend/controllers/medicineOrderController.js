@@ -1,4 +1,4 @@
-import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, lookupCustomerByPhone, resolveOrCreateCustomer, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
+import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, lookupCustomerByPhone, resolveOrCreateCustomer, searchAgentsForStaffOrder, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
@@ -58,6 +58,25 @@ export const lookupCustomerController = async (req, res) => {
   try {
     const result = await lookupCustomerByPhone(req.query.phone);
     res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Admin / receptionist picks an agent to place an order for, so agent pricing
+ * is applied deliberately instead of being inferred from a typed phone number.
+ */
+export const searchAgentsForStaffOrderController = async (req, res) => {
+  try {
+    const agents = await searchAgentsForStaffOrder(
+      req.query.search,
+      req.query.limit
+    );
+    res.status(200).json({ success: true, data: agents });
   } catch (error) {
     res.status(error.statusCode || 400).json({
       success: false,

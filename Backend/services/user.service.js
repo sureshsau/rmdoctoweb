@@ -32,6 +32,15 @@ export const createUserService = async ({
     throw new Error("Name is required");
   }
 
+  // assignRoleService refuses the admin role, but it only runs *after* the
+  // account has been inserted — the admin saw "Create Failed" while a
+  // role-less user was left behind in the collection. Reject it up front.
+  if (roles.includes("admin")) {
+    throw new Error(
+      "The admin role cannot be assigned here. Pick a different role."
+    );
+  }
+
   // Normalize phone (important)
   const normalizedPhone = phone.trim();
 
@@ -69,13 +78,23 @@ export const createUserService = async ({
   }
 
   // 2️⃣ Assign roles & permissions (optional)
+  // Anything that fails here (an unassignable role, a profile that won't
+  // validate) must not leave a half-built account behind — but only the
+  // account this call created is ours to remove.
   if (roles.length || permissions.length || dashboard) {
-    await assignRoleService({
-      userId: user._id,
-      roles,
-      permissions,
-      dashboard
-    });
+    try {
+      await assignRoleService({
+        userId: user._id,
+        roles,
+        permissions,
+        dashboard
+      });
+    } catch (err) {
+      if (tempPassword) {
+        await User.deleteOne({ _id: user._id });
+      }
+      throw err;
+    }
   }
 
   // 3️⃣ Return fresh user

@@ -54,6 +54,27 @@ export const resolveOrCreateCustomer = async ({ name, phone }) => {
 };
 
 /**
+ * The address captured when the user registered, shaped for the counter's
+ * delivery form so an agent order doesn't have to be retyped.
+ * `location` is GeoJSON, so coordinates come out as [lng, lat].
+ */
+const registeredAddress = (u) => ({
+  address: u.address || null,
+  landmark: u.landmark || null,
+  city: u.city || null,
+  state: u.state || null,
+  pincode: u.pincode || null,
+  coordinates:
+    Array.isArray(u.location?.coordinates) &&
+    u.location.coordinates.length === 2
+      ? u.location.coordinates
+      : null
+});
+
+/* Fields registeredAddress() reads — keep the two in step */
+const ADDRESS_FIELDS = "address landmark city state pincode location";
+
+/**
  * Staff-facing lookup: is this phone number already a customer?
  * Returns just enough to confirm identity at the counter.
  */
@@ -65,7 +86,7 @@ export const lookupCustomerByPhone = async (phone) => {
   }
 
   const customer = await User.findOne({ phone: normalizedPhone })
-    .select("_id name phone roles isBlocked")
+    .select(`_id name phone roles isBlocked ${ADDRESS_FIELDS}`)
     .lean();
 
   // A brand-new customer has no roles, so standard pricing applies
@@ -83,9 +104,48 @@ export const lookupCustomerByPhone = async (phone) => {
       name: customer.name || null,
       phone: customer.phone,
       isAgent,
-      isBlocked: !!customer.isBlocked
+      isBlocked: !!customer.isBlocked,
+
+      // Lets the counter prefill delivery when the typed number turns out to
+      // belong to an agent — same data the agent picker returns
+      ...registeredAddress(customer)
     }
   };
+};
+
+/**
+ * Staff-facing agent picker, backing the "order for agent" mode at the counter.
+ *
+ * createMedicineOrder charges specialPrice purely on the ordering user's role,
+ * so an agent order has to be placed against a real agent account — typing a
+ * phone number and hoping it belongs to one silently bills standard price.
+ */
+export const searchAgentsForStaffOrder = async (search = "", limit = 20) => {
+  const term = String(search || "").trim();
+
+  const query = { roles: "agent", isBlocked: { $ne: true } };
+
+  if (term) {
+    // Staff type a partial name or the first digits of a number
+    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    query.$or = [
+      { name: { $regex: safe, $options: "i" } },
+      { phone: { $regex: safe } }
+    ];
+  }
+
+  const agents = await User.find(query)
+    .select(`_id name phone ${ADDRESS_FIELDS}`)
+    .sort({ name: 1 })
+    .limit(Math.min(Number(limit) || 20, 50))
+    .lean();
+
+  return agents.map((a) => ({
+    id: a._id,
+    name: a.name || "Unnamed RM Member",
+    phone: a.phone,
+    ...registeredAddress(a)
+  }));
 };
 
 export const createMedicineOrder = async ({
@@ -244,7 +304,7 @@ export const createMedicineOrder = async ({
       case "RM_CREDIT":
         // Only agents can use RM Credit
         if (!user.roles.includes("agent")) {
-          throw new AppError("Only agents can use RM Credit", 403);
+          throw new AppError("Only RM Members can use RM Credit", 403);
         }
 
         const wallet = await RMCredit.findOne({ agentId: userId })

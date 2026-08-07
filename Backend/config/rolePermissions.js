@@ -29,6 +29,10 @@ export const ROLE_PERMISSIONS = {
   
   rmrider: [
     "medicineOrder.read.rider",
+    // Riders mark medicine orders delivered after verifying the customer's OTP.
+    // updateOrderStatusService still scopes it to the *assigned* rider, so this
+    // grants the route, not the order.
+    "medicineOrder.status.update",
     "labOrder.read.rider",
     "labOrder.status.update"
   ],

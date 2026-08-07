@@ -48,7 +48,7 @@ export const assignMarketingAgentToAgent = async ({
     );
 
     if (!rootAgent) {
-      throw new Error("Agent not found");
+      throw new Error("RM Member not found");
     }
 
     /* =========================
@@ -87,7 +87,7 @@ export const assignMarketingAgentToAgent = async ({
 
     return {
       success: true,
-      message: "Marketing agent updated for entire downline tree"
+      message: "Marketing Executive updated for entire downline tree"
     };
 
   } catch (error) {
@@ -114,7 +114,7 @@ export const uploadAgentAgreementService = async ({
   const agentProfile = await AgentProfile.findById(agentProfileId);
 
   if (!agentProfile) {
-    throw new Error("Agent profile not found");
+    throw new Error("RM Member profile not found");
   }
 
   // 2️⃣ Upload to S3 FIRST (no DB mutation yet)
@@ -163,6 +163,7 @@ export const registerAgentByAgentService = async ({
       latitude,
       longitude,
       address = null,
+      landmark = null,
       city = null,
       state = null,
       pincode = null
@@ -178,7 +179,7 @@ export const registerAgentByAgentService = async ({
     });
 
     if (!parentAgent) {
-      throw new AppError("Parent agent profile not found", 404);
+      throw new AppError("Parent RM Member profile not found", 404);
     }
 
     /* =========================
@@ -206,19 +207,19 @@ export const registerAgentByAgentService = async ({
       );
 
       if (!existingAgent) {
-        throw new AppError("Agent profile corrupted", 500);
+        throw new AppError("RM Member profile corrupted", 500);
       }
 
       if (existingAgent.parentAgentId) {
         throw new AppError(
-          "Agent already belongs to a network. Contact admin for transfer.",
+          "RM Member already belongs to a network. Contact admin for transfer.",
           400
         );
       }
 
       if (existingAgent.marketingAgentId) {
         throw new AppError(
-          "Agent already assigned to a marketing agent",
+          "RM Member already assigned to a Marketing Executive",
           400
         );
       }
@@ -255,7 +256,7 @@ export const registerAgentByAgentService = async ({
       return {
         userId: user._id,
         agentProfileId: existingAgent._id,
-        message: "Existing agent linked under parent agent successfully"
+        message: "Existing RM Member linked under parent RM Member successfully"
       };
     }
 
@@ -267,6 +268,7 @@ export const registerAgentByAgentService = async ({
         name: agentName,
         phone,
         address,
+        landmark,
         city,
         state,
         pincode,
@@ -329,7 +331,7 @@ export const registerAgentByAgentService = async ({
     return {
       userId: user._id,
       agentProfileId: agentProfile._id,
-      message: "New agent registered under parent agent successfully"
+      message: "New RM Member registered under parent RM Member successfully"
     };
 
   } catch (error) {
@@ -358,7 +360,7 @@ export const getAgentVisibleNetwork = async ({
       .lean();
 
     if (!selfAgent) {
-      throw new AppError("Agent profile not found", 404);
+      throw new AppError("RM Member profile not found", 404);
     }
 
     /* =========================
@@ -494,13 +496,13 @@ export const getAgentVisibleNetwork = async ({
 };
 
 export const registerAgentByAdminService = async ({ payload }) => {
-  const { agentName, phone, latitude, longitude, address = null, city = null, state = null, pincode = null } = payload;
+  const { agentName, phone, latitude, longitude, address = null, landmark = null, city = null, state = null, pincode = null } = payload;
   validateAgentPayload({ agentName, phone, latitude, longitude });
   
   let user = await User.findOne({ phone: phone.trim() });
   
   if (user?.roles?.includes('marketing_agent') || user?.roles?.includes('admin') || user?.roles?.includes('subadmin')) {
-    throw new AppError('You cannot register this user as an agent because they are already an employee');
+    throw new AppError('You cannot register this user as an RM Member because they are already an employee');
   }
   
   if (user?.roles?.length) {
@@ -508,7 +510,7 @@ export const registerAgentByAdminService = async ({ payload }) => {
   }
   
   if (user?.profiles?.agentId) {
-    throw new AppError('User is already registered as an agent', 400);
+    throw new AppError('User is already registered as an RM Member', 400);
   }
   
   if (!user) {
@@ -516,6 +518,7 @@ export const registerAgentByAdminService = async ({ payload }) => {
       name: agentName.trim(),
       phone: phone.trim(),
       address,
+      landmark,
       city,
       state,
       pincode,
@@ -542,5 +545,5 @@ export const registerAgentByAdminService = async ({ payload }) => {
     { $set: { dashboard: 'agent', roles: ['agent'], permissions: role?.permissions || [], 'profiles.agentId': agentProfile._id } }
   );
   
-  return { userId: user._id, agentProfileId: agentProfile._id, message: 'Agent registered by admin successfully' };
+  return { userId: user._id, agentProfileId: agentProfile._id, message: 'RM Member registered by admin successfully' };
 };

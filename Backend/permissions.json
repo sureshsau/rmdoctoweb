@@ -47,6 +47,14 @@
     }
   },
 
+  "visit": {
+    "label": "RM Member Meet Management",
+    "permissions": {
+      "visit.read": "View the RM Member meet plan",
+      "visit.mark": "Mark a meet complete / incomplete"
+    }
+  },
+
   "appointment": {
     "label": "Appointment Management",
     "permissions": {

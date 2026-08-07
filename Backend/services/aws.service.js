@@ -288,6 +288,46 @@ export const uploadMedicineImageToS3 = async ({
 };
 
 
+/* Shop front photos (captured at RM Member registration) and on-the-spot
+   proof photos taken during a meet. Same bucket, different folder. */
+export const uploadVisitPhotoToS3 = async ({
+  agentProfileId,
+  imageBuffer,
+  mimeType,
+  fileName,
+  folder = "visits"
+}) => {
+  const bucketName = process.env.AWS_BUCKET_NAME;
+  const region = process.env.AWS_REGION;
+
+  if (!imageBuffer || !bucketName) {
+    throw new Error("Missing image upload parameters");
+  }
+
+  const ext = (mimeType || "image/jpeg").split("/")[1] || "jpg";
+  const safeName = fileName
+    ? fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9.\-]/g, "")
+    : "photo";
+
+  const key = `agents/${agentProfileId}/${folder}/${Date.now()}-${safeName}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType
+    })
+  );
+
+  return {
+    url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
+    key,
+    bucket: bucketName
+  };
+};
+
+
 export const deleteMedicineImageFromS3 = async (key) => {
   if (!key) return;
 

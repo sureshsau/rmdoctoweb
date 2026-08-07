@@ -32,6 +32,7 @@ import labOrderRoute from './routes/labOrder.route.js'
 import offerRoute from './routes/offer.route.js'
 import targetOfferRoute from './routes/targetOffer.route.js'
 import notificationRoute from './routes/notification.route.js'
+import visitRoute from './routes/visit.route.js'
 /* ================= CORS ================= */
 
 app.use(
@@ -75,6 +76,7 @@ app.use("/lab/order", labOrderRoute);
 app.use("/offers", offerRoute);
 app.use("/target-offers", targetOfferRoute);
 app.use("/notifications", notificationRoute);
+app.use("/visits", visitRoute);
 /* ================= ROUTES WITH FILE UPLOAD =================*/
 // multer must receive raw stream → NO body parser before this
 app.use("/medicines", medicineRouter);

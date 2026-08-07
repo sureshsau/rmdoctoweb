@@ -46,10 +46,33 @@ export const registerAgentByMarketingAgentService = async ({
       city = null,
       state = null,
       pincode = null,
-      parentAgentId = null
+      parentAgentId = null,
+      shopName = null,
+      visitFrequency = "MONTHLY"
     } = payload;
 
     validateAgentPayload({ agentName, phone, latitude, longitude });
+
+    /* The shop details ride on the agent profile, not the user account — the
+       meet plan routes an executive to a shop, and a member can change shop
+       without changing where they log in from. */
+    const shopDetails = {
+      shopName: shopName || agentName,
+      address,
+      landmark,
+      city,
+      state,
+      pincode,
+      visitFrequency: ["DAILY", "WEEKLY", "MONTHLY"].includes(
+        String(visitFrequency).toUpperCase()
+      )
+        ? String(visitFrequency).toUpperCase()
+        : "MONTHLY",
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude]
+      }
+    };
 
     // 🔍 1. Find user by phone
     let user = await User.findOne({ phone });
@@ -97,15 +120,7 @@ export const registerAgentByMarketingAgentService = async ({
             $set: {
               marketingAgentId,
               registeredBy: "MARKETING_AGENT",
-              agentName,
-              address,
-              city,
-              state,
-              pincode,
-              location: {
-                type: "Point",
-                coordinates: [longitude, latitude]
-              }
+              ...shopDetails
             }
           }
         );
@@ -161,7 +176,8 @@ export const registerAgentByMarketingAgentService = async ({
       directDownlineCount: 0,
       totalDownlineCount: 0,
       marketingAgentId,
-      registeredBy: "MARKETING_AGENT"
+      registeredBy: "MARKETING_AGENT",
+      ...shopDetails
     });
 
     const agentProfileId = agentProfile._id;

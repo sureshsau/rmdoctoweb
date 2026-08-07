@@ -24,7 +24,10 @@ export const ROLE_PERMISSIONS = {
   
   marketing_agent: [
     "agent.read",
-    "agent.create"
+    "agent.create",
+    // Meet plan — the service scopes every read/write to their own RM Members
+    "visit.read",
+    "visit.mark"
   ],
   
   rmrider: [

@@ -496,9 +496,9 @@ export const getAgentVisibleNetwork = async ({
 };
 
 export const registerAgentByAdminService = async ({ payload }) => {
-  const { agentName, phone, latitude, longitude, address = null, landmark = null, city = null, state = null, pincode = null } = payload;
+  const { agentName, phone, latitude, longitude, address = null, landmark = null, city = null, state = null, pincode = null, shopName = null, marketingAgentId = null, visitFrequency = 'MONTHLY' } = payload;
   validateAgentPayload({ agentName, phone, latitude, longitude });
-  
+
   let user = await User.findOne({ phone: phone.trim() });
   
   if (user?.roles?.includes('marketing_agent') || user?.roles?.includes('admin') || user?.roles?.includes('subadmin')) {
@@ -535,9 +535,22 @@ export const registerAgentByAdminService = async ({ payload }) => {
     level: 0,
     directDownlineCount: 0,
     totalDownlineCount: 0,
-    registeredBy: 'ADMIN'
+    registeredBy: 'ADMIN',
+    marketingAgentId: marketingAgentId || null,
+
+    // Shop details drive the meet plan — see agentProfile.model.js
+    shopName: shopName || agentName.trim(),
+    address,
+    landmark,
+    city,
+    state,
+    pincode,
+    visitFrequency: ['DAILY', 'WEEKLY', 'MONTHLY'].includes(String(visitFrequency).toUpperCase())
+      ? String(visitFrequency).toUpperCase()
+      : 'MONTHLY',
+    location: { type: 'Point', coordinates: [longitude, latitude] }
   });
-  
+
   const role = await ROLE.findOne({ key: 'agent' }).select('permissions').lean();
   
   await User.updateOne(

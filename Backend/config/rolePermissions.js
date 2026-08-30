@@ -14,7 +14,40 @@ export const ROLE_PERMISSIONS = {
     "medicineOrder.read.all",
     "medicineOrder.create.forCustomer",
     "labOrder.read.all",
-    "user.read.all"
+    "labOrder.status.update",
+    "user.read.all",
+    "pathology.catalog.read",
+    "pathology.accession.read",
+    "pathology.accession.create",
+    "pathology.report.read"
+  ],
+
+  typist: [
+    "labOrder.read.all",
+    "labOrder.status.update",
+    "pathology.catalog.read",
+    "pathology.accession.read",
+    "pathology.accession.create",
+    "pathology.accession.update",
+    "pathology.report.read",
+    "pathology.report.enter",
+    "pathology.report.submit"
+  ],
+
+  lab_technician: [
+    "labOrder.read.all",
+    "labOrder.status.update",
+    "labOrder.report.upload",
+    "pathology.catalog.read",
+    "pathology.catalog.manage",
+    "pathology.accession.read",
+    "pathology.accession.create",
+    "pathology.accession.update",
+    "pathology.report.read",
+    "pathology.report.enter",
+    "pathology.report.submit",
+    "pathology.report.verify",
+    "pathology.report.send"
   ],
   
   agent: [

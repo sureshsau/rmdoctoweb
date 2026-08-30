@@ -346,7 +346,7 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
 
   const isOwner = order.userId && order.userId._id ? order.userId._id.toString() === requester.id.toString() : false;
   const isAdmin = requester.roles?.some((r) =>
-    ["admin", "subadmin", "receptionist"].includes(r)
+    ["admin", "subadmin", "receptionist", "typist", "lab_technician"].includes(r)
   );
   const isCollectionAgent = order.collectionAgentId && order.collectionAgentId._id 
     ? order.collectionAgentId._id.toString() === requester.id.toString()
@@ -519,7 +519,7 @@ export const updateLabOrderStatusService = async ({
   if (!order) throw new AppError("Order not found", 404);
 
   const isAdmin = requester.roles?.some((r) =>
-    ["admin", "subadmin", "receptionist"].includes(r)
+    ["admin", "subadmin", "receptionist", "typist", "lab_technician"].includes(r)
   );
   if (!isAdmin) throw new AppError("Forbidden", 403);
 
@@ -755,7 +755,7 @@ export const uploadLabReportService = async ({ orderId, requester, file }) => {
   }
 
   const isAdmin = requester.roles?.some((r) =>
-    ["admin", "subadmin", "receptionist"].includes(r)
+    ["admin", "subadmin", "receptionist", "typist", "lab_technician"].includes(r)
   );
   if (!isAdmin) throw new AppError("Only admin can upload reports", 403);
 

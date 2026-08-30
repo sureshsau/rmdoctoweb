@@ -8,7 +8,6 @@
       "user.delete": "Delete user"
     }
   },
-
   "medicine": {
     "label": "Medicine Management",
     "permissions": {
@@ -18,7 +17,6 @@
       "medicine.delete": "Delete medicine"
     }
   },
-
   "medicineOrder": {
     "label": "Medicine Order Management",
     "permissions": {
@@ -29,7 +27,6 @@
       "medicineOrder.status.update": "Update order status"
     }
   },
-
   "attendance": {
     "label": "Attendance Management",
     "permissions": {
@@ -37,7 +34,6 @@
       "attendance.read.all": "View attendance logs of any user"
     }
   },
-
   "agent": {
     "label": "Agent Management",
     "permissions": {
@@ -46,7 +42,6 @@
       "agent.update": "Update agent"
     }
   },
-
   "visit": {
     "label": "RM Member Meet Management",
     "permissions": {
@@ -54,7 +49,6 @@
       "visit.mark": "Mark a meet complete / incomplete"
     }
   },
-
   "appointment": {
     "label": "Appointment Management",
     "permissions": {
@@ -62,7 +56,6 @@
       "appointment.read.all": "View all bookings (admin / staff)"
     }
   },
-
   "rmcoin": {
     "label": "RM Coin Management",
     "permissions": {
@@ -71,7 +64,6 @@
       "rmcoin.logs.admin": "View admin RM Coin logs"
     }
   },
-
   "rmcredit": {
     "label": "RM Credit Management",
     "permissions": {
@@ -82,7 +74,6 @@
       "rmcredit.read.agent": "View specific agent credit details"
     }
   },
-
   "employee": {
     "label": "Employee Management",
     "permissions": {
@@ -90,34 +81,46 @@
       "employee.attendance.read.all": "View all employee attendance"
     }
   },
-
   "lab": {
     "label": "Lab Management",
     "permissions": {
       "lab.create": "Create / register a lab",
-      "lab.read":   "View labs",
+      "lab.read": "View labs",
       "lab.update": "Update lab details",
       "lab.delete": "Deactivate a lab"
     }
   },
-
   "labTest": {
     "label": "Lab Test Management",
     "permissions": {
       "labTest.create": "Add a lab test",
-      "labTest.read":   "View lab tests",
+      "labTest.read": "View lab tests",
       "labTest.update": "Update lab test",
       "labTest.delete": "Deactivate a lab test"
     }
   },
-
   "labOrder": {
     "label": "Lab Order Management",
     "permissions": {
-      "labOrder.read.all":        "View all lab orders",
+      "labOrder.read.all": "View all lab orders",
       "labOrder.assign.collector": "Assign collection agent (RM Rider) to lab order",
-      "labOrder.status.update":   "Update lab order status",
-      "labOrder.report.upload":   "Upload lab report PDF"
+      "labOrder.status.update": "Update lab order status",
+      "labOrder.report.upload": "Upload lab report PDF"
+    }
+  },
+  "pathology": {
+    "label": "Pathology Reporting",
+    "permissions": {
+      "pathology.catalog.read": "View analyte catalogue",
+      "pathology.catalog.manage": "Create/update pathology panels",
+      "pathology.accession.create": "Register specimen / print barcode",
+      "pathology.accession.read": "View specimens and worklist",
+      "pathology.accession.update": "Update specimen / referral status",
+      "pathology.report.enter": "Enter report values (typist)",
+      "pathology.report.submit": "Submit report for verification (typist)",
+      "pathology.report.verify": "Verify / edit submitted report (technician)",
+      "pathology.report.send": "Release report to patient (technician)",
+      "pathology.report.read": "View reports"
     }
   }
 }

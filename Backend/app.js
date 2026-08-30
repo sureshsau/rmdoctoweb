@@ -29,6 +29,7 @@ import loginRoute from './routes/login.route.js'
 import adminRoute from './routes/admin.route.js'
 import labRouter from './routes/lab.route.js'
 import labOrderRoute from './routes/labOrder.route.js'
+import pathologyRoute from './routes/pathology.route.js'
 import offerRoute from './routes/offer.route.js'
 import targetOfferRoute from './routes/targetOffer.route.js'
 import notificationRoute from './routes/notification.route.js'
@@ -82,6 +83,7 @@ app.use("/visits", visitRoute);
 app.use("/medicines", medicineRouter);
 app.use("/login", loginRoute);
 app.use("/labs", labRouter);
+app.use("/pathology", pathologyRoute);
 
 
 

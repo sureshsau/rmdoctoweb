@@ -19,6 +19,10 @@ const deviceTokenSchema = new mongoose.Schema(
 const UserSchema = new mongoose.Schema(
   {
     // BASIC IDENTITY
+    // Public human-readable id (RMD000142) carried by every patient and staff
+    // member. Assigned via utils/rmdId.js; sparse so pre-existing users stay
+    // valid until the backfill runs.
+    rmdId: { type: String, unique: true, sparse: true, index: true, trim: true },
     name: { type: String, trim: true },
     email: { type: String, lowercase: true, index: true, sparse: true },
     phone: { type: String, required: true, index: true },
@@ -77,7 +81,9 @@ const UserSchema = new mongoose.Schema(
         "marketing_agent",
         "receptionist",
         "user",
-        "rmrider"
+        "rmrider",
+        "lab_technician",
+        "typist"
       ],
       default: "user",
     },

@@ -34,6 +34,15 @@ const labOrderSchema = new mongoose.Schema(
       index: true
     },
 
+    // Specimen accession minted when the collection barcode label is printed.
+    // Links the customer booking to the in-house pathology pipeline.
+    accession: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Accession",
+      default: null,
+      index: true
+    },
+
     // ── TESTS BOOKED ─────────────────────────────────────────────────
     items: [
       {

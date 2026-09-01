@@ -25,6 +25,8 @@ export const ROLE_PERMISSIONS = {
     "pathology.catalog.read",
     "pathology.accession.read",
     "pathology.accession.create",
+    "pathology.collection.label",
+    "pathology.collection.read",
     "pathology.report.read"
   ],
 
@@ -35,6 +37,9 @@ export const ROLE_PERMISSIONS = {
     "pathology.accession.read",
     "pathology.accession.create",
     "pathology.accession.update",
+    "pathology.accession.receive",
+    "pathology.collection.label",
+    "pathology.collection.read",
     "pathology.report.read",
     "pathology.report.enter",
     "pathology.report.submit"
@@ -49,6 +54,9 @@ export const ROLE_PERMISSIONS = {
     "pathology.accession.read",
     "pathology.accession.create",
     "pathology.accession.update",
+    "pathology.accession.receive",
+    "pathology.collection.label",
+    "pathology.collection.read",
     "pathology.report.read",
     "pathology.report.enter",
     "pathology.report.submit",
@@ -77,7 +85,11 @@ export const ROLE_PERMISSIONS = {
     // grants the route, not the order.
     "medicineOrder.status.update",
     "labOrder.read.rider",
-    "labOrder.status.update"
+    "labOrder.status.update",
+    // Scan the specimen barcode to see the collection sheet (patient, tests,
+    // tube checklist). getCollectionSheet still scopes it to the *assigned*
+    // rider, so this grants the route, not every collection.
+    "pathology.collection.read"
   ],
   
   user: []

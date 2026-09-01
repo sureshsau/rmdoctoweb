@@ -5,6 +5,9 @@ import {
   getPanel,
   upsertPanel,
   createAccession,
+  createCollectionLabel,
+  getCollectionSheet,
+  receiveSpecimen,
   searchAccessions,
   getAccession,
   updateReferral,
@@ -46,7 +49,34 @@ router.put("/panels/:id", authenticate, authorize("pathology.catalog.manage"), u
 
 /* ---------- specimens / accession + barcode ---------- */
 router.post("/accessions", authenticate, authorize("pathology.accession.create"), createAccession);
+
+// Pre-collection: mint the accession + barcode label for a booked lab order,
+// before the sample exists, so the RM rider carries a scannable collection sheet.
+router.post(
+  "/accessions/collection-label",
+  authenticate,
+  authorize("pathology.collection.label"),
+  createCollectionLabel
+);
+
+// Rider / lab: the collection sheet resolved by scanning the label barcode.
+router.get(
+  "/collection/:accessionNo",
+  authenticate,
+  authorize("pathology.collection.read"),
+  getCollectionSheet
+);
+
 router.get("/accessions", authenticate, authorize("pathology.accession.read"), searchAccessions);
+
+// Lab receiving bench: confirm the returned specimen -> creates the draft report.
+router.post(
+  "/accessions/:accessionNo/receive",
+  authenticate,
+  authorize("pathology.accession.receive"),
+  receiveSpecimen
+);
+
 router.get(
   "/accessions/:accessionNo",
   authenticate,

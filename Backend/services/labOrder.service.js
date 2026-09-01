@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import LabTest from "../models/lab/labTest.model.js";
 import LabOrder from "../models/lab/labOrder.model.js";
+import Accession from "../models/lab/accession.model.js";
 import AppError from "../utils/AppError.js";
 import crypto from "crypto";
 import AgentProfile from "../models/agentProfile.model.js";
@@ -340,6 +341,7 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
     .populate({ path: "items.testId", select: "name shortCode category sampleType" })
     .populate({ path: "labId", select: "name brandName address phone email" })
     .populate({ path: "collectionAgentId", select: "name phone" })
+    .populate({ path: "accession", select: "accessionNo status collectionInfo.vials" })
     .lean();
 
   if (!order) throw new AppError("Order not found", 404);
@@ -388,6 +390,13 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
     })),
     otp: order.otp || null,
     otpVerified: order.otpVerified,
+    accession: order.accession
+      ? {
+          accessionNo: order.accession.accessionNo,
+          status: order.accession.status,
+          vials: order.accession.collectionInfo?.vials || []
+        }
+      : null,
     reportUrl: order.reportUrl || null,
     prescription: order.prescription?.url
       ? { url: order.prescription.url, uploadedAt: order.prescription.uploadedAt }
@@ -437,12 +446,13 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     .sort({ createdAt: -1 })
     .skip((currentPage - 1) * perPage)
     .limit(perPage)
-    .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt userId collectionAgentId marketingAgentId labId createdAt")
+    .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt userId collectionAgentId marketingAgentId labId accession createdAt")
     .populate("items.testId", "name shortCode")
     .populate("userId", "name phone")
     .populate("collectionAgentId", "name phone")
     .populate("marketingAgentId", "name phone")
     .populate("labId", "name address.city")
+    .populate("accession", "accessionNo status")
     .lean();
 
   const data = orders.map((order) => ({
@@ -453,6 +463,8 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     collectionType: order.collectionType,
     payableAmount: order.pricing?.payableAmount || 0,
     scheduledAt: order.scheduledAt,
+    accessionNo: order.accession?.accessionNo || null,
+    accessionStatus: order.accession?.status || null,
     lab: order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
     user: order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
     collectionAgent: order.collectionAgentId
@@ -479,10 +491,11 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
 export const getAssignedLabOrdersForRiderService = async (riderId) => {
   const orders = await LabOrder.find({ collectionAgentId: riderId })
     .sort({ createdAt: -1 })
-    .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt collectionAddress userId labId createdAt")
+    .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt collectionAddress userId labId accession createdAt")
     .populate("items.testId", "name shortCode")
     .populate("userId", "name phone")
     .populate("labId", "name address.city")
+    .populate("accession", "accessionNo status collectionInfo.vials")
     .lean();
 
   return orders.map((order) => ({
@@ -498,6 +511,11 @@ export const getAssignedLabOrdersForRiderService = async (riderId) => {
     lab: order.labId ? { id: order.labId._id, name: order.labId.name, city: order.labId.address?.city } : null,
     itemsCount: order.items.length,
     tests: order.items.map((i) => i.testId?.name).filter(Boolean),
+    // Sample-collection barcode + tube checklist for the rider app. Null until
+    // the lab prints the collection label.
+    accessionNo: order.accession?.accessionNo || null,
+    accessionStatus: order.accession?.status || null,
+    vials: order.accession?.collectionInfo?.vials || [],
     createdAt: order.createdAt
   }));
 };
@@ -586,6 +604,17 @@ export const verifyLabOtpService = async ({ orderId, otp, requester }) => {
     order.otp = null;
 
     await order.save({ session });
+
+    // Keep the pre-collection accession in step: the rider has now drawn the
+    // sample, so it moves from awaiting_collection -> collected.
+    if (order.accession) {
+      await Accession.updateOne(
+        { _id: order.accession, status: "awaiting_collection" },
+        { status: "collected", collectedAt: new Date() },
+        { session }
+      );
+    }
+
     await session.commitTransaction();
     session.endSession();
 

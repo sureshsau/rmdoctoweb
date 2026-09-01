@@ -122,6 +122,52 @@ export function evaluateFormula(formula, valuesByCode) {
 }
 
 /**
+ * Standard phlebotomy tube colour for a panel's container additive. Matched by
+ * case-insensitive substring so catalogue text like "K2EDTA" or "Sodium
+ * Fluoride / Potassium Oxalate" still resolves. Order matters -- the first hit
+ * wins.
+ */
+const CONTAINER_COLORS = [
+  [/edta/i, "Lavender"],
+  [/citrate/i, "Light Blue"],
+  [/fluoride|oxalate|\bfx\b/i, "Grey"],
+  [/heparin/i, "Green"],
+  [/sst|gel|separator/i, "Gold"],
+  [/plain|clot|serum|no additive/i, "Red"],
+  [/urine/i, "Yellow"],
+  [/stool|sterile|swab/i, "White"],
+];
+
+export function containerColor(container) {
+  const text = String(container || "").trim();
+  if (!text) return "—";
+  for (const [rx, color] of CONTAINER_COLORS) if (rx.test(text)) return color;
+  return "—";
+}
+
+/**
+ * Collapse a set of panels into the tube checklist a phlebotomist draws: one
+ * vial per distinct container, tagged with its colour and the panels that go
+ * into it. `count` is 1 per tube for now; the lab can revise volumes later.
+ */
+export function computeVials(panels = []) {
+  const byContainer = new Map();
+  for (const p of panels) {
+    const container = String(p.container || "").trim() || "Plain";
+    if (!byContainer.has(container)) {
+      byContainer.set(container, {
+        containerType: container,
+        color: containerColor(container),
+        count: 1,
+        panelCodes: [],
+      });
+    }
+    byContainer.get(container).panelCodes.push(p.code);
+  }
+  return [...byContainer.values()];
+}
+
+/**
  * Build the empty result rows for a report from the catalogue, freezing each
  * parameter's resolved reference range onto the report.
  */

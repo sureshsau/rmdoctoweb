@@ -5,7 +5,11 @@ import PathologyReport from "../models/lab/pathologyReport.model.js";
 import LabOrder from "../models/lab/labOrder.model.js";
 import User from "../models/user.model.js";
 import { generateAccessionNo, generateUserRmdId } from "../utils/rmdId.js";
-import { buildReportPanels, recalcReportPanels } from "../services/pathology.service.js";
+import {
+  buildReportPanels,
+  recalcReportPanels,
+  computeVials,
+} from "../services/pathology.service.js";
 
 const ok = (res, data, message = "OK") =>
   res.status(200).json({ success: true, message, ...data });
@@ -192,10 +196,97 @@ export const upsertPanel = async (req, res) => {
 
 /* ========================= ACCESSION ========================= */
 
+/** Freeze a catalogue panel into the accession's per-panel snapshot. */
+const toAccessionPanel = (p) => ({
+  panel: p._id,
+  code: p.code,
+  name: p.name,
+  category: p.category || "",
+  isInHouse: p.isInHouse,
+  referralLab: p.isInHouse ? { name: null, contact: null } : p.referralLab,
+  referralStatus: p.isInHouse ? "not_applicable" : "pending_dispatch",
+});
+
 /**
- * Register a specimen. Mints the accession number the barcode is printed
- * from, snapshots in-house vs referral routing per panel, and creates the
- * empty draft report the typist will fill in.
+ * Split a set of panels by test category — one printed collection label per
+ * group, each with its own tube checklist. Categories are the panels' own
+ * `category` (from the catalogue); a panel with none lands in "Uncategorised".
+ */
+const groupPanelsByCategory = (panelDocs = []) => {
+  const byCategory = new Map();
+  for (const p of panelDocs) {
+    const category = String(p.category || "").trim() || "Uncategorised";
+    if (!byCategory.has(category)) byCategory.set(category, []);
+    byCategory.get(category).push(p);
+  }
+  return [...byCategory.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([category, docs]) => ({
+      category,
+      panelCodes: docs.map((d) => d.code),
+      vials: computeVials(docs),
+    }));
+};
+
+/**
+ * Fuzzy-match booked LabTests to in-house pathology panels: exact
+ * shortCode == panel code, else panel name containing the test name. Mirrors
+ * the matcher the Register screen ran client-side. Returns the deduped panel
+ * docs and the names of any tests nothing matched.
+ */
+async function matchPanelsForLabTests(items = []) {
+  const panels = await PathologyPanel.find({ isActive: true }).lean();
+  const matched = new Map();
+  const unmatchedTests = [];
+
+  for (const item of items) {
+    const name = String(item?.testId?.name || "").trim().toLowerCase();
+    const code = String(item?.testId?.shortCode || "").trim().toLowerCase();
+    if (!name && !code) continue;
+
+    const hit = panels.find(
+      (p) =>
+        (code && p.code.toLowerCase() === code) ||
+        (name && p.name.toLowerCase().includes(name))
+    );
+    if (hit) matched.set(String(hit._id), hit);
+    else unmatchedTests.push(item?.testId?.name || code || "Unknown test");
+  }
+
+  return { panels: [...matched.values()], unmatchedTests };
+}
+
+/**
+ * Create the draft report for an accession -- in-house panels only; referred
+ * work stays tracked on the accession. `panelDocs` are full catalogue docs
+ * (they carry `.parameters`), not the frozen snapshots.
+ */
+async function createDraftReport({ accession, panelDocs, session, userId, note }) {
+  const inHouse = panelDocs.filter((p) => p.isInHouse);
+  const a = await actor(userId);
+  const [report] = await PathologyReport.create(
+    [
+      {
+        reportNo: accession.accessionNo.replace("RMDL", "RMDR"),
+        accession: accession._id,
+        accessionNo: accession.accessionNo,
+        panels: buildReportPanels(inHouse, accession.patient),
+        status: "draft",
+        audit: [{ action: "created", ...a, note: note || "Specimen registered" }],
+      },
+    ],
+    { session }
+  );
+  return report;
+}
+
+/**
+ * Register a walk-in specimen: the sample is physically in hand, so this mints
+ * the accession, marks it collected + received now, computes the tube list and
+ * creates the empty draft report the typist fills in.
+ *
+ * Booked orders take the pre-collection path instead -- see
+ * `createCollectionLabel` / `receiveSpecimen`.
  */
 export const createAccession = async (req, res) => {
   const session = await mongoose.startSession();
@@ -232,15 +323,7 @@ export const createAccession = async (req, res) => {
       let rmdId = patient.rmdId || null;
       if (!rmdId) rmdId = await generateUserRmdId();
 
-      const accessionPanels = panels.map((p) => ({
-        panel: p._id,
-        code: p.code,
-        name: p.name,
-        isInHouse: p.isInHouse,
-        referralLab: p.isInHouse ? { name: null, contact: null } : p.referralLab,
-        referralStatus: p.isInHouse ? "not_applicable" : "pending_dispatch",
-      }));
-
+      const now = new Date();
       const [accession] = await Accession.create(
         [
           {
@@ -249,7 +332,15 @@ export const createAccession = async (req, res) => {
             patientUser: patientUser || null,
             patient: { ...patient, rmdId },
             referringDoctor: referringDoctor || "SELF",
-            panels: accessionPanels,
+            panels: panels.map(toAccessionPanel),
+            status: "registered",
+            collectedAt: now,
+            receivedAt: now,
+            collectionInfo: {
+              vials: computeVials(panels),
+              categoryGroups: groupPanelsByCategory(panels),
+              receivedBy: req.user?.id || null,
+            },
             createdBy: req.user?.id || null,
             notes: notes || "",
           },
@@ -257,24 +348,12 @@ export const createAccession = async (req, res) => {
         { session }
       );
 
-      // The report covers in-house panels only; referred-out work is tracked
-      // on the accession until the partner lab returns a result.
-      const inHouse = panels.filter((p) => p.isInHouse);
-      const a = await actor(req.user?.id);
-
-      const [report] = await PathologyReport.create(
-        [
-          {
-            reportNo: accessionNo.replace("RMDL", "RMDR"),
-            accession: accession._id,
-            accessionNo,
-            panels: buildReportPanels(inHouse, accession.patient),
-            status: "draft",
-            audit: [{ action: "created", ...a, note: "Specimen registered" }],
-          },
-        ],
-        { session }
-      );
+      const report = await createDraftReport({
+        accession,
+        panelDocs: panels,
+        session,
+        userId: req.user?.id,
+      });
 
       created = { accession, report };
     });
@@ -283,6 +362,247 @@ export const createAccession = async (req, res) => {
   } catch (err) {
     console.error("createAccession error:", err);
     return fail(res, 500, "Failed to register specimen");
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Print the sample-collection barcode label for a booked LabOrder. Mints the
+ * accession up front -- before the specimen exists -- so the RM rider carries a
+ * scannable label and a tube checklist. Idempotent: a second call returns the
+ * accession already linked to the order (a reprint).
+ */
+export const createCollectionLabel = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { labOrder: labOrderId } = req.body || {};
+    if (!labOrderId || !mongoose.Types.ObjectId.isValid(labOrderId)) {
+      return fail(res, 400, "A valid labOrder id is required");
+    }
+
+    const order = await LabOrder.findById(labOrderId)
+      .populate("items.testId", "name shortCode sampleType")
+      .populate("userId", "name phone rmdId")
+      .lean();
+    if (!order) return fail(res, 404, "Lab order not found");
+
+    const existing = await Accession.findOne({
+      labOrder: labOrderId,
+      status: { $ne: "cancelled" },
+    }).lean();
+    if (existing) {
+      return ok(
+        res,
+        { accession: existing, unmatchedTests: existing.collectionInfo?.unmatchedTests || [] },
+        "Collection label already generated"
+      );
+    }
+
+    const { panels, unmatchedTests } = await matchPanelsForLabTests(order.items);
+    if (panels.length === 0) {
+      return fail(
+        res,
+        400,
+        "None of the booked tests map to an in-house panel — register this specimen manually"
+      );
+    }
+
+    let created;
+    await session.withTransaction(async () => {
+      const accessionNo = await generateAccessionNo();
+      const addr = order.collectionAddress || {};
+      const patient = {
+        rmdId: order.userId?.rmdId || (await generateUserRmdId()),
+        name: addr.fullName || order.userId?.name || "Patient",
+        age: null,
+        ageUnit: "years",
+        sex: "male",
+        phone: addr.phone || order.userId?.phone || null,
+        address:
+          [addr.addressLine1, addr.addressLine2, addr.pincode].filter(Boolean).join(", ") || null,
+      };
+
+      const [accession] = await Accession.create(
+        [
+          {
+            accessionNo,
+            labOrder: order._id,
+            patientUser: order.userId?._id || null,
+            patient,
+            referringDoctor: "SELF",
+            panels: panels.map(toAccessionPanel),
+            status: "awaiting_collection",
+            collectionInfo: {
+              vials: computeVials(panels),
+              categoryGroups: groupPanelsByCategory(panels),
+              labelPrintedAt: new Date(),
+              labelPrintedBy: req.user?.id || null,
+              unmatchedTests,
+            },
+            createdBy: req.user?.id || null,
+            notes: `Lab Booking #${String(order._id).slice(-6).toUpperCase()}`,
+          },
+        ],
+        { session }
+      );
+
+      await LabOrder.findByIdAndUpdate(order._id, { accession: accession._id }, { session });
+      created = { accession, unmatchedTests };
+    });
+
+    return ok(res, created, "Collection label generated");
+  } catch (err) {
+    console.error("createCollectionLabel error:", err);
+    return fail(res, 500, "Failed to generate collection label");
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * The rider's collection sheet: who to visit, what to draw, which tubes.
+ * Scoped -- an RM rider only sees a sheet for an order assigned to them; lab
+ * staff and admins see any.
+ */
+export const getCollectionSheet = async (req, res) => {
+  try {
+    const { accessionNo } = req.params;
+    const accession = await Accession.findOne({ accessionNo }).lean();
+    if (!accession) return fail(res, 404, "Specimen not found");
+
+    const order = accession.labOrder
+      ? await LabOrder.findById(accession.labOrder)
+          .select(
+            "collectionType collectionAddress scheduledAt orderStatus otpVerified collectionAgentId"
+          )
+          .lean()
+      : null;
+
+    const rolesArr = [req.user?.dashboard, ...(req.user?.roles || [])];
+    const isStaff = rolesArr.some((r) =>
+      ["admin", "subadmin", "employee", "receptionist", "typist", "lab_technician"].includes(r)
+    );
+    if (!isStaff) {
+      const uid = String(req.user?.id || req.user?._id || "");
+      const assigned = order?.collectionAgentId && String(order.collectionAgentId) === uid;
+      if (!assigned) return fail(res, 403, "This collection is not assigned to you");
+    }
+
+    return ok(res, {
+      accessionNo: accession.accessionNo,
+      status: accession.status,
+      patient: accession.patient,
+      referringDoctor: accession.referringDoctor,
+      panels: (accession.panels || []).map((p) => ({
+        code: p.code,
+        name: p.name,
+        category: p.category || "",
+        isInHouse: p.isInHouse,
+      })),
+      vials: accession.collectionInfo?.vials || [],
+      categoryGroups: accession.collectionInfo?.categoryGroups || [],
+      unmatchedTests: accession.collectionInfo?.unmatchedTests || [],
+      order: order
+        ? {
+            orderId: order._id,
+            collectionType: order.collectionType,
+            collectionAddress: order.collectionAddress,
+            scheduledAt: order.scheduledAt,
+            orderStatus: order.orderStatus,
+            otpRequired: !order.otpVerified,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error("getCollectionSheet error:", err);
+    return fail(res, 500, "Failed to load collection sheet");
+  }
+};
+
+const RECEIVABLE = new Set(["awaiting_collection", "collected"]);
+
+/**
+ * Lab receiving bench: scan the returned tube, confirm the patient's age/sex
+ * and panel list, mark the specimen received. This is the point the draft
+ * report is created and value entry can begin.
+ */
+export const receiveSpecimen = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { accessionNo } = req.params;
+    const { patient = {}, panelIds, notes } = req.body || {};
+
+    const accession = await Accession.findOne({ accessionNo });
+    if (!accession) return fail(res, 404, "Specimen not found");
+
+    if (!RECEIVABLE.has(accession.status)) {
+      if (accession.status === "cancelled") return fail(res, 409, "This specimen is cancelled");
+      // Already received -- hand back what exists rather than erroring.
+      const report = await PathologyReport.findOne({ accession: accession._id }).lean();
+      return ok(res, { accession: accession.toObject(), report }, "Specimen already received");
+    }
+
+    const existingPatient =
+      typeof accession.patient?.toObject === "function"
+        ? accession.patient.toObject()
+        : accession.patient || {};
+    const mergedPatient = { ...existingPatient, ...patient };
+    const age = Number(mergedPatient.age);
+    if (!Number.isFinite(age) || age <= 0) {
+      return fail(res, 400, "Patient age is required for reference-range matching");
+    }
+
+    let panelDocs;
+    if (Array.isArray(panelIds) && panelIds.length) {
+      panelDocs = await PathologyPanel.find({ _id: { $in: panelIds }, isActive: true }).lean();
+      if (panelDocs.length !== panelIds.length) {
+        return fail(res, 400, "One or more selected tests are unavailable");
+      }
+    } else {
+      panelDocs = await PathologyPanel.find({
+        _id: { $in: accession.panels.map((p) => p.panel) },
+        isActive: true,
+      }).lean();
+    }
+    if (panelDocs.length === 0) return fail(res, 400, "Select at least one test");
+
+    let result;
+    await session.withTransaction(async () => {
+      accession.patient = mergedPatient;
+      accession.panels = panelDocs.map(toAccessionPanel);
+      if (!accession.collectionInfo) accession.collectionInfo = {};
+      accession.collectionInfo.vials = computeVials(panelDocs);
+      accession.collectionInfo.categoryGroups = groupPanelsByCategory(panelDocs);
+      accession.collectionInfo.receivedBy = req.user?.id || null;
+      accession.status = "registered";
+      if (!accession.collectedAt) accession.collectedAt = new Date();
+      accession.receivedAt = new Date();
+      if (notes) accession.notes = notes;
+      await accession.save({ session });
+
+      const report = await createDraftReport({
+        accession,
+        panelDocs,
+        session,
+        userId: req.user?.id,
+        note: "Specimen received at lab",
+      });
+      result = { accession: accession.toObject(), report };
+    });
+
+    // Keep the customer booking in step.
+    if (accession.labOrder) {
+      await LabOrder.findOneAndUpdate(
+        { _id: accession.labOrder, orderStatus: "SAMPLE_COLLECTED" },
+        { orderStatus: "REPORT_PENDING" }
+      );
+    }
+
+    return ok(res, result, "Specimen received");
+  } catch (err) {
+    console.error("receiveSpecimen error:", err);
+    return fail(res, 500, "Failed to receive specimen");
   } finally {
     session.endSession();
   }

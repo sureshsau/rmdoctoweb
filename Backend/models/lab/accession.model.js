@@ -17,6 +17,7 @@ const AccessionPanelSchema = new mongoose.Schema(
     panel: { type: mongoose.Schema.Types.ObjectId, ref: "PathologyPanel", required: true },
     code: { type: String, required: true, uppercase: true, trim: true },
     name: { type: String, required: true, trim: true },
+    category: { type: String, default: "", trim: true },
 
     // Snapshot at intake time, so later catalogue edits never rewrite history.
     isInHouse: { type: Boolean, default: true },
@@ -31,6 +32,27 @@ const AccessionPanelSchema = new mongoose.Schema(
     },
     dispatchedAt: { type: Date, default: null },
     resultReceivedAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
+const VialSchema = new mongoose.Schema(
+  {
+    containerType: { type: String, trim: true },
+    color: { type: String, trim: true },
+    count: { type: Number, default: 1 },
+    panelCodes: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+// One printable label's worth of work: the tests and tubes for a single test
+// category. The lab prints one label per category.
+const CategoryGroupSchema = new mongoose.Schema(
+  {
+    category: { type: String, trim: true },
+    panelCodes: { type: [String], default: [] },
+    vials: { type: [VialSchema], default: [] },
   },
   { _id: false }
 );
@@ -57,14 +79,42 @@ const AccessionSchema = new mongoose.Schema(
 
     panels: { type: [AccessionPanelSchema], default: [] },
 
-    collectedAt: { type: Date, default: Date.now },
-    receivedAt: { type: Date, default: Date.now },
+    // Null until the matching real-world event happens. A pre-collection
+    // accession (label printed for a booked order, rider not yet dispatched)
+    // has neither set; a walk-in intake sets both at creation.
+    collectedAt: { type: Date, default: null },
+    receivedAt: { type: Date, default: null },
+
+    // Sample-collection logistics -- populated when the barcode label is
+    // printed for a booked LabOrder, before the specimen physically exists.
+    // (Not named `collection`: that is a reserved Mongoose schema path.)
+    collectionInfo: {
+      // Tube checklist the rider draws into. One entry per distinct container.
+      vials: { type: [VialSchema], default: [] },
+      // The same work split by test category — one printed label per group.
+      categoryGroups: { type: [CategoryGroupSchema], default: [] },
+      labelPrintedAt: { type: Date, default: null },
+      labelPrintedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      // Booked LabTests that no in-house panel could be matched to.
+      unmatchedTests: { type: [String], default: [] },
+    },
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 
     status: {
       type: String,
-      enum: ["registered", "in_progress", "reported", "cancelled"],
+      // Pre-collection path:
+      //   awaiting_collection -> collected -> registered -> in_progress -> reported
+      // Walk-in path starts at `registered`.
+      enum: [
+        "awaiting_collection",
+        "collected",
+        "registered",
+        "in_progress",
+        "reported",
+        "cancelled",
+      ],
       default: "registered",
       index: true,
     },

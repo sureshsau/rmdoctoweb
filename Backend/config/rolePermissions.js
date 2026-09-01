@@ -5,7 +5,13 @@ export const ROLE_PERMISSIONS = {
   
   doctor: [
     "appointment.read.all",
-    "appointment.create"
+    "appointment.create",
+    // Pathology stage 3: final check + verification, and release.
+    "pathology.catalog.read",
+    "pathology.accession.read",
+    "pathology.report.read",
+    "pathology.report.doctor",
+    "pathology.report.release"
   ],
   
   receptionist: [
@@ -47,7 +53,8 @@ export const ROLE_PERMISSIONS = {
     "pathology.report.enter",
     "pathology.report.submit",
     "pathology.report.verify",
-    "pathology.report.send"
+    "pathology.report.send",
+    "pathology.report.release"
   ],
   
   agent: [

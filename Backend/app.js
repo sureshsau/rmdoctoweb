@@ -60,6 +60,19 @@ app.get("/", (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/* ---- lightweight request log (no dependency) ---- */
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    const line = `${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`;
+    if (res.statusCode >= 500) console.error(line);
+    else if (res.statusCode >= 400) console.warn(line);
+    else console.log(line);
+  });
+  next();
+});
+
 app.use("/auth", authRouter);
 app.use("/attendance", attendanceRouter);
 app.use("/roles", rolesRoute);

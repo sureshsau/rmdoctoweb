@@ -14,6 +14,7 @@ import { generateUserRmdId } from "./utils/rmdId.js";
  * are skipped. Existing roles and permissions are untouched.
  */
 
+// The "typist" role is the Data Entry Operator.
 const TYPIST_PERMISSIONS = [
   "pathology.catalog.read",
   "pathology.accession.read",
@@ -22,7 +23,8 @@ const TYPIST_PERMISSIONS = [
   "pathology.report.submit",
 ];
 
-// A technician can do everything a typist can, plus the two release gates.
+// A technician can do everything a data entry operator can, plus verify,
+// send-to-doctor, return, and release.
 const TECHNICIAN_PERMISSIONS = [
   ...TYPIST_PERMISSIONS,
   "pathology.catalog.manage",
@@ -30,10 +32,22 @@ const TECHNICIAN_PERMISSIONS = [
   "pathology.accession.update",
   "pathology.report.verify",
   "pathology.report.send",
+  "pathology.report.release",
+];
+
+// The doctor / pathologist does the final check. These are UNION-ed onto any
+// existing doctor role rather than replacing it (doctors have appointment
+// permissions from elsewhere).
+const DOCTOR_PATHOLOGY_PERMISSIONS = [
+  "pathology.catalog.read",
+  "pathology.accession.read",
+  "pathology.report.read",
+  "pathology.report.doctor",
+  "pathology.report.release",
 ];
 
 const ROLES = [
-  { key: "typist", name: "Lab Typist", permissions: TYPIST_PERMISSIONS },
+  { key: "typist", name: "Lab Data Entry Operator", permissions: TYPIST_PERMISSIONS },
   { key: "lab_technician", name: "Lab Technician", permissions: TECHNICIAN_PERMISSIONS },
 ];
 
@@ -53,6 +67,22 @@ async function run() {
     });
     console.log(
       `${existed ? "updated" : "created"}  role ${role.key.padEnd(15)} (${role.permissions.length} permissions)`
+    );
+  }
+
+  // Doctor role: union pathology perms onto whatever is already there.
+  {
+    const existing = await Role.findOne({ key: "doctor" });
+    const merged = Array.from(
+      new Set([...(existing?.permissions || []), ...DOCTOR_PATHOLOGY_PERMISSIONS])
+    );
+    await Role.findOneAndUpdate(
+      { key: "doctor" },
+      { key: "doctor", name: existing?.name || "Doctor", permissions: merged },
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+    );
+    console.log(
+      `${existing ? "updated" : "created"}  role doctor          (${merged.length} permissions, pathology merged)`
     );
   }
 

@@ -13,14 +13,32 @@ const ok = (res, data, message = "OK") =>
 const fail = (res, code, message) =>
   res.status(code).json({ success: false, message });
 
-const isTechnician = (u) =>
-  u?.dashboard === "lab_technician" ||
-  u?.roles?.includes("lab_technician") ||
+const isAdmin = (u) =>
   u?.roles?.includes("admin") ||
-  u?.roles?.includes("subadmin");
+  u?.roles?.includes("subadmin") ||
+  u?.roles?.includes("employee");
 
+const isTechnician = (u) =>
+  u?.dashboard === "lab_technician" || u?.roles?.includes("lab_technician") || isAdmin(u);
+
+const isDoctor = (u) =>
+  u?.dashboard === "doctor" || u?.roles?.includes("doctor") || isAdmin(u);
+
+// The data entry operator. A technician can also enter values directly, which
+// the lab explicitly asked for.
 const isTypist = (u) =>
   u?.dashboard === "typist" || u?.roles?.includes("typist") || isTechnician(u);
+
+// Statuses in which each actor may still edit result values. The doctor never
+// edits values -- only remarks -- so is absent here.
+const OPERATOR_EDIT = new Set(["draft", "rejected"]);
+const TECHNICIAN_EDIT = new Set([
+  "draft",
+  "pending_technician",
+  "technician_review",
+  "lab_verified",
+  "returned",
+]);
 
 async function actor(userId) {
   const u = await User.findById(userId).select("name rmdId dashboard").lean();
@@ -68,12 +86,92 @@ export const getPanel = async (req, res) => {
   }
 };
 
+/** Formula token / result-entry key: must be a bare identifier. */
+const CODE_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const slugifyCode = (s) =>
+  String(s || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/^([0-9])/, "_$1");
+
+/**
+ * Normalise and validate the parameter list before it is persisted, so a
+ * mis-filled form can never store a nameless parameter or a code that a
+ * formula / the entry grid cannot key on. Returns { params } or { error }.
+ */
+function normalizeParameters(input) {
+  const rows = Array.isArray(input) ? input : [];
+  const out = [];
+  const seen = new Set();
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const p = rows[i] || {};
+    const name = String(p.name || "").trim();
+
+    // A fully blank row is dropped; a row with data but no name is an error.
+    const hasData =
+      name ||
+      String(p.code || "").trim() ||
+      String(p.unit || "").trim() ||
+      String(p.group || "").trim() ||
+      String(p.formula || "").trim() ||
+      (Array.isArray(p.options) && p.options.length) ||
+      (Array.isArray(p.ranges) && p.ranges.length);
+    if (!hasData) continue;
+    if (!name) return { error: `Parameter #${i + 1} has no name` };
+
+    const code = (String(p.code || "").trim() || slugifyCode(name)).toUpperCase();
+    if (!CODE_RE.test(code)) {
+      return { error: `Parameter "${name}" has an invalid code "${code}"` };
+    }
+    if (seen.has(code)) return { error: `Duplicate parameter code "${code}"` };
+    seen.add(code);
+
+    const valueType = ["numeric", "text", "options", "formula"].includes(p.valueType)
+      ? p.valueType
+      : "numeric";
+    const keepRanges = valueType === "numeric" || valueType === "formula";
+
+    out.push({
+      name,
+      code,
+      unit: String(p.unit || "").trim(),
+      valueType,
+      decimals: Number.isFinite(Number(p.decimals)) ? Number(p.decimals) : 1,
+      group: String(p.group || "").trim() || null,
+      order: i + 1,
+      options: valueType === "options" ? (p.options || []).filter(Boolean) : [],
+      formula: valueType === "formula" ? String(p.formula || "").trim() || null : null,
+      ranges: keepRanges
+        ? (Array.isArray(p.ranges) ? p.ranges : []).map((r) => ({
+            sex: ["male", "female", "any"].includes(r?.sex) ? r.sex : "any",
+            minAgeYears: r?.minAgeYears ?? null,
+            maxAgeYears: r?.maxAgeYears ?? null,
+            low: r?.low ?? null,
+            high: r?.high ?? null,
+            display: r?.display ?? null,
+          }))
+        : [],
+    });
+  }
+  return { params: out };
+}
+
 export const upsertPanel = async (req, res) => {
   try {
     const { id } = req.params;
     const payload = req.body || {};
     if (!payload.code || !payload.name || !payload.category) {
       return fail(res, 400, "code, name and category are required");
+    }
+
+    if (payload.parameters !== undefined) {
+      const { params, error } = normalizeParameters(payload.parameters);
+      if (error) return fail(res, 400, error);
+      if (params.length === 0) return fail(res, 400, "Add at least one parameter");
+      payload.parameters = params;
     }
 
     const panel = id
@@ -112,6 +210,10 @@ export const createAccession = async (req, res) => {
     } = req.body || {};
 
     if (!patient.name) return fail(res, 400, "Patient name is required");
+    const patientAge = Number(patient.age);
+    if (!Number.isFinite(patientAge) || patientAge <= 0) {
+      return fail(res, 400, "Patient age is required for reference-range matching");
+    }
     if (!Array.isArray(panelIds) || panelIds.length === 0) {
       return fail(res, 400, "Select at least one test");
     }
@@ -273,8 +375,31 @@ export const updateReferral = async (req, res) => {
 export const getReport = async (req, res) => {
   try {
     const report = await PathologyReport.findById(req.params.id).lean();
-    if (!report) return fail(res, 404, "Report not found");
+    if (!report) {
+      console.warn(`getReport: no report ${req.params.id} (user ${req.user?.id})`);
+      return fail(res, 404, "Report not found");
+    }
     const accession = await Accession.findById(report.accession).lean();
+
+    // A plain patient/user may only ever see their own released report --
+    // everything before release is staff-only. Staff = any lab role, admin,
+    // or a custom role carrying a pathology permission (e.g. receptionist).
+    const perms = req.user?.permissions || [];
+    const isStaff =
+      isTypist(req.user) ||
+      isDoctor(req.user) ||
+      perms.some((p) => p === "*" || p === "*:*" || p.startsWith("pathology."));
+
+    if (!isStaff) {
+      const me = await User.findById(req.user.id).select("phone").lean();
+      if (report.status !== "released" || !ownsAccession(accession, { id: req.user.id, phone: me?.phone })) {
+        console.warn(
+          `getReport: blocked non-staff user ${req.user?.id} from report ${req.params.id} (status ${report.status})`
+        );
+        return fail(res, 404, "Report not found");
+      }
+    }
+
     return ok(res, { report, accession });
   } catch (err) {
     console.error("getReport error:", err);
@@ -287,7 +412,11 @@ export const listReports = async (req, res) => {
   try {
     const { status, q, limit = 50 } = req.query;
     const filter = {};
-    if (status && status !== "all") filter.status = status;
+    if (status && status !== "all") {
+      // Grouped worklist tabs pass a comma list, e.g. "pending_doctor,doctor_review".
+      const list = String(status).split(",").map((s) => s.trim()).filter(Boolean);
+      filter.status = list.length > 1 ? { $in: list } : list[0];
+    }
     if (q) filter.accessionNo = { $regex: String(q).trim(), $options: "i" };
 
     const reports = await PathologyReport.find(filter)
@@ -323,15 +452,29 @@ export const saveReportValues = async (req, res) => {
     const report = await PathologyReport.findById(req.params.id);
     if (!report) return fail(res, 404, "Report not found");
 
+    const admin = isAdmin(req.user);
     const technician = isTechnician(req.user);
+    const operatorOnly = isTypist(req.user) && !technician;
 
-    if (report.status === "sent") {
-      return fail(res, 409, "Report already sent and cannot be edited");
+    if (report.status === "released") {
+      return fail(res, 409, "Report is released and cannot be edited");
     }
-    if ((report.status === "submitted" || report.status === "verified") && !technician) {
-      return fail(res, 403, "Only a lab technician can edit this report");
+    // Admin has full access and can correct values at any pre-release stage.
+    if (!admin) {
+      if (operatorOnly && !OPERATOR_EDIT.has(report.status)) {
+        return fail(res, 403, "This report has left data entry and is read-only for you");
+      }
+      if (technician && !TECHNICIAN_EDIT.has(report.status)) {
+        return fail(res, 403, `A ${report.status} report cannot be edited here`);
+      }
+      if (!technician && !operatorOnly) {
+        return fail(res, 403, "Not permitted to enter results");
+      }
     }
-    if (!isTypist(req.user)) return fail(res, 403, "Not permitted to enter results");
+
+    // A technician correcting a value after it has left data entry marks the
+    // row, so the audit trail and the print show exactly what changed.
+    const markEdits = technician && report.status !== "draft";
 
     let changed = 0;
     for (const p of report.panels) {
@@ -342,7 +485,7 @@ export const saveReportValues = async (req, res) => {
         const incoming = values[key];
         if (String(r.value ?? "") === String(incoming ?? "")) continue;
 
-        if (report.status !== "draft" && technician) {
+        if (markEdits) {
           r.previousValue = r.value;
           r.editedByTechnician = true;
         }
@@ -353,6 +496,11 @@ export const saveReportValues = async (req, res) => {
 
     recalcReportPanels(report.panels);
     if (remarks !== undefined) report.remarks = remarks;
+
+    // First technician touch on an incoming report moves it into review.
+    if (technician && report.status === "pending_technician") {
+      report.status = "technician_review";
+    }
 
     const a = await actor(req.user?.id);
     report.audit.push({
@@ -397,25 +545,27 @@ export const submitReport = async (req, res) => {
     }
 
     recalcReportPanels(report.panels);
-    report.status = "submitted";
+    report.status = "pending_technician";
     report.typist = req.user.id;
     report.submittedAt = new Date();
     report.rejectionReason = "";
 
     const a = await actor(req.user?.id);
-    report.audit.push({ action: "submitted", ...a, note: "Sent for technician verification" });
+    report.audit.push({ action: "sent_to_technician", ...a, note: "Sent to lab technician" });
 
     await report.save();
     await Accession.findByIdAndUpdate(report.accession, { status: "in_progress" });
 
-    return ok(res, { report }, "Submitted for verification");
+    return ok(res, { report }, "Sent to lab technician");
   } catch (err) {
     console.error("submitReport error:", err);
     return fail(res, 500, "Failed to submit report");
   }
 };
 
-/** Technician gate #1 -- verify (or bounce back to the typist). */
+const TECH_VERIFY_FROM = new Set(["pending_technician", "technician_review", "returned"]);
+
+/** Stage 2, gate A -- technician verifies the entered values. */
 export const verifyReport = async (req, res) => {
   try {
     const report = await PathologyReport.findById(req.params.id);
@@ -423,34 +573,76 @@ export const verifyReport = async (req, res) => {
     if (!isTechnician(req.user)) {
       return fail(res, 403, "Only a lab technician can verify reports");
     }
-    if (report.status !== "submitted") {
+    if (!TECH_VERIFY_FROM.has(report.status)) {
       return fail(res, 409, `Cannot verify a report that is ${report.status}`);
     }
 
+    const missing = [];
+    for (const p of report.panels) {
+      for (const r of p.results) {
+        if (r.value === null || r.value === "") missing.push(`${p.code}: ${r.parameterName}`);
+      }
+    }
+    if (missing.length) {
+      return res.status(400).json({
+        success: false,
+        message: `${missing.length} value(s) still empty`,
+        missing,
+      });
+    }
+
     recalcReportPanels(report.panels);
-    report.status = "verified";
+    report.status = "lab_verified";
     report.technician = req.user.id;
     report.verifiedAt = new Date();
+    report.returnReason = "";
 
     const a = await actor(req.user?.id);
-    report.audit.push({ action: "verified", ...a, note: req.body?.note || "" });
+    report.audit.push({ action: "lab_verified", ...a, note: req.body?.note || "" });
 
     await report.save();
-    return ok(res, { report }, "Report verified");
+    return ok(res, { report }, "Lab verified");
   } catch (err) {
     console.error("verifyReport error:", err);
     return fail(res, 500, "Failed to verify report");
   }
 };
 
+/** Stage 2, gate B -- technician hands the verified report to the doctor. */
+export const sendToDoctor = async (req, res) => {
+  try {
+    const report = await PathologyReport.findById(req.params.id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (!isTechnician(req.user)) {
+      return fail(res, 403, "Only a lab technician can send reports to the doctor");
+    }
+    if (report.status !== "lab_verified") {
+      return fail(res, 409, "Report must be lab verified before it goes to the doctor");
+    }
+
+    report.status = "pending_doctor";
+    report.sentToDoctorAt = new Date();
+
+    const a = await actor(req.user?.id);
+    report.audit.push({ action: "sent_to_doctor", ...a, note: "Sent for final verification" });
+
+    await report.save();
+    return ok(res, { report }, "Sent to doctor");
+  } catch (err) {
+    console.error("sendToDoctor error:", err);
+    return fail(res, 500, "Failed to send report to doctor");
+  }
+};
+
+/** Technician bounces the entered values back to the data entry operator. */
 export const rejectReport = async (req, res) => {
   try {
     const { reason } = req.body || {};
     const report = await PathologyReport.findById(req.params.id);
     if (!report) return fail(res, 404, "Report not found");
-    if (!isTechnician(req.user)) return fail(res, 403, "Only a lab technician can reject");
-    if (report.status !== "submitted") {
-      return fail(res, 409, "Only submitted reports can be rejected");
+    if (!isTechnician(req.user)) return fail(res, 403, "Only a lab technician can return a report");
+    if (!["pending_technician", "technician_review"].includes(report.status)) {
+      return fail(res, 409, "Only a report awaiting the technician can be returned to data entry");
     }
 
     report.status = "rejected";
@@ -460,35 +652,117 @@ export const rejectReport = async (req, res) => {
     report.audit.push({ action: "rejected", ...a, note: report.rejectionReason });
 
     await report.save();
-    return ok(res, { report }, "Sent back to typist");
+    return ok(res, { report }, "Returned to data entry");
   } catch (err) {
     console.error("rejectReport error:", err);
-    return fail(res, 500, "Failed to reject report");
+    return fail(res, 500, "Failed to return report");
+  }
+};
+
+const DOCTOR_STAGE = new Set(["pending_doctor", "doctor_review"]);
+
+/** Doctor jots review notes without yet deciding. Moves it into DOCTOR REVIEW. */
+export const saveDoctorRemarks = async (req, res) => {
+  try {
+    const { doctorRemarks } = req.body || {};
+    const report = await PathologyReport.findById(req.params.id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (!isDoctor(req.user)) return fail(res, 403, "Only a doctor can add final remarks");
+    if (!DOCTOR_STAGE.has(report.status)) {
+      return fail(res, 409, `A ${report.status} report is not with the doctor`);
+    }
+
+    report.doctorRemarks = doctorRemarks || "";
+    if (report.status === "pending_doctor") report.status = "doctor_review";
+
+    const a = await actor(req.user?.id);
+    report.audit.push({ action: "doctor_remarks", ...a, note: "Doctor remarks updated" });
+
+    await report.save();
+    return ok(res, { report }, "Remarks saved");
+  } catch (err) {
+    console.error("saveDoctorRemarks error:", err);
+    return fail(res, 500, "Failed to save remarks");
+  }
+};
+
+/** Stage 3, gate A -- doctor / pathologist final verification. */
+export const finalVerifyReport = async (req, res) => {
+  try {
+    const { doctorRemarks } = req.body || {};
+    const report = await PathologyReport.findById(req.params.id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (!isDoctor(req.user)) return fail(res, 403, "Only a doctor can final-verify a report");
+    if (!DOCTOR_STAGE.has(report.status)) {
+      return fail(res, 409, `Cannot final-verify a report that is ${report.status}`);
+    }
+
+    recalcReportPanels(report.panels);
+    report.status = "final_verified";
+    report.doctor = req.user.id;
+    report.finalVerifiedAt = new Date();
+    if (doctorRemarks !== undefined) report.doctorRemarks = doctorRemarks || "";
+    report.returnReason = "";
+
+    const a = await actor(req.user?.id);
+    report.audit.push({ action: "final_verified", ...a, note: req.body?.note || "" });
+
+    await report.save();
+    return ok(res, { report }, "Final verified");
+  } catch (err) {
+    console.error("finalVerifyReport error:", err);
+    return fail(res, 500, "Failed to final-verify report");
+  }
+};
+
+/** Stage 3, gate B -- doctor bounces the report back to the lab technician. */
+export const returnToTechnician = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const report = await PathologyReport.findById(req.params.id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (!isDoctor(req.user)) return fail(res, 403, "Only a doctor can return a report to the lab");
+    if (!DOCTOR_STAGE.has(report.status)) {
+      return fail(res, 409, "Only a report with the doctor can be returned to the lab");
+    }
+
+    report.status = "returned";
+    report.returnReason = reason || "Requires correction";
+
+    const a = await actor(req.user?.id);
+    report.audit.push({ action: "returned_by_doctor", ...a, note: report.returnReason });
+
+    await report.save();
+    return ok(res, { report }, "Returned to lab technician");
+  } catch (err) {
+    console.error("returnToTechnician error:", err);
+    return fail(res, 500, "Failed to return report");
   }
 };
 
 /**
- * Technician gate #2 -- release to the patient. Also flips the originating
- * booking (if any) to REPORT_READY so the existing customer flow stays in sync.
+ * Release the final-verified report to the patient. Allowed for the technician,
+ * the doctor and admins. Also flips the originating booking (if any) to
+ * REPORT_READY so the existing customer flow stays in sync.
  */
-export const sendReport = async (req, res) => {
+export const releaseReport = async (req, res) => {
   try {
     const { channels = ["whatsapp"] } = req.body || {};
     const report = await PathologyReport.findById(req.params.id);
     if (!report) return fail(res, 404, "Report not found");
-    if (!isTechnician(req.user)) {
-      return fail(res, 403, "Only a lab technician can send reports");
+    if (!isTechnician(req.user) && !isDoctor(req.user)) {
+      return fail(res, 403, "Not permitted to release reports");
     }
-    if (report.status !== "verified") {
-      return fail(res, 409, "Report must be verified before sending");
+    if (report.status !== "final_verified") {
+      return fail(res, 409, "Report must be doctor final-verified before release");
     }
 
-    report.status = "sent";
+    report.status = "released";
     report.sentAt = new Date();
     report.sentChannels = Array.from(new Set([...(report.sentChannels || []), ...channels]));
 
     const a = await actor(req.user?.id);
-    report.audit.push({ action: "sent", ...a, note: channels.join(", ") });
+    report.audit.push({ action: "released", ...a, note: channels.join(", ") });
 
     await report.save();
 
@@ -504,7 +778,66 @@ export const sendReport = async (req, res) => {
 
     return ok(res, { report }, "Report released");
   } catch (err) {
-    console.error("sendReport error:", err);
-    return fail(res, 500, "Failed to send report");
+    console.error("releaseReport error:", err);
+    return fail(res, 500, "Failed to release report");
+  }
+};
+
+/* ========================= PATIENT / USER ========================= */
+
+/** Match a released report's accession to the logged-in user. */
+const ownsAccession = (accession, user) => {
+  if (!accession) return false;
+  if (accession.patientUser && String(accession.patientUser) === String(user.id)) return true;
+  const phone = String(user.phone || "").replace(/\D/g, "").slice(-10);
+  const accPhone = String(accession.patient?.phone || "").replace(/\D/g, "").slice(-10);
+  return Boolean(phone) && phone === accPhone;
+};
+
+/** The patient's own released reports. */
+export const listMyReports = async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select("phone").lean();
+    const phone = String(me?.phone || "").replace(/\D/g, "").slice(-10);
+
+    const or = [{ patientUser: req.user.id }];
+    if (phone) or.push({ "patient.phone": { $regex: `${phone}$` } });
+
+    const accessions = await Accession.find({ $or: or }).select("_id accessionNo patient").lean();
+    if (!accessions.length) return ok(res, { reports: [] });
+
+    const reports = await PathologyReport.find({
+      accession: { $in: accessions.map((a) => a._id) },
+      status: "released",
+    })
+      .sort({ sentAt: -1 })
+      .lean();
+
+    const byId = new Map(accessions.map((a) => [String(a._id), a]));
+    const rows = reports.map((r) => ({ ...r, accessionDoc: byId.get(String(r.accession)) || null }));
+
+    return ok(res, { reports: rows });
+  } catch (err) {
+    console.error("listMyReports error:", err);
+    return fail(res, 500, "Failed to load your reports");
+  }
+};
+
+/** One released report, only if it belongs to the caller. */
+export const getMyReport = async (req, res) => {
+  try {
+    const me = await User.findById(req.user.id).select("phone").lean();
+    const report = await PathologyReport.findById(req.params.id).lean();
+    if (!report || report.status !== "released") return fail(res, 404, "Report not found");
+
+    const accession = await Accession.findById(report.accession).lean();
+    if (!ownsAccession(accession, { id: req.user.id, phone: me?.phone })) {
+      return fail(res, 404, "Report not found");
+    }
+
+    return ok(res, { report, accession });
+  } catch (err) {
+    console.error("getMyReport error:", err);
+    return fail(res, 500, "Failed to load report");
   }
 };

@@ -1,18 +1,41 @@
 import mongoose from "mongoose";
 
 /**
- * The report, and the two-stage workflow the lab asked for:
+ * The report, and the three-stage workflow the lab asked for:
  *
- *   typist enters values ──> SUBMIT ──> lab technician reviews / edits ──> SEND
+ *   data entry operator enters values ──> SEND TO LAB TECHNICIAN
+ *     ──> technician enters / edits / verifies ──> SEND TO DOCTOR
+ *       ──> doctor / pathologist final-verifies ──> RELEASE to patient
  *
- * A typist can only ever reach `submitted`. Only a technician can move a
- * report to `verified` and then `sent`; that gate is enforced both by route
- * permissions and again in the controller. Every transition is appended to
- * `audit`, so an edited value is always traceable to the person who changed it.
+ * A data entry operator (the `typist` role) can only ever reach
+ * `pending_technician`. Only a technician can `lab_verified` / `pending_doctor`,
+ * only a doctor can `final_verified` / `returned`, and release requires
+ * `final_verified` first. Every gate is enforced by route permissions and
+ * again in the controller. `rejected` bounces to the operator, `returned`
+ * bounces to the technician. Every transition is appended to `audit`, so an
+ * edited value is always traceable to the person who changed it.
  *
  * This produces structured results in-house. The existing LabOrder.reportUrl
  * (an uploaded PDF) remains for reports that arrive from partner labs.
  */
+
+// The ordered pipeline. `rejected` (operator) and `returned` (technician) are
+// correction bounces, not pipeline stages.
+export const REPORT_STATUSES = [
+  "draft",
+  "pending_technician",
+  "technician_review",
+  "lab_verified",
+  "pending_doctor",
+  "doctor_review",
+  "final_verified",
+  "released",
+  "rejected",
+  "returned",
+];
+
+// The only status a patient/user is ever allowed to see.
+export const PATIENT_VISIBLE_STATUS = "released";
 
 const ResultValueSchema = new mongoose.Schema(
   {
@@ -75,7 +98,24 @@ const AuditSchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ["created", "saved_draft", "submitted", "edited", "verified", "sent", "rejected"],
+      enum: [
+        "created",
+        "saved_draft",
+        "edited",
+        // legacy 2-stage actions, kept so old audit rows still validate
+        "submitted",
+        "verified",
+        "sent",
+        // 3-stage workflow
+        "sent_to_technician",
+        "lab_verified",
+        "sent_to_doctor",
+        "doctor_remarks",
+        "final_verified",
+        "released",
+        "rejected",
+        "returned_by_doctor",
+      ],
       required: true,
     },
     by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -98,22 +138,33 @@ const PathologyReportSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["draft", "submitted", "verified", "sent", "rejected"],
+      enum: REPORT_STATUSES,
       default: "draft",
       index: true,
     },
 
+    // Stage 1 -- data entry operator (the `typist` role).
     typist: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     submittedAt: { type: Date, default: null },
 
+    // Stage 2 -- lab technician.
     technician: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     verifiedAt: { type: Date, default: null },
+    sentToDoctorAt: { type: Date, default: null },
 
+    // Stage 3 -- doctor / pathologist.
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    finalVerifiedAt: { type: Date, default: null },
+    doctorRemarks: { type: String, default: "" },
+
+    // Release to the patient.
     sentAt: { type: Date, default: null },
     sentChannels: { type: [String], default: [] },
 
-    // Reason the technician bounced it back to the typist.
+    // Reason the technician bounced it back to the data entry operator.
     rejectionReason: { type: String, default: "" },
+    // Reason the doctor bounced it back to the technician.
+    returnReason: { type: String, default: "" },
 
     remarks: { type: String, default: "" },
     audit: { type: [AuditSchema], default: [] },

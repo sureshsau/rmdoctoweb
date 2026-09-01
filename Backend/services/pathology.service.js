@@ -23,14 +23,17 @@ export function resolveRange(parameter, patient = {}) {
   const sex = (patient.sex || "male").toLowerCase();
   const ageY = toYears(patient.age, patient.ageUnit || "years");
 
-  const score = (r) => {
+  // `ignoreAge` is the fallback pass: when the patient's age is unknown we
+  // still want a sex-matched range rather than nothing, so age windows stop
+  // disqualifying (they just score no bonus).
+  const score = (r, ignoreAge) => {
     let s = 0;
     if (r.sex && r.sex !== "any") {
       if (r.sex !== sex) return -1; // disqualified
       s += 2;
     }
     const hasWindow = r.minAgeYears !== null || r.maxAgeYears !== null;
-    if (hasWindow) {
+    if (hasWindow && !ignoreAge) {
       if (ageY === null) return -1;
       if (r.minAgeYears !== null && ageY < r.minAgeYears) return -1;
       if (r.maxAgeYears !== null && ageY > r.maxAgeYears) return -1;
@@ -39,16 +42,20 @@ export function resolveRange(parameter, patient = {}) {
     return s;
   };
 
-  let best = null;
-  let bestScore = -1;
-  for (const r of ranges) {
-    const s = score(r);
-    if (s > bestScore) {
-      bestScore = s;
-      best = r;
+  const pick = (ignoreAge) => {
+    let best = null;
+    let bestScore = -1;
+    for (const r of ranges) {
+      const s = score(r, ignoreAge);
+      if (s > bestScore) {
+        bestScore = s;
+        best = r;
+      }
     }
-  }
-  return bestScore < 0 ? null : best;
+    return bestScore < 0 ? null : best;
+  };
+
+  return pick(false) || (ageY === null ? pick(true) : null);
 }
 
 /** Human-readable range for the printed report. */

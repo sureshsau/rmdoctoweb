@@ -116,10 +116,12 @@
       "pathology.accession.create": "Register specimen / print barcode",
       "pathology.accession.read": "View specimens and worklist",
       "pathology.accession.update": "Update specimen / referral status",
-      "pathology.report.enter": "Enter report values (typist)",
-      "pathology.report.submit": "Submit report for verification (typist)",
-      "pathology.report.verify": "Verify / edit submitted report (technician)",
-      "pathology.report.send": "Release report to patient (technician)",
+      "pathology.report.enter": "Enter report values (data entry operator)",
+      "pathology.report.submit": "Send report to lab technician (data entry operator)",
+      "pathology.report.verify": "Verify / edit / send-to-doctor / return (lab technician)",
+      "pathology.report.doctor": "Doctor final check: remarks, final verify, return to lab",
+      "pathology.report.release": "Release final-verified report to the patient",
+      "pathology.report.send": "Release report to patient (legacy alias of release)",
       "pathology.report.read": "View reports"
     }
   }

@@ -3,6 +3,28 @@ import User from "../models/user.model.js";
 import RMCoinsTransaction from "../models/rmcoinTransfer.model.js";
 import AppError from "../utils/AppError.js";
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A transaction's counterparty is a User ref, not a searchable string, so a
+ * name/phone/RMD-id search has to resolve to user ids first, then OR those
+ * in alongside a plain description match.
+ */
+async function buildTransactionSearchClause(search) {
+  const term = search?.trim();
+  if (!term) return null;
+
+  const regex = new RegExp(escapeRegex(term), "i");
+  const matches = await User.find({ $or: [{ name: regex }, { phone: regex }, { rmdId: regex }] })
+    .select("_id")
+    .lean();
+  const ids = matches.map((u) => u._id);
+
+  return {
+    $or: [{ description: regex }, { fromUserId: { $in: ids } }, { toUserId: { $in: ids } }],
+  };
+}
+
 export const userTransferToAdminController = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -147,37 +169,48 @@ export const adminTransferToUserController = async (req, res, next) => {
 
 
 export const adminRechargeController = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const adminId = req.user.id; // ✅ get from token
     const amount = Number(req.body.amount);
 
     if (isNaN(amount) || amount <= 0) {
-      return next(new AppError("Valid amount required", 400));
+      throw new AppError("Valid amount required", 400);
     }
 
-    const admin = await User.findById(adminId);
+    const admin = await User.findById(adminId).session(session);
 
     if (!admin) {
-      return next(new AppError("Admin not found", 404));
+      throw new AppError("Admin not found", 404);
     }
 
     if (!admin.roles.includes("admin")) {
-      return next(new AppError("Only admin can recharge wallet", 403));
+      throw new AppError("Only admin can recharge wallet", 403);
     }
 
     // Safe increment
     admin.rmCoinsBalance =
       Number(admin.rmCoinsBalance || 0) + amount;
 
-    await admin.save();
+    await admin.save({ session });
 
-    await RMCoinsTransaction.create({
-      fromUserId: null,              // since external recharge
-      toUserId: admin._id,
-      amount,
-      type: "admin_recharge",
-      description: "Admin recharged own wallet"
-    });
+    await RMCoinsTransaction.create(
+      [
+        {
+          fromUserId: null,              // since external recharge
+          toUserId: admin._id,
+          amount,
+          type: "admin_recharge",
+          description: "Admin recharged own wallet"
+        }
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
@@ -186,6 +219,8 @@ export const adminRechargeController = async (req, res, next) => {
     });
 
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     next(error);
   }
 };
@@ -196,7 +231,7 @@ export const adminRechargeController = async (req, res, next) => {
 
 export const getUserRMCoinsLogsController = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search = "" } = req.query;
 
     const currentPage = Number(page);
     const perPage = Number(limit);
@@ -216,12 +251,9 @@ export const getUserRMCoinsLogsController = async (req, res, next) => {
       return next(new AppError("User not found", 404));
     }
 
-    const filter = {
-      $or: [
-        { fromUserId: userId },
-        { toUserId: userId }
-      ]
-    };
+    const mineClause = { $or: [{ fromUserId: userId }, { toUserId: userId }] };
+    const searchClause = await buildTransactionSearchClause(search);
+    const filter = searchClause ? { $and: [mineClause, searchClause] } : mineClause;
 
     const totalRecords = await RMCoinsTransaction.countDocuments(filter);
 
@@ -266,7 +298,7 @@ export const getUserRMCoinsLogsController = async (req, res, next) => {
 
 export const getAdminRMCoinsLogsController = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, userId } = req.query;
+    const { page = 1, limit = 10, userId, search = "" } = req.query;
 
     const currentPage = Number(page);
     const perPage = Number(limit);
@@ -291,12 +323,9 @@ export const getAdminRMCoinsLogsController = async (req, res, next) => {
 
     const skip = (currentPage - 1) * perPage;
 
-    const filter = {
-      $or: [
-        { fromUserId: targetUserId },
-        { toUserId: targetUserId }
-      ]
-    };
+    const mineClause = { $or: [{ fromUserId: targetUserId }, { toUserId: targetUserId }] };
+    const searchClause = await buildTransactionSearchClause(search);
+    const filter = searchClause ? { $and: [mineClause, searchClause] } : mineClause;
 
     const totalRecords = await RMCoinsTransaction.countDocuments(filter);
 

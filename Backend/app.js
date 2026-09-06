@@ -127,10 +127,19 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 3000;
 
-server.listen(port, () => {
-  connectdb();
-  console.log(`app is listening on port ${port}`);
-});
+/* Connect before accepting traffic. Listening first meant a failed connect
+   left the app serving 500s from every Mongo-backed route (e.g. login
+   verify-otp) while /health-style routes still looked fine. */
+connectdb()
+  .then(() => {
+    server.listen(port, () => {
+      console.log(`app is listening on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("💥 Could not reach MongoDB, refusing to start:", err.message);
+    process.exit(1);
+  });
 
 try {
   // wipeAllFacesFromRekognition().then(() => ensureRekognitionCollection());

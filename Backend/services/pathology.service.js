@@ -1,3 +1,9 @@
+import { s3 } from "../config/aws.config.js";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import PathologyReport from "../models/lab/pathologyReport.model.js";
+import Accession from "../models/lab/accession.model.js";
+import LabOrder from "../models/lab/labOrder.model.js";
+
 /**
  * Pathology domain logic: reference-range resolution, flagging and formula
  * evaluation. Kept free of Express so it can be unit-tested and reused by
@@ -170,6 +176,12 @@ export function computeVials(panels = []) {
 /**
  * Build the empty result rows for a report from the catalogue, freezing each
  * parameter's resolved reference range onto the report.
+ *
+ * Includes referred-out panels too (e.g. LFT) -- they get no result rows
+ * (nothing is measured in-house), just an empty `referral` slot the lab fills
+ * by uploading the partner lab's own report once it comes back. That keeps
+ * one accession's tests -- in-house and referred alike -- on a single report
+ * so release can be gated on all of them being complete.
  */
 export function buildReportPanels(panels, patient) {
   return panels.map((p) => ({
@@ -181,29 +193,78 @@ export function buildReportPanels(panels, patient) {
     sampleType: p.sampleType || "",
     interpretation: p.interpretation || "",
     isInHouse: p.isInHouse,
-    results: (p.parameters || [])
-      .slice()
-      .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map((param) => {
-        const range = resolveRange(param, patient);
-        return {
-          parameterName: param.name,
-          parameterCode: param.code || null,
-          unit: param.unit || "",
-          group: param.group || null,
-          order: param.order || 0,
-          valueType: param.valueType || "numeric",
-          options: param.options || [],
-          formula: param.formula || null,
-          decimals: param.decimals ?? 1,
-          value: null,
-          refLow: range?.low ?? null,
-          refHigh: range?.high ?? null,
-          refDisplay: formatRange(range),
-          flag: "",
-        };
-      }),
+    results: p.isInHouse
+      ? (p.parameters || [])
+          .slice()
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+          .map((param) => {
+            const range = resolveRange(param, patient);
+            return {
+              parameterName: param.name,
+              parameterCode: param.code || null,
+              unit: param.unit || "",
+              group: param.group || null,
+              order: param.order || 0,
+              valueType: param.valueType || "numeric",
+              options: param.options || [],
+              formula: param.formula || null,
+              decimals: param.decimals ?? 1,
+              value: null,
+              refLow: range?.low ?? null,
+              refHigh: range?.high ?? null,
+              refDisplay: formatRange(range),
+              flag: "",
+            };
+          })
+      : [],
+    referral: {
+      status: p.isInHouse ? "not_applicable" : "awaiting_report",
+      labName: p.isInHouse ? null : p.referralLab?.name || null,
+    },
   }));
+}
+
+/**
+ * Panels still blocking release: referred-out and not yet staff-verified.
+ * A report with no referred panels at all returns an empty array.
+ */
+export function pendingReferrals(panels = []) {
+  return panels.filter((p) => !p.isInHouse && p.referral?.status !== "verified");
+}
+
+/**
+ * S3 storage for a referred panel's uploaded report -- one file per
+ * (report, panel code), separate from `LabOrder.reportUrl` (the whole-order
+ * PDF used when a booking's entire test set comes from a partner lab).
+ */
+export async function uploadReferralReportToS3({ reportId, code, fileBuffer, mimeType, fileName }) {
+  const bucketName = process.env.AWS_BUCKET_NAME;
+  const region = process.env.AWS_REGION;
+
+  const safeFileName = decodeURIComponent(fileName || "report").replace(/[^a-zA-Z0-9.\-]/g, "_");
+  const ext = mimeType === "application/pdf" ? "pdf" : (mimeType.split("/")[1] || "jpg");
+  const key = `pathology-referrals/${reportId}/${code}/${Date.now()}-${safeFileName}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: mimeType,
+      ContentDisposition: "inline",
+    })
+  );
+
+  return { url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`, key };
+}
+
+export async function deleteReferralReportFromS3(key) {
+  if (!key) return;
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: key }));
+  } catch (err) {
+    console.error("deleteReferralReportFromS3:", err.message);
+  }
 }
 
 /**
@@ -235,4 +296,39 @@ export function recalcReportPanels(panels) {
     }
   }
   return panels;
+}
+
+/**
+ * Called the moment a lab order's payment clears (online verify, or COD
+ * marked paid at collection). If the doctor had already final-verified the
+ * report before payment came in -- release was withheld pending payment --
+ * this releases it automatically. A no-op in every other case: report not
+ * final-verified yet, already released, or still blocked on a referral.
+ */
+export async function autoReleaseOnPayment(accessionId) {
+  if (!accessionId) return;
+
+  const report = await PathologyReport.findOne({ accession: accessionId });
+  if (!report || report.status !== "final_verified") return;
+  if (pendingReferrals(report.panels).length) return;
+
+  report.status = "released";
+  report.sentAt = new Date();
+  report.sentChannels = Array.from(new Set([...(report.sentChannels || []), "whatsapp"]));
+  report.audit.push({
+    action: "released",
+    byName: "System",
+    role: "system",
+    note: "auto-released after payment received",
+  });
+  await report.save();
+
+  const accession = await Accession.findByIdAndUpdate(
+    accessionId,
+    { status: "reported" },
+    { returnDocument: "after" }
+  );
+  if (accession?.labOrder) {
+    await LabOrder.findByIdAndUpdate(accession.labOrder, { orderStatus: "REPORT_READY" });
+  }
 }

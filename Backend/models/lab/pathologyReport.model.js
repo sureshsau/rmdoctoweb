@@ -1,26 +1,4 @@
 import mongoose from "mongoose";
-
-/**
- * The report, and the three-stage workflow the lab asked for:
- *
- *   data entry operator enters values ──> SEND TO LAB TECHNICIAN
- *     ──> technician enters / edits / verifies ──> SEND TO DOCTOR
- *       ──> doctor / pathologist final-verifies ──> RELEASE to patient
- *
- * A data entry operator (the `typist` role) can only ever reach
- * `pending_technician`. Only a technician can `lab_verified` / `pending_doctor`,
- * only a doctor can `final_verified` / `returned`, and release requires
- * `final_verified` first. Every gate is enforced by route permissions and
- * again in the controller. `rejected` bounces to the operator, `returned`
- * bounces to the technician. Every transition is appended to `audit`, so an
- * edited value is always traceable to the person who changed it.
- *
- * This produces structured results in-house. The existing LabOrder.reportUrl
- * (an uploaded PDF) remains for reports that arrive from partner labs.
- */
-
-// The ordered pipeline. `rejected` (operator) and `returned` (technician) are
-// correction bounces, not pipeline stages.
 export const REPORT_STATUSES = [
   "draft",
   "pending_technician",
@@ -74,6 +52,27 @@ const ResultValueSchema = new mongoose.Schema(
   },
   { _id: false }
 );
+const ReferralSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["not_applicable", "awaiting_report", "uploaded", "verified"],
+      default: "not_applicable",
+    },
+    labName: { type: String, default: null },
+    reportUrl: { type: String, default: null },
+    reportKey: { type: String, default: null }, // S3 key, for deletion on re-upload
+    uploadedAt: { type: Date, default: null },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    verifiedAt: { type: Date, default: null },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    // Staff confirmation that the name/age/etc. on the partner lab's report
+    // matches this patient -- the point of the verification step.
+    patientNameMatched: { type: Boolean, default: false },
+    notes: { type: String, default: "" },
+  },
+  { _id: false }
+);
 
 const ReportPanelSchema = new mongoose.Schema(
   {
@@ -90,6 +89,8 @@ const ReportPanelSchema = new mongoose.Schema(
     interpretation: { type: String, default: "" },
     isInHouse: { type: Boolean, default: true },
     results: { type: [ResultValueSchema], default: [] },
+    // Only meaningful when isInHouse is false -- see ReferralSchema above.
+    referral: { type: ReferralSchema, default: () => ({}) },
   },
   { _id: false }
 );
@@ -115,6 +116,9 @@ const AuditSchema = new mongoose.Schema(
         "released",
         "rejected",
         "returned_by_doctor",
+        // referred-out panel
+        "referral_uploaded",
+        "referral_verified",
       ],
       required: true,
     },

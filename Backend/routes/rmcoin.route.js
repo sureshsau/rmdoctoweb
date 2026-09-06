@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { idempotency } from "../middlewares/idempotency.middleware.js";
 import { adminRechargeController, adminTransferToUserController, getAdminRMCoinsLogsController, getUserRMCoinsLogsController, userTransferToAdminController } from "../controllers/rmcoin.controller.js";
 
 const router = express.Router();
@@ -8,6 +9,7 @@ const router = express.Router();
 router.post(
   '/transfer-to-admin',
   authenticate,
+  idempotency(),
   userTransferToAdminController
 );
 
@@ -16,6 +18,7 @@ router.post(
   '/admin-transfer',
   authenticate,
   authorize('rmcoin.transfer.toUser'),
+  idempotency(),
   adminTransferToUserController
 );
 
@@ -24,6 +27,7 @@ router.post(
   '/admin/recharge',
   authenticate,
   authorize('rmcoin.recharge'),
+  idempotency(),
   adminRechargeController
 );
 

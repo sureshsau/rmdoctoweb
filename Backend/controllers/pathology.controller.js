@@ -9,7 +9,11 @@ import {
   buildReportPanels,
   recalcReportPanels,
   computeVials,
+  pendingReferrals,
+  uploadReferralReportToS3,
+  deleteReferralReportFromS3,
 } from "../services/pathology.service.js";
+import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
 const ok = (res, data, message = "OK") =>
   res.status(200).json({ success: true, message, ...data });
@@ -257,12 +261,14 @@ async function matchPanelsForLabTests(items = []) {
 }
 
 /**
- * Create the draft report for an accession -- in-house panels only; referred
- * work stays tracked on the accession. `panelDocs` are full catalogue docs
- * (they carry `.parameters`), not the frozen snapshots.
+ * Create the draft report for an accession -- in-house AND referred panels
+ * both land on it. In-house panels get the usual empty result rows; referred
+ * panels get an empty `referral` slot (see ReferralSchema) so one patient's
+ * 4 booked tests -- 3 done here, 1 sent to a partner lab -- live on a single
+ * report, and release can be gated on all 4 being complete. `panelDocs` are
+ * full catalogue docs (they carry `.parameters`), not the frozen snapshots.
  */
 async function createDraftReport({ accession, panelDocs, session, userId, note }) {
-  const inHouse = panelDocs.filter((p) => p.isInHouse);
   const a = await actor(userId);
   const [report] = await PathologyReport.create(
     [
@@ -270,7 +276,7 @@ async function createDraftReport({ accession, panelDocs, session, userId, note }
         reportNo: accession.accessionNo.replace("RMDL", "RMDR"),
         accession: accession._id,
         accessionNo: accession.accessionNo,
-        panels: buildReportPanels(inHouse, accession.patient),
+        panels: buildReportPanels(panelDocs, accession.patient),
         status: "draft",
         audit: [{ action: "created", ...a, note: note || "Specimen registered" }],
       },
@@ -692,6 +698,142 @@ export const updateReferral = async (req, res) => {
 
 /* ========================= REPORT WORKFLOW ========================= */
 
+/** Look up a referred-out panel on a report, or the (code, message) to fail with. */
+const findReferralPanel = (report, code) => {
+  const panel = report.panels.find((x) => x.code === String(code || "").toUpperCase());
+  if (!panel) return [null, 404, "Test not on this report"];
+  if (panel.isInHouse) return [null, 400, "This test is performed in-house and has no referral upload"];
+  return [panel, null, null];
+};
+
+/**
+ * Keep `Accession.panels[].referralStatus` (the specimen-logistics tracker,
+ * shown on the specimens list / search screens) in step with the report-level
+ * referral upload/verify above -- otherwise a panel sits at "Pending Dispatch"
+ * forever even after its report has been uploaded and verified.
+ */
+async function syncAccessionReferralStatus(accessionId, code, status) {
+  const accession = await Accession.findById(accessionId);
+  if (!accession) return;
+  const p = accession.panels.find((x) => x.code === code);
+  if (!p) return;
+  p.referralStatus = status;
+  if (status === "dispatched") p.dispatchedAt = p.dispatchedAt || new Date();
+  if (status === "received") p.resultReceivedAt = new Date();
+  await accession.save();
+}
+
+/**
+ * Upload the partner lab's own report for one referred-out panel (e.g. LFT).
+ * Data entry or the lab technician does this the moment the physical/scanned
+ * report comes back -- it does not by itself complete the panel, a staff
+ * member still has to verify it's this patient's report (see below).
+ */
+export const uploadReferralReport = async (req, res) => {
+  try {
+    const { id, code } = req.params;
+    const report = await PathologyReport.findById(id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (report.status === "released") return fail(res, 409, "Report is released and cannot be edited");
+
+    const [panel, errCode, errMsg] = findReferralPanel(report, code);
+    if (!panel) return fail(res, errCode, errMsg);
+
+    if (!req.file) return fail(res, 400, "Report file is required");
+
+    if (panel.referral?.reportKey) await deleteReferralReportFromS3(panel.referral.reportKey);
+
+    const result = await uploadReferralReportToS3({
+      reportId: report._id,
+      code: panel.code,
+      fileBuffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+      fileName: req.file.originalname,
+    });
+
+    panel.referral.status = "uploaded";
+    panel.referral.reportUrl = result.url;
+    panel.referral.reportKey = result.key;
+    panel.referral.uploadedAt = new Date();
+    panel.referral.uploadedBy = req.user?.id || null;
+    // A re-upload (e.g. correcting a mismatch) needs re-checking.
+    panel.referral.verifiedAt = null;
+    panel.referral.verifiedBy = null;
+    panel.referral.patientNameMatched = false;
+
+    const a = await actor(req.user?.id);
+    report.audit.push({ action: "referral_uploaded", ...a, note: `${panel.code} report uploaded` });
+
+    await report.save();
+    // The partner lab's result is in hand now, so the specimen tracker moves
+    // past "Pending Dispatch" too -- this used to be left stuck there.
+    await syncAccessionReferralStatus(report.accession, panel.code, "received");
+    return ok(res, { report }, "Referral report uploaded");
+  } catch (err) {
+    console.error("uploadReferralReport error:", err);
+    return fail(res, 500, "Failed to upload referral report");
+  } finally {
+    await cleanupUploadedFile(req);
+  }
+};
+
+/**
+ * Staff confirms (or flags) that the uploaded partner-lab report actually
+ * belongs to this patient -- the check the lab asked for before a referred
+ * result counts as done. A mismatch bounces the panel back to
+ * `awaiting_report` so a corrected file gets uploaded instead of leaving a
+ * wrong report attached.
+ */
+export const verifyReferralReport = async (req, res) => {
+  try {
+    const { id, code } = req.params;
+    const { patientNameMatched, notes } = req.body || {};
+    const report = await PathologyReport.findById(id);
+    if (!report) return fail(res, 404, "Report not found");
+    if (report.status === "released") return fail(res, 409, "Report is released and cannot be edited");
+    if (!isTechnician(req.user)) {
+      return fail(res, 403, "Only a lab technician can verify a referred report");
+    }
+
+    const [panel, errCode, errMsg] = findReferralPanel(report, code);
+    if (!panel) return fail(res, errCode, errMsg);
+    if (!panel.referral?.reportUrl) return fail(res, 400, "Upload the referral report before verifying it");
+
+    const a = await actor(req.user?.id);
+
+    if (patientNameMatched === false) {
+      panel.referral.status = "awaiting_report";
+      panel.referral.verifiedAt = null;
+      panel.referral.verifiedBy = null;
+      panel.referral.patientNameMatched = false;
+      panel.referral.notes = notes || "Patient name mismatch -- re-check with the partner lab";
+      report.audit.push({ action: "referral_verified", ...a, note: `${panel.code}: name mismatch, re-upload required` });
+    } else {
+      panel.referral.status = "verified";
+      panel.referral.verifiedAt = new Date();
+      panel.referral.verifiedBy = req.user?.id || null;
+      panel.referral.patientNameMatched = true;
+      panel.referral.notes = notes || "";
+      report.audit.push({ action: "referral_verified", ...a, note: `${panel.code}: patient details confirmed` });
+    }
+
+    await report.save();
+    // A confirmed mismatch means the specimen tracker should go back to
+    // "Dispatched" (still out with the partner lab, awaiting a corrected
+    // report) rather than staying on "Received" against a report we just
+    // rejected.
+    await syncAccessionReferralStatus(
+      report.accession,
+      panel.code,
+      patientNameMatched === false ? "dispatched" : "received"
+    );
+    return ok(res, { report }, "Referral verification saved");
+  } catch (err) {
+    console.error("verifyReferralReport error:", err);
+    return fail(res, 500, "Failed to verify referral report");
+  }
+};
+
 export const getReport = async (req, res) => {
   try {
     const report = await PathologyReport.findById(req.params.id).lean();
@@ -717,6 +859,16 @@ export const getReport = async (req, res) => {
           `getReport: blocked non-staff user ${req.user?.id} from report ${req.params.id} (status ${report.status})`
         );
         return fail(res, 404, "Report not found");
+      }
+    }
+
+    // Staff needs to see whether the booking is paid, to know if the release
+    // button is payment-gated (patients never see an unreleased report anyway).
+    if (isStaff && accession?.labOrder) {
+      const order = await LabOrder.findById(accession.labOrder).select("paymentStatus paymentMode").lean();
+      if (order) {
+        accession.paymentStatus = order.paymentStatus;
+        accession.paymentMode = order.paymentMode;
       }
     }
 
@@ -1077,12 +1229,37 @@ export const releaseReport = async (req, res) => {
       return fail(res, 409, "Report must be doctor final-verified before release");
     }
 
+    const pending = pendingReferrals(report.panels);
+    if (pending.length) {
+      return fail(
+        res,
+        409,
+        `Referred report(s) not uploaded/verified yet: ${pending.map((p) => p.code).join(", ")}`
+      );
+    }
+
+    // Payment gate: a booked order must be paid before its report goes out.
+    // Only an admin may force a release while payment is still pending.
+    const accessionForPayment = await Accession.findById(report.accession).select("labOrder");
+    const order = accessionForPayment?.labOrder
+      ? await LabOrder.findById(accessionForPayment.labOrder).select("paymentStatus")
+      : null;
+    const unpaid = !!order && order.paymentStatus !== "PAID";
+
+    if (unpaid && !isAdmin(req.user)) {
+      return fail(res, 402, "Payment pending -- report cannot be released until payment is received");
+    }
+
     report.status = "released";
     report.sentAt = new Date();
     report.sentChannels = Array.from(new Set([...(report.sentChannels || []), ...channels]));
 
     const a = await actor(req.user?.id);
-    report.audit.push({ action: "released", ...a, note: channels.join(", ") });
+    report.audit.push({
+      action: "released",
+      ...a,
+      note: unpaid ? `${channels.join(", ")} (admin override -- payment pending)` : channels.join(", "),
+    });
 
     await report.save();
 

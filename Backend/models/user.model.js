@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { generateUserRmdId } from "../utils/rmdId.js";
 
 /* One entry per device the user is signed in on. FCM issues a token per
    app-install, so a user with a phone and a tablet has two. */
@@ -167,5 +168,14 @@ const UserSchema = new mongoose.Schema(
 // Lets us find (and steal) a device token that is still attached to a previous
 // account when someone else logs in on the same phone.
 UserSchema.index({ "fcmTokens.token": 1 });
+
+// Every human -- patient, doctor, agent, rider, admin-created staff, everyone
+// -- gets an RMD<NNNNNN> id the moment their account row is inserted, instead
+// of relying on each creation call site to remember to assign one.
+UserSchema.pre("save", async function () {
+  if (this.isNew && !this.rmdId) {
+    this.rmdId = await generateUserRmdId();
+  }
+});
 
 export default mongoose.model("User", UserSchema);

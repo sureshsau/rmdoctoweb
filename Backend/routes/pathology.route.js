@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { prescriptionUpload } from "../utils/prescriptionUpload.js";
 import {
   listPanels,
   getPanel,
@@ -22,6 +23,8 @@ import {
   finalVerifyReport,
   returnToTechnician,
   releaseReport,
+  uploadReferralReport,
+  verifyReferralReport,
   listMyReports,
   getMyReport,
 } from "../controllers/pathology.controller.js";
@@ -103,6 +106,23 @@ router.get("/reports/:id", authenticate, authorize("pathology.report.read"), get
 // inside the controller.
 router.patch("/reports/:id/values", authenticate, authorize("pathology.report.enter"), saveReportValues);
 router.post("/reports/:id/submit", authenticate, authorize("pathology.report.submit"), submitReport);
+
+// Referred-out panel (e.g. LFT): upload the partner lab's report, then a
+// technician/doctor confirms it's actually this patient's report. Same guard
+// as value entry -- whoever can key in results can also drop in a file.
+router.post(
+  "/reports/:id/panels/:code/referral-report",
+  authenticate,
+  authorize("pathology.report.enter"),
+  prescriptionUpload.single("report"),
+  uploadReferralReport
+);
+router.post(
+  "/reports/:id/panels/:code/referral-verify",
+  authenticate,
+  authorize("pathology.report.verify"),
+  verifyReferralReport
+);
 
 // Lab technician gates.
 router.post("/reports/:id/verify", authenticate, authorize("pathology.report.verify"), verifyReport);

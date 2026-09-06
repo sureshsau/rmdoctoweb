@@ -99,7 +99,7 @@ export const createUserService = async ({
 
   // 3️⃣ Return fresh user
   const updatedUser = await User.findById(user._id)
-    .select("_id name phone roles permissions dashboard isActive kycStatus profiles rmCoinsBalance")
+    .select("_id rmdId name phone roles permissions dashboard isActive kycStatus profiles rmCoinsBalance")
     .lean();
 
   // tempPassword is only ever set on the create path, and is the one moment it

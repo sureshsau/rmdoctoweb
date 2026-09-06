@@ -28,12 +28,13 @@ const RMCreditTransactionSchema = new mongoose.Schema(
       min: 0
     },
 
-    // credit = admin add
-    // debit = medicine purchase
-    // revoke = admin remove
+    // credit    = admin grants credit
+    // debit     = agent spends credit on an order
+    // revoke    = admin claws back unused balance (OTP-confirmed)
+    // repayment = agent pays back used credit -- online (Razorpay) or offline (cash, admin-recorded)
     type: {
       type: String,
-      enum: ["credit", "debit", "revoke"],
+      enum: ["credit", "debit", "revoke", "repayment"],
       required: true,
       index: true
     },
@@ -42,6 +43,13 @@ const RMCreditTransactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null
+    },
+
+    // Set only for an online repayment, so the payment can be traced back to
+    // its Razorpay order/payment without joining another collection.
+    razorpay: {
+      orderId: { type: String, default: null },
+      paymentId: { type: String, default: null }
     },
 
     description: {

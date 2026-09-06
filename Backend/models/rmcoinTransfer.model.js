@@ -22,7 +22,7 @@ const RMCoinsTransactionSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["transfer", "admin_transfer", "admin_recharge", "medicine_order"],
+      enum: ["transfer", "admin_transfer", "admin_recharge", "medicine_order", "lab_order"],
       required: true
     },
 

@@ -9,7 +9,7 @@ import { uploadProfileImageToS3, deleteProfileImageFromS3, uploadKycDocumentToS3
 export const getAllUserController = async (req, res) => {
   try {
     const users = await USER.find()
-      .select("_id faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
+      .select("_id rmdId faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt  rmCoinsBalance kycStatus kycDocuments")
       .lean();
     return res.status(200).json({
       success: true,
@@ -37,6 +37,7 @@ export const createUserController = async (req, res) => {
       message: "User created successfully",
       data: {
         id: user._id,
+        rmdId: user.rmdId,
         name: user.name,
         phone: user.phone,
         email: user.email,
@@ -64,7 +65,7 @@ export const getAllDoctorsController = async (req, res) => {
       isActive: true,
       isBlocked: false
     })
-      .select("_id faceImage.url name email phone dashboard createdAt profiles")
+      .select("_id rmdId faceImage.url name email phone dashboard createdAt profiles")
       .populate({ path: "profiles.doctorId" })
       .lean();
 
@@ -92,7 +93,7 @@ export const getAllRMRidersController = async (req, res) => {
       isActive: true,
       isBlocked: false
     })
-      .select("_id faceImage.url name email phone dashboard createdAt")
+      .select("_id rmdId faceImage.url name email phone dashboard createdAt")
       .lean();
 
     return res.status(200).json({
@@ -246,7 +247,7 @@ export const toggleUserStatusController = async (req, res, next) => {
 export const getMeController = async (req, res, next) => {
   try {
     const user = await USER.findById(req.user.id).select(
-      "_id faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
+      "_id rmdId faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
     ).lean();
 
     if (!user) {

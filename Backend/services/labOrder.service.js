@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import LabTest from "../models/lab/labTest.model.js";
 import LabOrder from "../models/lab/labOrder.model.js";
 import Accession from "../models/lab/accession.model.js";
+import PathologyReport from "../models/lab/pathologyReport.model.js";
 import AppError from "../utils/AppError.js";
 import crypto from "crypto";
 import AgentProfile from "../models/agentProfile.model.js";
@@ -12,6 +13,7 @@ import RMCreditTransaction from "../models/rmcredit/rmcreditTransaction.model.js
 import RMCoinsTransaction from "../models/rmcoinTransfer.model.js";
 import { s3 } from "../config/aws.config.js";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { autoReleaseOnPayment } from "./pathology.service.js";
 
 /* ════════════════════════════════════════════════
    HELPERS
@@ -284,7 +286,8 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
         paymentStatus: 1,
         orderStatus: 1,
         scheduledAt: 1,
-        createdAt: 1
+        createdAt: 1,
+        accession: 1
       })
       .populate({ path: "items.testId", select: "name shortCode category" })
       .populate({ path: "labId", select: "name address.city" })
@@ -300,8 +303,23 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
 
   const totalPaidAmount = totalPaidResult[0]?.totalPaidAmount || 0;
 
+  // For unpaid orders, tell the patient when the report itself is already
+  // done and only waiting on payment -- that's the cue to pay online now
+  // instead of waiting for COD collection.
+  const unpaidAccessionIds = orders
+    .filter((o) => o.paymentStatus !== "PAID" && o.accession)
+    .map((o) => o.accession);
+  const reportStatusByAccession = {};
+  if (unpaidAccessionIds.length) {
+    const reports = await PathologyReport.find({ accession: { $in: unpaidAccessionIds } })
+      .select("accession status")
+      .lean();
+    for (const r of reports) reportStatusByAccession[r.accession.toString()] = r.status;
+  }
+
   const formattedOrders = orders.map((order) => {
     const firstItem = order.items?.[0];
+    const reportStatus = order.accession ? reportStatusByAccession[order.accession.toString()] : null;
     return {
       orderId: order._id,
       orderStatus: order.orderStatus,
@@ -313,7 +331,10 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
       test: firstItem
         ? { name: firstItem.testId?.name || "", shortCode: firstItem.testId?.shortCode || "" }
         : null,
-      createdAt: order.createdAt
+      createdAt: order.createdAt,
+      // True only while paymentStatus !== "PAID" -- once paid the report
+      // releases and orderStatus itself flips to REPORT_READY.
+      reportReadyPendingPayment: ["final_verified", "released"].includes(reportStatus)
     };
   });
 
@@ -618,6 +639,14 @@ export const verifyLabOtpService = async ({ orderId, otp, requester }) => {
     await session.commitTransaction();
     session.endSession();
 
+    // COD just cleared -- if the report was already sitting final-verified
+    // and withheld pending payment, send it out now.
+    if (order.paymentStatus === "PAID" && order.accession) {
+      await autoReleaseOnPayment(order.accession).catch((err) =>
+        console.error("autoReleaseOnPayment (COD) error:", err)
+      );
+    }
+
     return { orderId: order._id, orderStatus: order.orderStatus, paymentStatus: order.paymentStatus };
 
   } catch (err) {
@@ -880,6 +909,14 @@ export const verifyRazorpayLabPaymentService = async ({
   };
 
   await order.save();
+
+  // Online payment just cleared -- if the report was already sitting
+  // final-verified and withheld pending payment, send it out now.
+  if (order.accession) {
+    await autoReleaseOnPayment(order.accession).catch((err) =>
+      console.error("autoReleaseOnPayment (razorpay) error:", err)
+    );
+  }
 
   return { orderId: order._id, paymentStatus: order.paymentStatus, orderStatus: order.orderStatus };
 };

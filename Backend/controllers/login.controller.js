@@ -3,6 +3,7 @@ import redis from "../config/redis.config.js";
 import { sendLoginOtpSms } from "../services/sms.service.js";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
+import { generateUserRmdId } from "../utils/rmdId.js";
 
 export const sendOtpLogin = async (req, res) => {
   try {
@@ -216,6 +217,11 @@ export const verifyOtpLogin = async (req, res) => {
     user.lastLoginDevice = device;
     user.lastLoginAt = new Date();
 
+    // Backfill for accounts created before the RMD id scheme existed.
+    if (!user.rmdId) {
+      user.rmdId = await generateUserRmdId();
+    }
+
     await user.save();
 
     const token = jwt.sign(
@@ -234,6 +240,7 @@ export const verifyOtpLogin = async (req, res) => {
       token,
       user: {
         id: user._id,
+        rmdId: user.rmdId,
         name: user.name,
         phone: user.phone,
         dashboard: user.dashboard,

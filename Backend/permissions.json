@@ -70,6 +70,7 @@
       "rmcredit.add": "Add credit to agent",
       "rmcredit.revoke.request": "Initiate credit revoke",
       "rmcredit.revoke.verify": "Verify / confirm credit revoke",
+      "rmcredit.repay.offline": "Record an agent's offline (cash) credit repayment",
       "rmcredit.read.history": "View admin credit history",
       "rmcredit.read.agent": "View specific agent credit details"
     }

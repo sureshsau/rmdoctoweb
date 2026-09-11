@@ -79,13 +79,15 @@ export const getLabsService = async ({
   page   = 1,
   limit  = 10,
   search = "",
-  city   = ""
+  city   = "",
+  includeInactive = false
 }) => {
   page  = Number(page);
   limit = Number(limit);
   const skip = (page - 1) * limit;
 
-  const query = { isActive: true };
+  const query = {};
+  if (!includeInactive) query.isActive = true;
 
   if (search && search.trim()) {
     const regex = new RegExp(search.trim(), "i");
@@ -102,7 +104,7 @@ export const getLabsService = async ({
 
   const [labs, total] = await Promise.all([
     Lab.find(query)
-      .select("name brandName address.city address.state phone images isActive")
+      .select("name brandName address.city address.state phone email homeCollectionCharge images isActive")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -214,7 +216,7 @@ export const getLabTestsService = async ({
   const [tests, total] = await Promise.all([
     LabTest.find(query)
       .select("name shortCode category sampleType pricing gstPercentage homeCollectionAvailable reportTat labId isActive")
-      .populate({ path: "labId", select: "name brandName address.city" })
+      .populate({ path: "labId", select: "name brandName address.city homeCollectionCharge" })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -234,7 +236,7 @@ export const getLabTestByIdService = async (testId) => {
   }
 
   const test = await LabTest.findById(testId)
-    .populate({ path: "labId", select: "name brandName address phone email" })
+    .populate({ path: "labId", select: "name brandName address phone email homeCollectionCharge" })
     .populate({ path: "addedBy", select: "name phone" })
     .lean();
 

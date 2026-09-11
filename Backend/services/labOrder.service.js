@@ -4,6 +4,7 @@ import LabTest from "../models/lab/labTest.model.js";
 import LabOrder from "../models/lab/labOrder.model.js";
 import Accession from "../models/lab/accession.model.js";
 import PathologyReport from "../models/lab/pathologyReport.model.js";
+import Lab from "../models/lab.model.js";
 import AppError from "../utils/AppError.js";
 import crypto from "crypto";
 import AgentProfile from "../models/agentProfile.model.js";
@@ -85,6 +86,11 @@ export const createLabOrder = async ({
   session.startTransaction();
 
   try {
+    const lab = await Lab.findOne({ _id: labId, isActive: true })
+      .select("homeCollectionCharge")
+      .session(session);
+    if (!lab) throw new AppError("Lab not found or inactive", 400);
+
     let subtotal = 0;
     let gstTotal = 0;
     const processedItems = [];
@@ -136,9 +142,12 @@ export const createLabOrder = async ({
       }
     }
 
+    const effectiveCollectionType = collectionType || "HOME";
+
     subtotal = parseFloat(subtotal.toFixed(2));
     gstTotal = parseFloat(gstTotal.toFixed(2));
-    const homeCollectionCharge = 0; // can be made dynamic later
+    const homeCollectionCharge =
+      effectiveCollectionType === "HOME" ? lab.homeCollectionCharge || 0 : 0;
     const payableAmount = parseFloat((subtotal + gstTotal + homeCollectionCharge).toFixed(2));
 
     const [createdOrder] = await LabOrder.create(
@@ -149,8 +158,8 @@ export const createLabOrder = async ({
           labId,
           items: processedItems,
           pricing: { subtotal, gstTotal, homeCollectionCharge, payableAmount },
-          collectionType: collectionType || "HOME",
-          collectionAddress: collectionType === "HOME" ? {
+          collectionType: effectiveCollectionType,
+          collectionAddress: effectiveCollectionType === "HOME" ? {
             ...collectionAddress,
             location: collectionAddress?.location?.coordinates ? collectionAddress.location : { type: "Point", coordinates: [0, 0] }
           } : undefined,
@@ -362,7 +371,7 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
     .populate({ path: "items.testId", select: "name shortCode category sampleType" })
     .populate({ path: "labId", select: "name brandName address phone email" })
     .populate({ path: "collectionAgentId", select: "name phone" })
-    .populate({ path: "accession", select: "accessionNo status collectionInfo.vials" })
+    .populate({ path: "accession", select: "accessionNo status collectionInfo.vials collectionInfo.unmatchedTests" })
     .lean();
 
   if (!order) throw new AppError("Order not found", 404);
@@ -415,7 +424,8 @@ export const getLabOrderDetails = async ({ orderId, requester }) => {
       ? {
           accessionNo: order.accession.accessionNo,
           status: order.accession.status,
-          vials: order.accession.collectionInfo?.vials || []
+          vials: order.accession.collectionInfo?.vials || [],
+          unmatchedTests: order.accession.collectionInfo?.unmatchedTests || []
         }
       : null,
     reportUrl: order.reportUrl || null,
@@ -473,7 +483,7 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     .populate("collectionAgentId", "name phone")
     .populate("marketingAgentId", "name phone")
     .populate("labId", "name address.city")
-    .populate("accession", "accessionNo status")
+    .populate("accession", "accessionNo status collectionInfo.unmatchedTests")
     .lean();
 
   const data = orders.map((order) => ({
@@ -486,6 +496,10 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     scheduledAt: order.scheduledAt,
     accessionNo: order.accession?.accessionNo || null,
     accessionStatus: order.accession?.status || null,
+    // Booked tests that no in-house pathology panel could be matched to --
+    // surfaced so staff notice before a patient pays for a test that will
+    // never produce a report (see matchPanelsForLabTests).
+    unmatchedTests: order.accession?.collectionInfo?.unmatchedTests || [],
     lab: order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
     user: order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
     collectionAgent: order.collectionAgentId

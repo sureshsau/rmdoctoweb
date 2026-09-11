@@ -37,8 +37,14 @@ export const createLabController = async (req, res) => {
 
 export const getLabsController = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", city = "" } = req.query;
-    const result = await getLabsService({ page, limit, search, city });
+    const { page = 1, limit = 10, search = "", city = "", includeInactive = false } = req.query;
+    const result = await getLabsService({
+      page,
+      limit,
+      search,
+      city,
+      includeInactive: includeInactive === "true" || includeInactive === true
+    });
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

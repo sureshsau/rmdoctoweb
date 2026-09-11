@@ -57,6 +57,14 @@ const labSchema = new mongoose.Schema(
       type: String
     },
 
+    // Flat charge for a rider to draw a sample at the patient's address for
+    // a booking against this lab. Admin-configurable per lab (0 = free).
+    homeCollectionCharge: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+
     // MEDIA
     images: [
       {

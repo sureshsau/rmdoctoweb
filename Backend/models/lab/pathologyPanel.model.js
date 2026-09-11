@@ -80,6 +80,9 @@ const PathologyPanelSchema = new mongoose.Schema(
     referralLab: {
       name: { type: String, default: null },
       contact: { type: String, default: null },
+      email: { type: String, default: null },
+      address: { type: String, default: null },
+      licenseNumber: { type: String, default: null },
     },
 
     tatHours: { type: Number, default: 24 },

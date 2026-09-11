@@ -1,15 +1,32 @@
-import { attendanceMarkServiceByFace, getAttendanceService, registerFaceEmbeddingService, setAttendanceSettingsForAllUsers, setupUserAttendanceService, fetchUserAttendanceLogsService } from "../services/attendance.service.js"
+import {
+  attendanceMarkServiceByFace,
+  getAttendanceService,
+  registerFaceEmbeddingService,
+  setAttendanceSettingsForAllUsers,
+  setupUserAttendanceService,
+  fetchUserAttendanceLogsService,
+  fetchAllAttendanceSettings,
+  fetchSelfAttendanceSettings,
+  fetchAllUsersAttendanceLogsService,
+  exportAttendanceRowsService
+} from "../services/attendance.service.js"
 import AppError from "../utils/AppError.js";
 import { getFaceEmbedding } from "../utils/getFaceEmbedding.js";
+import { rowsToCsv } from "../utils/csv.js";
 import fs from 'fs';
+
+// Roles that see everything regardless of the fine-grained permission list --
+// mirrors auth.middlewire.js's FULL_ACCESS_ROLES so "view all settings" here
+// matches what `authorize('attendance.read.all')` would already let through.
+const FULL_ACCESS_ROLES = ["admin", "subadmin", "employee"];
 
 export const getAttendanceSettingsController = async (req, res, next) => {
   try {
-    const permissions = req.user.permissions;
-    const canViewAll = permissions.includes("attendance.settings:view");
-    const canViewSelf = permissions.includes("attendance.settings:self:view");
+    const roles = req.user.roles || [];
+    const permissions = req.user.permissions || [];
+    const canViewAll = roles.some((r) => FULL_ACCESS_ROLES.includes(r)) || permissions.includes("attendance.read.all");
 
-    // CASE 1: Admin-level user → return all settings
+    // CASE 1: Admin-level user → return every user's settings
     if (canViewAll) {
       const data = await fetchAllAttendanceSettings();
       return res.status(200).json({
@@ -20,40 +37,102 @@ export const getAttendanceSettingsController = async (req, res, next) => {
       });
     }
 
-    // CASE 2: Normal user → return own settings
-    if (canViewSelf) {
-      const data = await fetchSelfAttendanceSettings(req.user.id);
-      return res.status(200).json({
-        success: true,
-        scope: "self",
-        data
-      });
-    }
-
-    // CASE 3: No permissions → Forbidden
-    throw new AppError("Forbidden: You cannot access attendance settings", 403);
+    // CASE 2: Normal user → return own settings only
+    const data = await fetchSelfAttendanceSettings(req.user.id);
+    return res.status(200).json({
+      success: true,
+      scope: "self",
+      data
+    });
 
   } catch (err) {
     next(err); // pass to global error handler
   }
 };
 
-export const setAttendanceSettingsForAllUsersController=async(req,res)=>{
-  try{
-    if(!req.body){
-      res.status(400).json({
-        message:"setting is missing",
-      })
+export const setAttendanceSettingsForAllUsersController = async (req, res) => {
+  try {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "setting is missing",
+      });
     }
-    const data=await setAttendanceSettingsForAllUsers(req.body);
+    const data = await setAttendanceSettingsForAllUsers(req.body);
     return res.status(200).json({
-      message:"set attendance setting for all users",
-      updateCounte:data.updatedCount
-    })
-  }catch(err){
-      throw new AppError("Internal Server Error",500);
+      success: true,
+      message: "set attendance setting for all users",
+      updateCount: data.updatedCount
+    });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || "Internal Server Error"
+    });
   }
-}
+};
+
+/**
+ * Admin: attendance across every user, with date/role/status/search filters
+ * and pagination. Query params: from, to, role, status, search, page, limit
+ */
+export const getAllAttendanceLogsController = async (req, res, next) => {
+  try {
+    const { from, to, role, status, search, page, limit } = req.query;
+
+    const result = await fetchAllUsersAttendanceLogsService({
+      from, to, role, status, search, page, limit
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance logs fetched successfully",
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Admin: CSV export of attendance across every user, same filters as above
+ * minus pagination. Query params: from, to, role, status, search
+ */
+export const exportAttendanceCsvController = async (req, res, next) => {
+  try {
+    const { from, to, role, status, search } = req.query;
+
+    const rows = await exportAttendanceRowsService({ from, to, role, status, search });
+
+    const headers = [
+      "Date", "Employee Name", "Phone", "Role", "Status",
+      "Check In", "Check Out", "Total Hours", "Late (min)", "Overtime (hrs)", "Location Verified"
+    ];
+
+    const csvRows = rows.map((r) => ({
+      "Date": r.attendanceDate ? new Date(r.attendanceDate).toISOString().slice(0, 10) : "",
+      "Employee Name": r.userId?.name || "",
+      "Phone": r.userId?.phone || "",
+      "Role": (r.userId?.roles || []).join("; "),
+      "Status": r.status || "",
+      "Check In": r.checkIn?.time ? new Date(r.checkIn.time).toISOString() : "",
+      "Check Out": r.checkOut?.time ? new Date(r.checkOut.time).toISOString() : "",
+      "Total Hours": r.totalHours ?? "",
+      "Late (min)": r.lateByMinutes ?? "",
+      "Overtime (hrs)": r.overtimeHours ?? "",
+      "Location Verified": r.locationVerified ? "Yes" : "No"
+    }));
+
+    const csv = rowsToCsv(headers, csvRows);
+    const filename = `attendance-report-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.status(200).send(csv);
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 export const setupUserAttendanceController = async (req, res) => {

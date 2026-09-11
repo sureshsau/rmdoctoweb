@@ -238,7 +238,6 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
       const loc = updateData.allowedLocation;
 
       if (
-        !loc.name ||
         typeof loc.lat !== "number" ||
         typeof loc.lng !== "number"
       ) {
@@ -248,8 +247,11 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
       if (!loc.radiusMeters) loc.radiusMeters = 10;
     }
 
-    // Only apply to users with employee roles
-    const employeeRoles = ["marketing_agent", "doctor", "subadmin", "receptionist"];
+    // Roles that use attendance: employee, doctor, receptionist, plus the
+    // roles that already self-check-in via AttendanceHub (marketing_agent,
+    // rmrider). "agent" is deliberately excluded -- that role has no
+    // attendance tracking.
+    const employeeRoles = ["employee", "doctor", "receptionist", "marketing_agent", "rmrider"];
 
     const users = await USER.find({ roles: { $in: employeeRoles }, isActive: true }).select("_id").lean();
 
@@ -275,6 +277,10 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
     return { updatedCount, appliedSettings: updateData };
 
   } catch (err) {
+    // Preserve real validation errors (400s from above) instead of masking
+    // them as a generic 500 -- that's what was hiding "Invalid allowedLocation
+    // object" behind "Internal Server Error" for the caller.
+    if (err instanceof AppError) throw err;
     console.error("setAttendanceSettingsForAllUsers ERROR:", err);
     throw new AppError("Internal Server Error while updating attendance settings", 500);
   }
@@ -494,7 +500,11 @@ export const attendanceMarkServiceByFace = async ({
   });
 
   if (!faceVerification.verified) {
-    throw new Error("Face verification failed");
+    const hint =
+      faceVerification.reason === "matched_different_face"
+        ? ` (closest match was a different registered face, ${faceVerification.similarity?.toFixed?.(1)}% similar)`
+        : " (no registered face matched closely enough -- try better lighting or re-register the face)";
+    throw new Error(`Face verification failed${hint}`);
   }
 
   // Daily attendance snapshots are no longer saved to S3 per latest configuration.
@@ -780,5 +790,129 @@ export const fetchUserAttendanceLogsService = async ({
     },
     logs
   };
+};
+
+/* ════════════════════════════════════════════════
+   ADMIN: all-staff attendance report + CSV export
+════════════════════════════════════════════════ */
+
+/** Same normalization `fetchUserAttendanceLogsService` uses, kept local to avoid
+ *  touching that already-working function. */
+function resolveAttendanceDateRange(from, to) {
+  let startDate, endDate;
+
+  if (from || to) {
+    startDate = from ? new Date(from) : new Date(0);
+    endDate = to ? new Date(to) : new Date();
+
+    if (isNaN(startDate)) throw new AppError("Invalid `from` date", 400);
+    if (isNaN(endDate)) throw new AppError("Invalid `to` date", 400);
+
+    endDate = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999));
+    startDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
+  } else {
+    const now = new Date();
+    startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+    endDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
+  }
+
+  return { startDate, endDate };
+}
+
+/** Resolves `{ role, search }` filters into a set of matching user ids, or
+ *  `null` if neither filter was given (meaning: don't restrict by user at all). */
+async function resolveAttendanceUserFilter({ role, search }) {
+  if (!role && !search) return null;
+
+  const userQuery = {};
+  if (role) userQuery.roles = role;
+  if (search) {
+    userQuery.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search } }
+    ];
+  }
+
+  const users = await USER.find(userQuery).select("_id").lean();
+  return users.map((u) => u._id);
+}
+
+/** Admin: paginated attendance across every user, with role/status/search/date filters. */
+export const fetchAllUsersAttendanceLogsService = async ({
+  from,
+  to,
+  role,
+  status,
+  search,
+  page = 1,
+  limit = 20
+}) => {
+  const { startDate, endDate } = resolveAttendanceDateRange(from, to);
+  const userIds = await resolveAttendanceUserFilter({ role, search });
+
+  if (userIds && userIds.length === 0) {
+    return {
+      summary: {},
+      pagination: { total: 0, page: Number(page) || 1, limit: Number(limit) || 20, totalPages: 0, count: 0 },
+      rows: []
+    };
+  }
+
+  const query = { attendanceDate: { $gte: startDate, $lte: endDate } };
+  if (userIds) query.userId = { $in: userIds };
+  if (status) query.status = status;
+
+  page = Math.max(1, Number(page) || 1);
+  limit = Math.max(1, Math.min(Number(limit) || 20, 200));
+  const skip = (page - 1) * limit;
+
+  const [total, rows, statusCounts] = await Promise.all([
+    AttendanceLog.countDocuments(query),
+
+    AttendanceLog.find(query)
+      .sort({ attendanceDate: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "name phone roles rmdId")
+      .lean(),
+
+    AttendanceLog.aggregate([
+      { $match: query },
+      { $group: { _id: "$status", count: { $sum: 1 } } }
+    ])
+  ]);
+
+  const summary = {};
+  statusCounts.forEach((s) => { summary[s._id || "UNKNOWN"] = s.count; });
+
+  return {
+    summary,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+      count: rows.length
+    },
+    rows
+  };
+};
+
+/** Admin: same filters as above, unpaginated (capped) rows for CSV export. */
+export const exportAttendanceRowsService = async ({ from, to, role, status, search }) => {
+  const { startDate, endDate } = resolveAttendanceDateRange(from, to);
+  const userIds = await resolveAttendanceUserFilter({ role, search });
+
+  if (userIds && userIds.length === 0) return [];
+
+  const query = { attendanceDate: { $gte: startDate, $lte: endDate } };
+  if (userIds) query.userId = { $in: userIds };
+  if (status) query.status = status;
+
+  return AttendanceLog.find(query)
+    .sort({ attendanceDate: -1, createdAt: -1 })
+    .limit(20000)
+    .populate("userId", "name phone roles rmdId")
+    .lean();
 };
 

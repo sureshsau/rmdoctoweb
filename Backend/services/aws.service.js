@@ -147,13 +147,22 @@ export const verifyFaceWithRekognition = async ({
   const result = await rekognition.send(command);
 
   if (!result.FaceMatches || result.FaceMatches.length === 0) {
-    return { verified: false };
+    console.warn("⚠️ Face verification: no face in the collection matched above threshold", {
+      threshold,
+      expectedFaceId
+    });
+    return { verified: false, reason: "no_match_above_threshold" };
   }
 
   const match = result.FaceMatches[0];
 
   if (match.Face.FaceId !== expectedFaceId) {
-    return { verified: false };
+    console.warn("⚠️ Face verification: top match was a different registered face", {
+      expectedFaceId,
+      matchedFaceId: match.Face.FaceId,
+      similarity: match.Similarity
+    });
+    return { verified: false, reason: "matched_different_face", similarity: match.Similarity };
   }
 
   return {

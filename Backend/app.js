@@ -44,6 +44,7 @@ app.use(
       "http://172.20.10.2:8081",
       "https://www.rmdocto.in",
       "https://rmdocto.in",
+      "https://adminrmdocto.in",
     ],
     credentials: true,
   })

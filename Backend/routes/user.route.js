@@ -13,7 +13,8 @@ import {
   uploadKycDocumentController,
   updateKycStatusController,
   getMeController,
-  updateUserDetailsController
+  updateUserDetailsController,
+  changePasswordController
 } from "../controllers/user.controller.js";
 import { authenticate, authorize, isOwnerOrAdmin } from "../middlewares/auth.middlewire.js";
 
@@ -29,6 +30,7 @@ router.get('/my/addresses', authenticate, getMyAddressesController);
 router.post('/my/addresses', authenticate, addMyAddressController);
 router.delete('/my/addresses/:addressId', authenticate, deleteMyAddressController);
 router.get('/me', authenticate, getMeController);
+router.patch('/change-password', authenticate, changePasswordController);
 router.patch('/:userId/details', authenticate, isOwnerOrAdmin("userId"), updateUserDetailsController);
 
 // ── OPEN TO ALL AUTHENTICATED USERS ──────────────────────────────────────────

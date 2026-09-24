@@ -574,7 +574,13 @@ export const updateLabOrderStatusService = async ({
   const isAdmin = requester.roles?.some((r) =>
     ["admin", "subadmin", "receptionist", "typist", "lab_technician"].includes(r)
   );
-  if (!isAdmin) throw new AppError("Forbidden", 403);
+  if (!isAdmin) {
+    const isRider = requester.roles?.includes("rmrider");
+    const isAssigned = String(order.collectionAgentId) === String(requester.id || requester._id);
+    if (!isRider || !isAssigned) {
+      throw new AppError("Forbidden", 403);
+    }
+  }
 
   const VALID_TRANSITIONS = {
     INITIATED: ["CONFIRMED", "CANCELLED"],

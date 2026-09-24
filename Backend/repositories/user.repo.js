@@ -10,6 +10,11 @@ export const findByPhone = async (phone) => {
   return USER.findOne({ phone: phone.trim() });
 };
 
+export const findByRmdId = async (rmdId) => {
+  if (!rmdId || typeof rmdId !== "string") return null;
+  return USER.findOne({ rmdId: rmdId.trim().toUpperCase() });
+};
+
 export const create = async (data) => {
   try {
     return await USER.create(data);

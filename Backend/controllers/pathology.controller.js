@@ -480,7 +480,7 @@ export const getCollectionSheet = async (req, res) => {
     const order = accession.labOrder
       ? await LabOrder.findById(accession.labOrder)
           .select(
-            "collectionType collectionAddress scheduledAt orderStatus otpVerified collectionAgentId"
+            "collectionType collectionAddress scheduledAt orderStatus otpVerified collectionAgentId pricing totalAmount"
           )
           .lean()
       : null;
@@ -517,6 +517,7 @@ export const getCollectionSheet = async (req, res) => {
             scheduledAt: order.scheduledAt,
             orderStatus: order.orderStatus,
             otpRequired: !order.otpVerified,
+            pricing: order.pricing,
           }
         : null,
     });

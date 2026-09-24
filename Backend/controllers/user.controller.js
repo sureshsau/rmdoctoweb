@@ -1,6 +1,7 @@
 import USER from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import { createUserService, addSavedAddressService, deleteSavedAddressService } from '../services/user.service.js';
 import { uploadProfileImageToS3, deleteProfileImageFromS3, uploadKycDocumentToS3 } from "../services/aws.service.js";
 
@@ -355,5 +356,44 @@ export const updateUserDetailsController = async (req, res) => {
     res.status(200).json({ success: true, message: 'User details updated successfully', data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+export const changePasswordController = async (req, res) => {
+  try {
+    const userId = req.user._id; // from authenticate middleware
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Current and new passwords are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+    }
+
+    const user = await USER.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash || "");
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Invalid current password' });
+    }
+
+    const hashPass = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = hashPass;
+    
+    // Invalidate sessions across devices to force re-login if desired (optional)
+    user.webSessionVersion += 1;
+    user.appSessionVersion += 1;
+
+    await user.save();
+
+    return res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error("Error in changePasswordController:", error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

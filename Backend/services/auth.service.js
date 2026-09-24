@@ -7,6 +7,7 @@ import * as PendingRepo from "../repositories/pendingUser.repo.js";
 import * as OtpService from "./otp.service.js";
 import { sendOtpEmail } from "../queues/producers/email.producer.js";
 import { newUserNotification } from "../queues/producers/notification.producer.js";
+import { sendLoginOtpSms } from "./sms.service.js";
 
 
 export const register = async (data) => {
@@ -303,8 +304,15 @@ export const login = async ({ email, phone, password, ip, device }) => {
 
     // 1️⃣ Find user
     let user;
-    if (email) user = await UserRepo.findByEmail(email);
-    else user = await UserRepo.findByPhone(phone);
+    if (email) {
+      if (email.toUpperCase().startsWith("RMD")) {
+        user = await UserRepo.findByRmdId(email);
+      } else {
+        user = await UserRepo.findByEmail(email);
+      }
+    } else {
+      user = await UserRepo.findByPhone(phone);
+    }
 
     if (!user) {
       return {
@@ -471,7 +479,7 @@ export const resendOtp = async ({ identifier }) => {
 };
 
 // Forgot password part 
-export const forgotPasswordSendOtp = async ({ identifier, type }) => {
+export const forgotPasswordSendOtp = async ({ identifier, type, role }) => {
   try {
     if (!identifier || !type) {
       return {
@@ -494,6 +502,11 @@ export const forgotPasswordSendOtp = async ({ identifier, type }) => {
     if (!user) {
       return { status: 404, body: { message: "User does not exist with given credentials." } };
     }
+    
+    if (role && user.dashboard !== role) {
+      return { status: 403, body: { message: "Unauthorized. You are not allowed to perform this action from this application." } };
+    }
+
 
     const otp = OtpService.generateOtp();
     const hashedOtp = await bcrypt.hash(String(otp), 10);
@@ -512,8 +525,9 @@ export const forgotPasswordSendOtp = async ({ identifier, type }) => {
 
     if (type === "email") {
       await sendOtpEmail(identifier, otp);
+    } else {
+      await sendLoginOtpSms({ mobile: identifier, otp });
     }
-    // else send SMS to phone
 
     return {
       status: 200,
@@ -579,7 +593,7 @@ export const resetPassword = async ({ identifier,type, newPassword }) => {
     if(type === "email"){
       user = await UserRepo.findByEmail(identifier);
     }else{
-      user = await UserRepo.findByPhone(phone);
+      user = await UserRepo.findByPhone(identifier);
     }
 
     if (!user) {

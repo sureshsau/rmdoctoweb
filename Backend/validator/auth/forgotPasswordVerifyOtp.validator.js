@@ -16,8 +16,8 @@ export const forgotPasswordVerifyOtpValidator = [
   body("otp")
     .notEmpty()
     .withMessage("OTP is required.")
-    .isLength({ min: 4, max: 4 })
-    .withMessage("OTP must be exactly 4 digits.")
+    .isLength({ min: 6, max: 6 })
+    .withMessage("OTP must be exactly 6 digits.")
     .isNumeric()
     .withMessage("OTP must contain digits only."),
 

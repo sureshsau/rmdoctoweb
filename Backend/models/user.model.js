@@ -82,7 +82,7 @@ const UserSchema = new mongoose.Schema(
         "marketing_agent",
         "receptionist",
         "user",
-        "rmrider",
+        "delivery_partner",
         "lab_technician",
         "typist"
       ],

@@ -52,7 +52,7 @@ router.post("/payments/razorpay/create", authenticate, createRazorpayLabOrderCon
 // POST /lab/order/payments/razorpay/verify
 router.post("/payments/razorpay/verify", authenticate, verifyRazorpayLabPaymentController);
 
-// Assign collection agent (rmrider) to order
+// Assign collection agent (delivery_partner) to order
 // PATCH /lab/order/assign-collector/:orderId
 router.patch(
   "/assign-collector/:orderId",

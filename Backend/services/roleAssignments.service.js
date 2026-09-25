@@ -20,7 +20,7 @@ const ROLE_DASHBOARD_MAP = {
   agent: "agent",
   marketing_agent: "marketing_agent",
   receptionist: "receptionist",
-  rmrider: "rmrider",
+  delivery_partner: "delivery_partner",
 };
 
 /**

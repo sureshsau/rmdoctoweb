@@ -249,9 +249,9 @@ export const setAttendanceSettingsForAllUsers = async (settings) => {
 
     // Roles that use attendance: employee, doctor, receptionist, plus the
     // roles that already self-check-in via AttendanceHub (marketing_agent,
-    // rmrider). "agent" is deliberately excluded -- that role has no
+    // delivery_partner). "agent" is deliberately excluded -- that role has no
     // attendance tracking.
-    const employeeRoles = ["employee", "doctor", "receptionist", "marketing_agent", "rmrider"];
+    const employeeRoles = ["employee", "doctor", "receptionist", "marketing_agent", "delivery_partner"];
 
     const users = await USER.find({ roles: { $in: employeeRoles }, isActive: true }).select("_id").lean();
 

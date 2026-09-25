@@ -87,10 +87,10 @@ export const getAllDoctorsController = async (req, res) => {
   }
 };
 
-export const getAllRMRidersController = async (req, res) => {
+export const getAllDeliveryPartnersController = async (req, res) => {
   try {
     const riders = await USER.find({
-      roles: { $in: ["rmrider"] },
+      roles: { $in: ["delivery_partner"] },
       isActive: true,
       isBlocked: false
     })
@@ -105,7 +105,7 @@ export const getAllRMRidersController = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error in getAllRMRidersController:", error);
+    console.error("Error in getAllDeliveryPartnersController:", error);
 
     return res.status(500).json({
       success: false,

@@ -20,7 +20,7 @@ export const TARGETABLE_ROLES = [
   "employee",
   "agent",
   "marketing_agent",
-  "rmrider",
+  "delivery_partner",
   "user",
 ];
 

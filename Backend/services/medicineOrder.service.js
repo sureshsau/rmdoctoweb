@@ -971,13 +971,13 @@ export const getUserMedicineOrderTotalService = async ({
 
 
 export const getOrdersForRmRiderService = async ({
-  rmRiderUserId,
+  deliveryPartnerUserId,
   status,
   page = 1,
   limit = 10
 }) => {
   const query = {
-    deliveryAgentId: rmRiderUserId
+    deliveryAgentId: deliveryPartnerUserId
   };
 
   if (status) {

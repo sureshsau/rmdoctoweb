@@ -575,7 +575,7 @@ export const updateLabOrderStatusService = async ({
     ["admin", "subadmin", "receptionist", "typist", "lab_technician"].includes(r)
   );
   if (!isAdmin) {
-    const isRider = requester.roles?.includes("rmrider");
+    const isRider = requester.roles?.includes("delivery_partner");
     const isAssigned = String(order.collectionAgentId) === String(requester.id || requester._id);
     if (!isRider || !isAssigned) {
       throw new AppError("Forbidden", 403);
@@ -691,7 +691,7 @@ export const assignCollectionAgentService = async ({ orderId, agentUserId, reque
 
   const agent = await User.findOne({
     _id: agentUserId,
-    roles: { $in: ["rmrider"] },
+    roles: { $in: ["delivery_partner"] },
     isActive: true,
     isBlocked: false
   });

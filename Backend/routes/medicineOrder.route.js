@@ -2,7 +2,7 @@ import express from 'express';
 import { authenticate, authorize, isAdminOrSubadmin } from '../middlewares/auth.middlewire.js';
 import { createMedicineOrderMiddleware, createOrderForCustomerMiddleware } from '../validator/medicine/medicineOrder.validator.js';
 import {
-  assignRMRiderController,
+  assignDeliveryPartnerController,
   createOrderForCustomerController,
   createRazorpayMedicineOrder,
   lookupCustomerController,
@@ -88,7 +88,7 @@ router.post('/payments/razorpay/create', authenticate, createRazorpayMedicineOrd
 router.post('/payments/razorpay/verify', authenticate, verifyOnlinePaymentController);
 
 // Assign RM Rider to an order
-router.patch('/assign-rmrider/:orderId', authenticate, authorize('medicineOrder.assign.rider'), assignRMRiderController);
+router.patch('/assign-delivery_partner/:orderId', authenticate, authorize('medicineOrder.assign.rider'), assignDeliveryPartnerController);
 
 // Update order status
 router.patch('/:orderId/status', authenticate, authorize('medicineOrder.status.update'), updateOrderStatusController);

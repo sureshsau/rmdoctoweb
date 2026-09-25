@@ -369,7 +369,7 @@ export const verifyOnlinePaymentController = async (req, res, next) => {
 
 
 
-export const assignRMRiderController = async (req, res) => {
+export const assignDeliveryPartnerController = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { userId } = req.body;
@@ -403,7 +403,7 @@ export const assignRMRiderController = async (req, res) => {
     // ----------- CHECK USER IS RM RIDER -----------
     const rider = await User.findOne({
       _id: userId,
-      roles: { $in: ["rmrider"] },
+      roles: { $in: ["delivery_partner"] },
       isActive: true,
       isBlocked: false
     });
@@ -458,7 +458,7 @@ export const getAssignedOrdersForRider = async (req, res, next) => {
     } = req.query;
 
     const result = await getOrdersForRmRiderService({
-      rmRiderUserId: id,
+      deliveryPartnerUserId: id,
       status,
       page: Number(page),
       limit: Number(limit)

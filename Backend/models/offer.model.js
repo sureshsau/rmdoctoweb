@@ -51,7 +51,7 @@ const offerSchema = new mongoose.Schema(
     },
     applicableRoles: {
       type: [String],
-      default: ["user", "receptionist", "rmrider", "employee"], // Excludes agents usually, but customizable
+      default: ["user", "receptionist", "delivery_partner", "employee"], // Excludes agents usually, but customizable
     },
   },
   { timestamps: true }

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Connect DB to generate a token for rmrider
+// Connect DB to generate a token for delivery_partner
 const uri = process.env.MONGO_URI;
 
 async function run() {

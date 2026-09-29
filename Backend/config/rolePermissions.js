@@ -67,7 +67,8 @@ export const ROLE_PERMISSIONS = {
   
   community_partner: [
     "labOrder.create",
-    "appointment.create"
+    "appointment.create",
+    "community_partner.create"
   ],
   
   block_coordinator: [

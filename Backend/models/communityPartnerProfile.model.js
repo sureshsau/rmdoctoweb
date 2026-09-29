@@ -11,6 +11,7 @@ const communityPartnerProfileSchema = new mongoose.Schema(
     },
 
     /* 🌳 MLM HIERARCHY */
+    referralCode: { type: String, unique: true, sparse: true, index: true },
     parentCommunityPartnerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CommunityPartnerProfile",

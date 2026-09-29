@@ -18,6 +18,10 @@ export const register = async (data) => {
     const phone = data.phone?.trim() || null;
     const email = data.email?.trim().toLowerCase() || null;
     const password = data.password;
+    const referralCode = data.referralCode?.trim() || null;
+    const address = data.address?.trim() || null;
+    const gender = data.gender || null;
+    const joinAsCp = data.joinAsCp === true || data.joinAsCp === "true";
 
     // =============================
     // Basic Validation
@@ -44,6 +48,18 @@ export const register = async (data) => {
     // ✅ ALWAYS use phone as identifier
     const identifier = phone;
     const redisKey = `register:user:${phone}`;
+
+    if (joinAsCp) {
+       if (!referralCode) {
+          return { status: 400, body: { message: "Referral code is mandatory for Community Partners." } };
+       }
+       const mongoose = await import("mongoose");
+       const CommunityPartnerProfile = mongoose.model("CommunityPartnerProfile");
+       const parentProfile = await CommunityPartnerProfile.findOne({ referralCode });
+       if (!parentProfile) {
+          return { status: 400, body: { message: "Invalid referral code. Please check and try again." } };
+       }
+    }
 
     // =============================
     // Duplicate Check (DB)
@@ -87,6 +103,10 @@ export const register = async (data) => {
     // =============================
     const hashPass = await bcrypt.hash(password, 10);
     const otp = OtpService.generateOtp();
+    
+    // LOG IT TO CONSOLE FOR DEV ENV / TESTING
+    console.log(`\n\n[REGISTER] Generated OTP for ${phone}: ${otp}\n\n`);
+
     const hashedOtp = await bcrypt.hash(String(otp), 10);
     const now = Date.now();
 
@@ -127,6 +147,10 @@ export const register = async (data) => {
         name,
         email,
         phone,
+        address,
+        gender,
+        joinAsCp,
+        referralCode,
         hashPass,
         otp: hashedOtp,
         otpAttempts: 1,
@@ -197,15 +221,17 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
       };
     }
 
-    // 👤 Create basic user (NO ROLES, NO PERMISSIONS)
+    // 👤 Create basic user (NO ROLES, NO PERMISSIONS by default)
     const newUserData = {
       name: parsed.name,
       phone: parsed.phone,
       email: parsed.email ? parsed.email.trim().toLowerCase() : undefined,
       passwordHash: parsed.hashPass,
+      address: parsed.address,
+      gender: parsed.gender,
 
-      dashboard: "user",
-      roles: [],
+      dashboard: parsed.joinAsCp ? "community_partner" : "user",
+      roles: parsed.joinAsCp ? ["community_partner"] : [],
       permissions: [],
 
       isActive: true,
@@ -221,6 +247,47 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
     };
 
     const user = await UserRepo.create(newUserData);
+
+    if (parsed.joinAsCp) {
+      const mongoose = await import("mongoose");
+      const CommunityPartnerProfile = mongoose.model("CommunityPartnerProfile");
+      const parentProfile = await CommunityPartnerProfile.findOne({ referralCode: parsed.referralCode });
+      
+      const generateReferralCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = 'RMCP';
+        for (let i = 0; i < 6; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      };
+      
+      let code;
+      let isUnique = false;
+      while (!isUnique) {
+        code = generateReferralCode();
+        const existing = await CommunityPartnerProfile.findOne({ referralCode: code });
+        if (!existing) isUnique = true;
+      }
+      
+      const newCpProfile = await CommunityPartnerProfile.create({
+        userId: user._id,
+        parentCommunityPartnerId: parentProfile._id,
+        referralCode: code,
+        registeredBy: "COMMUNITY_PARTNER",
+        level: (parentProfile.level || 0) + 1,
+        address: parsed.address,
+      });
+
+      parentProfile.childCommunityPartnerIds.push(newCpProfile._id);
+      parentProfile.directDownlineCount = (parentProfile.directDownlineCount || 0) + 1;
+      await parentProfile.save();
+
+      // Ensure user document also references this profile
+      user.profiles = user.profiles || {};
+      user.profiles.communityPartnerId = newCpProfile._id;
+      await user.save();
+    }
 
     await newUserNotification({
       name: user.name,
@@ -452,6 +519,10 @@ export const resendOtp = async ({ identifier }) => {
     // 2. Generate new OTP
     // ---------------------------
     const otp = OtpService.generateOtp();
+    
+    // LOG IT TO CONSOLE FOR DEV ENV / TESTING
+    console.log(`\n\n[RESEND] Generated new OTP for ${identifier}: ${otp}\n\n`);
+
     const hashedOtp = await bcrypt.hash(String(otp), 10);
 
     await redis.set(

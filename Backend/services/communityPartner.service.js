@@ -4,7 +4,7 @@ import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js"
 import ROLE from "../models/role.model.js";
 import RoleAssignment from '../models/roleAssignment.model.js'
 import { hashPassword } from "../utils/password.js";
-import { uploadAgreementToS3 } from "./aws.service.js";
+import { uploadAgreementToS3, uploadVisitPhotoToS3 } from "./aws.service.js";
 import AppError from "../utils/AppError.js";
 import blockCoordinatorProfile from "../models/blockCoordinatorProfile.model.js";
 import { error } from "console";
@@ -154,7 +154,8 @@ export const uploadCommunityPartnerAgreementService = async ({
 //register community_partner by community_partner
 export const registerCommunityPartnerByCommunityPartnerService = async ({
   parentCommunityPartnerUserId,
-  payload
+  payload,
+  shopImageFile
 }) => {
   try {
     const {
@@ -166,7 +167,8 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       landmark = null,
       city = null,
       state = null,
-      pincode = null
+      pincode = null,
+      shopName = null
     } = payload;
 
     validateCommunityPartnerPayload({ communityPartnerName, phone, latitude, longitude });
@@ -233,6 +235,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
             level: parentCommunityPartner.level + 1,
             registeredBy: "AGENT",
             communityPartnerName,
+            shopName,
             address,
             city,
             state,
@@ -244,6 +247,28 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
           }
         }
       );
+
+      if (shopImageFile) {
+        const uploadResult = await uploadVisitPhotoToS3({
+          communityPartnerProfileId: existingCommunityPartner._id.toString(),
+          imageBuffer: shopImageFile.buffer,
+          mimeType: shopImageFile.mimetype,
+          fileName: shopImageFile.originalname,
+          folder: "shop"
+        });
+
+        await CommunityPartnerProfile.updateOne(
+          { _id: existingCommunityPartner._id },
+          {
+            $set: {
+              "shopImage.url": uploadResult.url,
+              "shopImage.key": uploadResult.key,
+              "shopImage.bucket": uploadResult.bucket,
+              "shopImage.updatedAt": new Date()
+            }
+          }
+        );
+      }
 
       await CommunityPartnerProfile.updateOne(
         { _id: parentCommunityPartner._id },
@@ -294,9 +319,28 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       blockCoordinatorId: parentCommunityPartner.blockCoordinatorId,
       level: parentCommunityPartner.level + 1,
       registeredBy: "AGENT",
+      shopName,
       directDownlineCount: 0,
       totalDownlineCount: 0
     });
+
+    if (shopImageFile) {
+      const uploadResult = await uploadVisitPhotoToS3({
+        communityPartnerProfileId: communityPartnerProfile._id.toString(),
+        imageBuffer: shopImageFile.buffer,
+        mimeType: shopImageFile.mimetype,
+        fileName: shopImageFile.originalname,
+        folder: "shop"
+      });
+
+      communityPartnerProfile.shopImage = {
+        url: uploadResult.url,
+        key: uploadResult.key,
+        bucket: uploadResult.bucket,
+        updatedAt: new Date()
+      };
+      await communityPartnerProfile.save();
+    }
 
     /* =========================
        6. LINK PARENT → CHILD
@@ -395,14 +439,22 @@ export const getCommunityPartnerVisibleNetwork = async ({
     /* =========================
        4️⃣ FETCH ALL DOWNLINE AGENTS (ONCE)
     ========================= */
-    const allCommunityPartners = await CommunityPartnerProfile.find({
-      blockCoordinatorId: selfCommunityPartner.blockCoordinatorId
-    })
-      .populate({
-        path: "userId",
-        select: "name phone"
-      })
-      .lean();
+    const aggregationResult = await CommunityPartnerProfile.aggregate([
+      { $match: { _id: selfCommunityPartner._id } },
+      {
+        $graphLookup: {
+          from: "communitypartnerprofiles",
+          startWith: "$childCommunityPartnerIds",
+          connectFromField: "childCommunityPartnerIds",
+          connectToField: "_id",
+          as: "downline",
+          maxDepth: 10
+        }
+      }
+    ]);
+
+    const allCommunityPartners = aggregationResult.length > 0 ? aggregationResult[0].downline : [];
+    await CommunityPartnerProfile.populate(allCommunityPartners, { path: "userId", select: "name phone kycStatus" });
 
     /* =========================
        5️⃣ BUILD MAP FOR BFS
@@ -414,6 +466,7 @@ export const getCommunityPartnerVisibleNetwork = async ({
         id: community_partner._id,
         name: community_partner.userId?.name || "",
         phone: community_partner.userId?.phone || "",
+        kycStatus: community_partner.userId?.kycStatus || "none",
         level: community_partner.level,
         children: []
       });
@@ -465,7 +518,8 @@ export const getCommunityPartnerVisibleNetwork = async ({
           id: selfCommunityPartner._id,
           name: selfCommunityPartner.userId?.name,
           phone: selfCommunityPartner.userId?.phone,
-          level: selfCommunityPartner.level
+          level: selfCommunityPartner.level,
+          referralCode: selfCommunityPartner.referralCode
         },
 
         parentCommunityPartner: parentCommunityPartner

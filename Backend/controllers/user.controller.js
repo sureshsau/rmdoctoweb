@@ -255,6 +255,15 @@ export const getMeController = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    if (user.roles?.includes("community_partner")) {
+      const mongoose = await import("mongoose");
+      const CommunityPartnerProfile = mongoose.model("CommunityPartnerProfile");
+      const cpProfile = await CommunityPartnerProfile.findOne({ userId: user._id }).lean();
+      if (cpProfile) {
+        user.communityPartnerProfile = cpProfile;
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "User fetched successfully",

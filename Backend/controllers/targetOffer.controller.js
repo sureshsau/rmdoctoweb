@@ -158,8 +158,29 @@ export const getMyTargetProgress = async (req, res) => {
       return res.status(404).json({ success: false, message: "RM Member profile not found" });
     }
 
-    // Find all users belonging to this community_partner
-    const community_partnerUsers = await mongoose.model("User").find({ "profiles.communityPartnerId": communityPartnerProfile._id });
+    if (communityPartnerProfile.parentCommunityPartnerId) {
+      return res.status(403).json({ success: false, message: "Only Main Community Partners are eligible for contests" });
+    }
+
+    // Aggregate downline CPs using graphLookup
+    const allDescendants = await CommunityPartnerProfile.aggregate([
+      { $match: { _id: communityPartnerProfile._id } },
+      {
+        $graphLookup: {
+          from: "communitypartnerprofiles",
+          startWith: "$_id",
+          connectFromField: "_id",
+          connectToField: "parentCommunityPartnerId",
+          as: "downline"
+        }
+      }
+    ]);
+
+    const downlineIds = allDescendants[0]?.downline.map(d => d._id) || [];
+    const allRelevantCpIds = [communityPartnerProfile._id, ...downlineIds];
+
+    // Find all users belonging to this Main CP or any of their Sub-CPs
+    const community_partnerUsers = await mongoose.model("User").find({ "profiles.communityPartnerId": { $in: allRelevantCpIds } });
     const userIds = community_partnerUsers.map(u => u._id);
 
     const salesData = await MedicineOrder.aggregate([

@@ -27,7 +27,11 @@ export const registerCommunityPartnerController = async (req, res) => {
   try {
       const payload=req.body;
       const {id}=req.user;
-      const data=await registerCommunityPartnerByCommunityPartnerService({parentCommunityPartnerUserId:id,payload})
+      const data=await registerCommunityPartnerByCommunityPartnerService({
+        parentCommunityPartnerUserId:id,
+        payload,
+        shopImageFile: req.file
+      })
 
     return res.status(201).json({
       success: true,

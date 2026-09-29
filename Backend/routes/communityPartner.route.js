@@ -13,7 +13,7 @@ router.get('/network', authenticate, agetNetworkController);
 router.post('/agreement/upload', authenticate, upload.single('file'), uploadAgreementEnsureProfileController);
 
 // ── ADMIN / PERMISSION-GATED ──────────────────────────────────────────────────
-// Only admin/subadmin can register a new community_partner
-router.post('/register', authenticate, authorize('community_partner.create'), registerCommunityPartnerController);
+// Only admin/subadmin/community_partner can register a new community_partner
+router.post('/register', authenticate, authorize('community_partner.create'), upload.single('shopImage'), registerCommunityPartnerController);
 
 export default router;

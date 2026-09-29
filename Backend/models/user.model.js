@@ -28,7 +28,7 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, lowercase: true, index: true, sparse: true },
     phone: { type: String, required: true, index: true },
 
-
+    gender: { type: String, enum: ["Male", "Female", "Other"], default: null },
     address: { type: String, default: null },
     landmark: { type: String, default: null },
     city: { type: String, default: null },

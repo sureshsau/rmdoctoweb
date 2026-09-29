@@ -1,11 +1,11 @@
 import express from "express";
 import { authenticate, isAdmin } from "../middlewares/auth.middlewire.js";
 import {
-  adminGetAgentNetworkController,
-  adminGetMarketingAgentNetworkController,
-  adminGetAllAgentsController,
-  adminGetAllMarketingAgentsController,
-  registerAgentByAdminController
+  adminGetCommunityPartnerNetworkController,
+  adminGetBlockCoordinatorNetworkController,
+  adminGetAllCommunityPartnersController,
+  adminGetAllBlockCoordinatorsController,
+  registerCommunityPartnerByAdminController
 } from "../controllers/admin.network.controller.js";
 import { getAnalyticsReport } from "../controllers/admin.analytics.controller.js";
 
@@ -15,24 +15,24 @@ const router = express.Router();
 router.use(authenticate, isAdmin);
 
 // ── REGISTER ────────────────────────────────────────────────────
-// Register a new root agent
-router.post("/register-agent", registerAgentByAdminController);
+// Register a new root community_partner
+router.post("/register-community_partner", registerCommunityPartnerByAdminController);
 
 // ── ANALYTICS ───────────────────────────────────────────────────
 router.get("/analytics", getAnalyticsReport);
 
 // ── PICK LISTS ──────────────────────────────────────────────────
-// List all agents (for the selection screen)
-router.get("/network/agents", adminGetAllAgentsController);
+// List all community_partners (for the selection screen)
+router.get("/network/community_partners", adminGetAllCommunityPartnersController);
 
-// List all marketing agents (for the selection screen)
-router.get("/network/marketing-agents", adminGetAllMarketingAgentsController);
+// List all marketing community_partners (for the selection screen)
+router.get("/network/marketing-community_partners", adminGetAllBlockCoordinatorsController);
 
 // ── SPECIFIC NETWORK TREES ──────────────────────────────────────
-// View a specific agent's full downline tree
-router.get("/network/agent/:userId", adminGetAgentNetworkController);
+// View a specific community_partner's full downline tree
+router.get("/network/community_partner/:userId", adminGetCommunityPartnerNetworkController);
 
-// View a specific marketing agent's full downline tree
-router.get("/network/marketing-agent/:userId", adminGetMarketingAgentNetworkController);
+// View a specific marketing community_partner's full downline tree
+router.get("/network/marketing-community_partner/:userId", adminGetBlockCoordinatorNetworkController);
 
 export default router;

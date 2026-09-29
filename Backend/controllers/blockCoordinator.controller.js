@@ -1,12 +1,12 @@
-import { getMarketingAgentTree, getOrdersForMarketingAgentService, registerAgentByMarketingAgentService } from "../services/marketingAgent.service.js";
+import { getBlockCoordinatorTree, getOrdersForBlockCoordinatorService, registerCommunityPartnerByBlockCoordinatorService } from "../services/blockCoordinator.service.js";
 
 
 
-export const registerAgentByMarketingAgentController = async (req, res) => {
+export const registerCommunityPartnerByBlockCoordinatorController = async (req, res) => {
   try {
       const payload=req.body;
       const {id}=req.user;
-      const data=await registerAgentByMarketingAgentService({marketingAgentId:id,payload})
+      const data=await registerCommunityPartnerByBlockCoordinatorService({blockCoordinatorId:id,payload})
 
     return res.status(201).json({
       success: true,
@@ -15,7 +15,7 @@ export const registerAgentByMarketingAgentController = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Agent registration error:", error);
+    console.error("❌ CommunityPartner registration error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
@@ -24,11 +24,11 @@ export const registerAgentByMarketingAgentController = async (req, res) => {
 };
 
 
-export const marketingAgentNetworkController = async (req, res) => {
+export const blockCoordinatorNetworkController = async (req, res) => {
   try {
     const { id } = req.user;
 
-     const data = await getMarketingAgentTree({marketingAgentUserId:id});
+     const data = await getBlockCoordinatorTree({blockCoordinatorUserId:id});
    
 
     return res.status(200).json({
@@ -48,7 +48,7 @@ export const marketingAgentNetworkController = async (req, res) => {
 
 export const getAssignedOrders = async (req, res, next) => {
   try {
-    const marketingAgentUserId = req.user.id;
+    const blockCoordinatorUserId = req.user.id;
 
     const {
       status,
@@ -56,8 +56,8 @@ export const getAssignedOrders = async (req, res, next) => {
       limit = 10
     } = req.query;
 
-    const result = await getOrdersForMarketingAgentService({
-      marketingAgentUserId,
+    const result = await getOrdersForBlockCoordinatorService({
+      blockCoordinatorUserId,
       status,
       page: Number(page),
       limit: Number(limit)

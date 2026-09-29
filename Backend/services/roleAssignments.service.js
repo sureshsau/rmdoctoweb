@@ -4,12 +4,10 @@ import RoleAssignment from "../models/roleAssignment.model.js";
 import User from "../models/user.model.js";
 import DoctorProfile from "../models/doctorProfile.schema.js";
 import Role from '../models/role.model.js';
-import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
-
-
+import BlockCoordinatorProfile from "../models/blockCoordinatorProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import AppError from "../utils/AppError.js";
 import { createAttendanceSetting } from "./attendance.service.js";
-import AgentProfile from "../models/agentProfile.model.js";
 
 // Maps a role key → the dashboard value it should trigger
 const ROLE_DASHBOARD_MAP = {
@@ -17,8 +15,8 @@ const ROLE_DASHBOARD_MAP = {
   subadmin: "admin",
   doctor: "doctor",
   employee: "employee",
-  agent: "agent",
-  marketing_agent: "marketing_agent",
+  community_partner: "community_partner",
+  block_coordinator: "block_coordinator",
   receptionist: "receptionist",
   delivery_partner: "delivery_partner",
 };
@@ -61,25 +59,23 @@ export async function ensureCoreProfileForUser(user, role, extraData = {}) {
       }),
     },
 
-    agent: {
-      key: "agentId",
-      model: AgentProfile,
+    community_partner: {
+      key: "communityPartnerId",
+      model: CommunityPartnerProfile,
       build: () => ({
         userId: user._id,
-        agentName: user.name,
         phone: user.phone,
         registeredBy: "ADMIN",
       }),
     },
 
-    marketing_agent: {
-      key: "marketing_agentId",
-      model: MarketingAgentProfile,
+    block_coordinator: {
+      key: "blockCoordinatorId",
+      model: BlockCoordinatorProfile,
       build: () => ({
         userId: user._id,
-        agentName: user.name,
         phone: user.phone,
-        registeredBy: "admin",
+        status: "ACTIVE"
       }),
     },
   };

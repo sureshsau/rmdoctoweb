@@ -61,24 +61,24 @@ export const register = async (data) => {
     ]);
 
     if (existingByPhone) {
-      return { status: 409, body: {success:false, message: "Phone already registered." } };
+      return { status: 409, body: { success: false, message: "Phone already registered." } };
     }
 
     if (existingByEmail) {
-      return { status: 409, body: {success:false, message: "Email already registered." } };
+      return { status: 409, body: { success: false, message: "Email already registered." } };
     }
 
     if (pendingByPhone) {
       return {
         status: 409,
-        body: {success:false, message: "Registration already pending for this phone." },
+        body: { success: false, message: "Registration already pending for this phone." },
       };
     }
 
     if (pendingByEmail) {
       return {
         status: 409,
-        body: {success:false, message: "Registration already pending for this email." },
+        body: { success: false, message: "Registration already pending for this email." },
       };
     }
 
@@ -141,14 +141,14 @@ export const register = async (data) => {
 
     return {
       status: 200,
-      body: {success:true, message: "OTP sent", phone, identifier }, // identifier = phone
+      body: { success: true, message: "OTP sent", phone, identifier }, // identifier = phone
     };
 
   } catch (error) {
     console.error("Register Error:", error);
     return {
       status: 500,
-      body: {success:false, message: "Internal server error. Please try again." },
+      body: { success: false, message: "Internal server error. Please try again." },
     };
   }
 };
@@ -294,7 +294,7 @@ export const verifyOtp = async ({ identifier, otp, ip, device }) => {
 
 export const login = async ({ email, phone, password, ip, device }) => {
   try {
-    
+
     if ((!email && !phone) || !password) {
       return {
         status: 400,
@@ -337,7 +337,7 @@ export const login = async ({ email, phone, password, ip, device }) => {
     }
 
     // 3️⃣ Validate password
-    const isPasswordValid =await  bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return {
         status: 401,
@@ -379,9 +379,11 @@ export const login = async ({ email, phone, password, ip, device }) => {
       email: user.email || null,
       dashboard: user.dashboard,
       roles: user.roles || [],
-      permissions:user.permissions || [],
+      permissions: user.permissions || [],
       profileImage: user.faceImage?.url || null,
       rmCoinsBalance: user.rmCoinsBalance || 0,
+      kycStatus: user.kycStatus || "none",
+      kycDocuments: user.kycDocuments || [],
     };
 
     // 8️⃣ Generate JWT (keep it small)
@@ -494,7 +496,7 @@ export const forgotPasswordSendOtp = async ({ identifier, type, role }) => {
 
     if (type === "email") {
       user = await UserRepo.findByEmail(identifier);
-    } 
+    }
     else if (type === "phone") {
       user = await UserRepo.findByPhone(identifier);
     }
@@ -502,7 +504,7 @@ export const forgotPasswordSendOtp = async ({ identifier, type, role }) => {
     if (!user) {
       return { status: 404, body: { message: "User does not exist with given credentials." } };
     }
-    
+
     if (role && user.dashboard !== role) {
       return { status: 403, body: { message: "Unauthorized. You are not allowed to perform this action from this application." } };
     }
@@ -566,7 +568,7 @@ export const forgotPasswordVerifyOtp = async ({ identifier, otp, type }) => {
 
 
 
-export const resetPassword = async ({ identifier,type, newPassword }) => {
+export const resetPassword = async ({ identifier, type, newPassword }) => {
   try {
     // console.log("am i hiting");
     const redisKey = `forgot:user:${identifier}`;
@@ -590,9 +592,9 @@ export const resetPassword = async ({ identifier,type, newPassword }) => {
     let user;
     // if (email) user = await UserRepo.findByEmail(email);
     // else user = await UserRepo.findByPhone(phone);
-    if(type === "email"){
+    if (type === "email") {
       user = await UserRepo.findByEmail(identifier);
-    }else{
+    } else {
       user = await UserRepo.findByPhone(identifier);
     }
 

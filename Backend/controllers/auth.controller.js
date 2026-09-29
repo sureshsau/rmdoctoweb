@@ -12,7 +12,7 @@ export const register = async (req, res) => {
 
 export const verifyOtp = async (req, res) => {
   try {
-    const response = await AuthService.verifyOtp({ ...req.body, ip: req.ip, device: req.headers['user-agent'] });
+    const response = await AuthService.verifyOtp({ ...req.body, ip: req.ip, device: req.headers['user-community_partner'] });
     return res.status(response.status).json(response.body);
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
@@ -23,7 +23,7 @@ export const login = async (req, res) => {
     const response = await AuthService.login({
       ...req.body,
       ip: req.ip,
-      device: req.headers["user-agent"]
+      device: req.headers["user-community_partner"]
     });
 
     return res.status(response.status).json(response.body);

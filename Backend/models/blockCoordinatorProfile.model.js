@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const marketingAgentProfileSchema = new mongoose.Schema(
+const blockCoordinatorProfileSchema = new mongoose.Schema(
   {
     // 🔗 Reference to human user
     userId: {
@@ -19,12 +19,12 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       default: "ACTIVE"
     },
 
-    // 🌳 Agent Responsibility (MLM summary)
-    totalAgentsAssigned: {
+    // 🌳 Partner Responsibility (MLM summary)
+    totalPartnersAssigned: {
       type: Number,
       default: 0
     },
-    directAgentsCount: {
+    directPartnersCount: {
       type: Number,
       default: 0
     },
@@ -34,7 +34,7 @@ const marketingAgentProfileSchema = new mongoose.Schema(
       type: Number,
       default: 100
     },
-    visitsRequiredPerAgentPerMonth: {
+    visitsRequiredPerPartnerPerMonth: {
       type: Number,
       default: 4
     },
@@ -88,6 +88,6 @@ const marketingAgentProfileSchema = new mongoose.Schema(
 );
 
 export default mongoose.model(
-  "MarketingAgentProfile",
-  marketingAgentProfileSchema
+  "BlockCoordinatorProfile",
+  blockCoordinatorProfileSchema
 );

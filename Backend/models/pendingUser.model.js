@@ -16,9 +16,9 @@ const PendingRoleRequestSchema = new mongoose.Schema({
     enum: [
       "doctor",
       "employee",
-      "agent",
+      "community_partner",
       "receptionist",
-      "marketing_agent",
+      "block_coordinator",
       "lab_staff",
       "patient"
     ],

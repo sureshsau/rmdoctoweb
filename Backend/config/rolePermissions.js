@@ -65,14 +65,14 @@ export const ROLE_PERMISSIONS = {
     "pathology.report.release"
   ],
   
-  agent: [
+  community_partner: [
     "labOrder.create",
     "appointment.create"
   ],
   
-  marketing_agent: [
-    "agent.read",
-    "agent.create",
+  block_coordinator: [
+    "community_partner.read",
+    "community_partner.create",
     // Meet plan — the service scopes every read/write to their own RM Members
     "visit.read",
     "visit.mark"

@@ -3,7 +3,7 @@ import Medicine from "../models/medicine.model.js";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import AppError from "../utils/AppError.js";
 import crypto from "crypto";
-import AgentProfile from '../models/agentProfile.model.js'
+import CommunityPartnerProfile from '../models/communityPartnerProfile.model.js'
 import User from "../models/user.model.js";
 import RMCredit from "../models/rmcredit/rmcredit.model.js";
 import RMCreditTransaction from "../models/rmcredit/rmcreditTransaction.model.js";
@@ -55,7 +55,7 @@ export const resolveOrCreateCustomer = async ({ name, phone }) => {
 
 /**
  * The address captured when the user registered, shaped for the counter's
- * delivery form so an agent order doesn't have to be retyped.
+ * delivery form so an community_partner order doesn't have to be retyped.
  * `location` is GeoJSON, so coordinates come out as [lng, lat].
  */
 const registeredAddress = (u) => ({
@@ -90,40 +90,40 @@ export const lookupCustomerByPhone = async (phone) => {
     .lean();
 
   // A brand-new customer has no roles, so standard pricing applies
-  if (!customer) return { exists: false, customer: null, isAgent: false };
+  if (!customer) return { exists: false, customer: null, isCommunityPartner: false };
 
-  const isAgent = (customer.roles || []).includes("agent");
+  const isCommunityPartner = (customer.roles || []).includes("community_partner");
 
   return {
     exists: true,
-    // Drives which price tier the staff order screen quotes — agents are
+    // Drives which price tier the staff order screen quotes — community_partners are
     // charged specialPrice by createMedicineOrder
-    isAgent,
+    isCommunityPartner,
     customer: {
       id: customer._id,
       name: customer.name || null,
       phone: customer.phone,
-      isAgent,
+      isCommunityPartner,
       isBlocked: !!customer.isBlocked,
 
       // Lets the counter prefill delivery when the typed number turns out to
-      // belong to an agent — same data the agent picker returns
+      // belong to an community_partner — same data the community_partner picker returns
       ...registeredAddress(customer)
     }
   };
 };
 
 /**
- * Staff-facing agent picker, backing the "order for agent" mode at the counter.
+ * Staff-facing community_partner picker, backing the "order for community_partner" mode at the counter.
  *
  * createMedicineOrder charges specialPrice purely on the ordering user's role,
- * so an agent order has to be placed against a real agent account — typing a
+ * so an community_partner order has to be placed against a real community_partner account — typing a
  * phone number and hoping it belongs to one silently bills standard price.
  */
-export const searchAgentsForStaffOrder = async (search = "", limit = 20) => {
+export const searchCommunityPartnersForStaffOrder = async (search = "", limit = 20) => {
   const term = String(search || "").trim();
 
-  const query = { roles: "agent", isBlocked: { $ne: true } };
+  const query = { roles: "community_partner", isBlocked: { $ne: true } };
 
   if (term) {
     // Staff type a partial name or the first digits of a number
@@ -134,13 +134,13 @@ export const searchAgentsForStaffOrder = async (search = "", limit = 20) => {
     ];
   }
 
-  const agents = await User.find(query)
+  const community_partners = await User.find(query)
     .select(`_id name phone ${ADDRESS_FIELDS}`)
     .sort({ name: 1 })
     .limit(Math.min(Number(limit) || 20, 50))
     .lean();
 
-  return agents.map((a) => ({
+  return community_partners.map((a) => ({
     id: a._id,
     name: a.name || "Unnamed RM Member",
     phone: a.phone,
@@ -177,7 +177,7 @@ export const createMedicineOrder = async ({
       }
 
       const canUseSpecialPrice =
-        user.roles?.includes("agent");
+        user.roles?.includes("community_partner");
 
       const unitPrice = canUseSpecialPrice
         ? medicine.pricing.specialPrice ?? medicine.pricing.price
@@ -201,20 +201,20 @@ export const createMedicineOrder = async ({
       });
     }
 
-    // 🔗 Find delivery (marketing) agent
-    let marketingAgentId = null;
+    // 🔗 Find delivery (marketing) community_partner
+    let blockCoordinatorId = null;
 
-    // CASE 1: User is agent
-    if (user.roles.includes("agent")) {
-      const agentProfile = await AgentProfile
+    // CASE 1: User is community_partner
+    if (user.roles.includes("community_partner")) {
+      const communityPartnerProfile = await CommunityPartnerProfile
         .findOne({ userId })
-        .select("marketingAgentId")
+        .select("blockCoordinatorId")
         .lean();
 
       // If linked → use it
-      if (agentProfile?.marketingAgentId) {
-        marketingAgentId = agentProfile.marketingAgentId;
-        console.log("marketing agent id found", marketingAgentId);
+      if (communityPartnerProfile?.blockCoordinatorId) {
+        blockCoordinatorId = communityPartnerProfile.blockCoordinatorId;
+        console.log("marketing community_partner id found", blockCoordinatorId);
       }
     }
 
@@ -271,7 +271,7 @@ export const createMedicineOrder = async ({
       [
         {
           userId,
-          marketingAgentId,
+          blockCoordinatorId,
           placedBy,
           items: processedItems,
           appliedPromoCode: appliedOfferId,
@@ -302,12 +302,12 @@ export const createMedicineOrder = async ({
         break;
 
       case "RM_CREDIT":
-        // Only agents can use RM Credit
-        if (!user.roles.includes("agent")) {
+        // Only community_partners can use RM Credit
+        if (!user.roles.includes("community_partner")) {
           throw new AppError("Only RM Members can use RM Credit", 403);
         }
 
-        const wallet = await RMCredit.findOne({ agentId: userId })
+        const wallet = await RMCredit.findOne({ communityPartnerId: userId })
           .session(session);
 
         if (!wallet) {
@@ -342,7 +342,7 @@ export const createMedicineOrder = async ({
           [
             {
               walletId: wallet._id,
-              agentId: userId,
+              communityPartnerId: userId,
               medicineOrderId: createdOrder._id,
               amount: payableAmount,
               type: "debit",
@@ -513,7 +513,7 @@ export const getMedicineOrderDetails = async ({
       select: "name brandName dosageForm images"
     })
     .populate({
-      path: "deliveryAgentId",
+      path: "deliveryCommunityPartnerId",
       select: "name phone"
     })
     .populate({
@@ -533,8 +533,8 @@ export const getMedicineOrderDetails = async ({
     requester.roles?.some(role => ["admin", "subadmin", "receptionist"].includes(role));
 
   const isAssignedRider =
-    order.deliveryAgentId &&
-    order.deliveryAgentId._id.toString() === requester.id.toString();
+    order.deliveryCommunityPartnerId &&
+    order.deliveryCommunityPartnerId._id.toString() === requester.id.toString();
 
   /* 🔐 STRICT OWNERSHIP CHECK */
   if (!isOwner && !isAdmin && !isAssignedRider) {
@@ -547,13 +547,13 @@ export const getMedicineOrderDetails = async ({
   }
 
   /* 🧑‍✈️ DELIVERY AGENT DETAILS (USER MODEL) */
-  let deliveryAgent = null;
+  let deliveryCommunityPartner = null;
 
-  if (order.deliveryAgentId) {
-    deliveryAgent = {
-      id: order.deliveryAgentId._id,
-      name: order.deliveryAgentId.name || null,
-      phone: order.deliveryAgentId.phone || null
+  if (order.deliveryCommunityPartnerId) {
+    deliveryCommunityPartner = {
+      id: order.deliveryCommunityPartnerId._id,
+      name: order.deliveryCommunityPartnerId.name || null,
+      phone: order.deliveryCommunityPartnerId.phone || null
     };
   }
 
@@ -567,7 +567,7 @@ export const getMedicineOrderDetails = async ({
     pricing: order.pricing,
     deliveryAddress: order.deliveryAddress,
 
-    deliveryAgent, // ✅ null if not assigned
+    deliveryCommunityPartner, // ✅ null if not assigned
 
     // Staff member who placed this order at the counter — null for self-service
     placedBy: order.placedBy
@@ -623,12 +623,12 @@ export const verifyOtpAndUpdateOrderStatus = async ({
     const isAdmin =
       requester.roles?.includes("admin") || requester.roles?.includes("subadmin");
 
-    const isDeliveryAgent =
-      order.deliveryAgentId &&
-      order.deliveryAgentId.toString() === requester.id.toString();
+    const isDeliveryCommunityPartner =
+      order.deliveryCommunityPartnerId &&
+      order.deliveryCommunityPartnerId.toString() === requester.id.toString();
 
     /* 🔐 AUTHORIZATION CHECK */
-    if (!isAdmin && !isDeliveryAgent) {
+    if (!isAdmin && !isDeliveryCommunityPartner) {
       throw new AppError(
         "You are not authorized to verify this order",
         403
@@ -722,25 +722,25 @@ export const getAllMedicineOrdersOverview = async ({
 
   // ----------- RM RIDER FILTER -----------
   if (
-    filters.deliveryAgentId &&
-    filters.deliveryAgentId !== "null" &&
-    filters.deliveryAgentId !== "undefined" &&
-    mongoose.Types.ObjectId.isValid(filters.deliveryAgentId)
+    filters.deliveryCommunityPartnerId &&
+    filters.deliveryCommunityPartnerId !== "null" &&
+    filters.deliveryCommunityPartnerId !== "undefined" &&
+    mongoose.Types.ObjectId.isValid(filters.deliveryCommunityPartnerId)
   ) {
-    query.deliveryAgentId = new mongoose.Types.ObjectId(
-      filters.deliveryAgentId
+    query.deliveryCommunityPartnerId = new mongoose.Types.ObjectId(
+      filters.deliveryCommunityPartnerId
     );
   }
 
   // ----------- MARKETING AGENT FILTER -----------
   if (
-    filters.marketingAgentId &&
-    filters.marketingAgentId !== "null" &&
-    filters.marketingAgentId !== "undefined" &&
-    mongoose.Types.ObjectId.isValid(filters.marketingAgentId)
+    filters.blockCoordinatorId &&
+    filters.blockCoordinatorId !== "null" &&
+    filters.blockCoordinatorId !== "undefined" &&
+    mongoose.Types.ObjectId.isValid(filters.blockCoordinatorId)
   ) {
-    query.marketingAgentId = new mongoose.Types.ObjectId(
-      filters.marketingAgentId
+    query.blockCoordinatorId = new mongoose.Types.ObjectId(
+      filters.blockCoordinatorId
     );
   }
 
@@ -786,12 +786,12 @@ export const getAllMedicineOrdersOverview = async ({
     .skip((currentPage - 1) * perPage)
     .limit(perPage)
     .select(
-      "items pricing paymentMode paymentStatus orderStatus userId deliveryAgentId marketingAgentId placedBy createdAt"
+      "items pricing paymentMode paymentStatus orderStatus userId deliveryCommunityPartnerId blockCoordinatorId placedBy createdAt"
     )
     .populate("items.medicineId", "name images")
     .populate("userId", "name phone")
-    .populate("deliveryAgentId", "name phone")
-    .populate("marketingAgentId", "name phone")
+    .populate("deliveryCommunityPartnerId", "name phone")
+    .populate("blockCoordinatorId", "name phone")
     .populate("placedBy", "name phone roles")
     .lean();
 
@@ -807,8 +807,8 @@ export const getAllMedicineOrdersOverview = async ({
       payableAmount: order.pricing?.payableAmount || 0,
       createdAt: order.createdAt,
       customer: order.userId,
-      marketingAgent: order.marketingAgentId,
-      deliveryAgent: order.deliveryAgentId,
+      blockCoordinator: order.blockCoordinatorId,
+      deliveryCommunityPartner: order.deliveryCommunityPartnerId,
       placedBy: order.placedBy || null,
       medicine: firstItem
         ? {
@@ -867,7 +867,7 @@ const VALID_TRANSITIONS = {
 export const updateOrderStatusService = async ({
   orderId,
   newStatus,
-  marketingAgentUserId,
+  blockCoordinatorUserId,
   cancelReason,
   enteredOtp,
   requester
@@ -880,8 +880,8 @@ export const updateOrderStatusService = async ({
   /* 🔐 AUTHORIZATION */
   const isAdmin = requester.roles?.includes("admin");
   const isAssignedRider =
-    order.deliveryAgentId &&
-    order.deliveryAgentId.toString() === requester.id.toString();
+    order.deliveryCommunityPartnerId &&
+    order.deliveryCommunityPartnerId.toString() === requester.id.toString();
 
   if (!isAdmin && !isAssignedRider) {
     throw new AppError("Not authorized to update this order", 403);
@@ -913,7 +913,7 @@ export const updateOrderStatusService = async ({
   }
 
   if (newStatus === "CANCELLED") {
-    order.cancelledReason = cancelReason || "Cancelled by delivery agent";
+    order.cancelledReason = cancelReason || "Cancelled by delivery community_partner";
   }
 
   order.orderStatus = newStatus;
@@ -977,7 +977,7 @@ export const getOrdersForRmRiderService = async ({
   limit = 10
 }) => {
   const query = {
-    deliveryAgentId: deliveryPartnerUserId
+    deliveryCommunityPartnerId: deliveryPartnerUserId
   };
 
   if (status) {

@@ -1,4 +1,4 @@
-import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, lookupCustomerByPhone, resolveOrCreateCustomer, searchAgentsForStaffOrder, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
+import { createMedicineOrder, getAllMedicineOrdersOverview, getMedicineOrderDetails, getOrdersForRmRiderService, getUserMedicineOrdersOverview, lookupCustomerByPhone, resolveOrCreateCustomer, searchCommunityPartnersForStaffOrder, updateOrderStatusService, verifyOtpAndUpdateOrderStatus } from "../services/medicineOrder.service.js";
 import { createRazorpayMedicineOrderService, verifyRazorpayPaymentService } from "../services/razorpay.js";
 import { cleanupUploadedFile } from "../utils/cleanupUploadedFile.js";
 
@@ -67,16 +67,16 @@ export const lookupCustomerController = async (req, res) => {
 };
 
 /**
- * Admin / receptionist picks an agent to place an order for, so agent pricing
+ * Admin / receptionist picks an community_partner to place an order for, so community_partner pricing
  * is applied deliberately instead of being inferred from a typed phone number.
  */
-export const searchAgentsForStaffOrderController = async (req, res) => {
+export const searchCommunityPartnersForStaffOrderController = async (req, res) => {
   try {
-    const agents = await searchAgentsForStaffOrder(
+    const community_partners = await searchCommunityPartnersForStaffOrder(
       req.query.search,
       req.query.limit
     );
-    res.status(200).json({ success: true, data: agents });
+    res.status(200).json({ success: true, data: community_partners });
   } catch (error) {
     res.status(error.statusCode || 400).json({
       success: false,
@@ -260,7 +260,7 @@ export const updateOrderStatusController = async (req, res, next) => {
     const updatedOrder = await updateOrderStatusService({
       orderId,
       newStatus,
-      marketingAgentUserId: req.user.id,
+      blockCoordinatorUserId: req.user.id,
       cancelReason,
       enteredOtp,
       requester: req.user
@@ -291,7 +291,7 @@ export const getAllMedicineOrdersController = async (req, res) => {
       paymentStatus,
       paymentMode,
       userId,
-      deliveryAgentId,
+      deliveryCommunityPartnerId,
       fromDate,
       toDate,
       page = 1,
@@ -303,7 +303,7 @@ export const getAllMedicineOrdersController = async (req, res) => {
       paymentStatus,
       paymentMode,
       userId,
-      deliveryAgentId,
+      deliveryCommunityPartnerId,
       fromDate,
       toDate
     };
@@ -419,10 +419,10 @@ export const assignDeliveryPartnerController = async (req, res) => {
     const updatedOrder = await MedicineOrder.findByIdAndUpdate(
       orderId,
       {
-        deliveryAgentId: userId
+        deliveryCommunityPartnerId: userId
       },
       { new: true }
-    ).populate("deliveryAgentId", "name phone");
+    ).populate("deliveryCommunityPartnerId", "name phone");
 
     if (!updatedOrder) {
       return res.status(404).json({

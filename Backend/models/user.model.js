@@ -78,8 +78,8 @@ const UserSchema = new mongoose.Schema(
         "admin",
         "doctor",
         "employee",
-        "agent",
-        "marketing_agent",
+        "community_partner",
+        "block_coordinator",
         "receptionist",
         "user",
         "delivery_partner",
@@ -101,15 +101,15 @@ const UserSchema = new mongoose.Schema(
     profiles: {
       doctorId: { type: mongoose.Schema.Types.ObjectId, ref: "DoctorProfile" },
       employeeId: { type: mongoose.Schema.Types.ObjectId, ref: "EmployeeProfile" },
-      agentId: { type: mongoose.Schema.Types.ObjectId, ref: "AgentProfile" },
+      communityPartnerId: { type: mongoose.Schema.Types.ObjectId, ref: "CommunityPartnerProfile" },
       patientId: { type: mongoose.Schema.Types.ObjectId, ref: "PatientProfile" },
       receptionistId: { type: mongoose.Schema.Types.ObjectId, ref: "ReceptionistProfile" },
       labOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: "LabProfile" },
-      marketing_agentId: {
+      blockCoordinatorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "MarketingAgentProfile",
+        ref: "BlockCoordinatorProfile",
       },
-      riderId: { type: mongoose.Schema.Types.ObjectId, ref: "RiderProfile" },
+      deliveryPartnerId: { type: mongoose.Schema.Types.ObjectId, ref: "DeliveryPartnerProfile" },
     },
 
     // SESSION CONTROL

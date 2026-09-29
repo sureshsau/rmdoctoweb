@@ -1,33 +1,33 @@
 import {
   getOrdersByUserService,
-  getAgentDownlineOrderStatsService,
-  getMarketingAgentNetworkOrderStatsService,
-  getAgentOrderAlertsService
+  getCommunityPartnerDownlineOrderStatsService,
+  getBlockCoordinatorNetworkOrderStatsService,
+  getCommunityPartnerOrderAlertsService
 } from "../services/orderStats.service.js";
 import AppError from "../utils/AppError.js";
 
 /**
  * ADMIN / SUBADMIN / MARKETING AGENT
- * GET /medicine/order/stats/agent-alerts?range=month&lowThreshold=5000
+ * GET /medicine/order/stats/community_partner-alerts?range=month&lowThreshold=5000
  *
- * Follow-up list of agents and what they ordered in the period, including
- * agents with no orders at all. Admin sees every agent; a marketing agent
- * sees only the agents assigned to them.
+ * Follow-up list of community_partners and what they ordered in the period, including
+ * community_partners with no orders at all. Admin sees every community_partner; a marketing community_partner
+ * sees only the community_partners assigned to them.
  */
-export const getAgentOrderAlertsController = async (req, res, next) => {
+export const getCommunityPartnerOrderAlertsController = async (req, res, next) => {
   try {
     const roles = req.user.roles || [];
 
     const isAdmin = roles.includes("admin") || roles.includes("subadmin");
-    const isMarketingAgent = roles.includes("marketing_agent");
+    const isBlockCoordinator = roles.includes("block_coordinator");
 
-    if (!isAdmin && !isMarketingAgent) {
+    if (!isAdmin && !isBlockCoordinator) {
       throw new AppError("Forbidden: Admin or Marketing Executive only", 403);
     }
 
     const { range, from, to, lowThreshold } = req.query;
 
-    const data = await getAgentOrderAlertsService({
+    const data = await getCommunityPartnerOrderAlertsService({
       // Admin wins when a user holds both roles — the wider view is the useful one
       scope: isAdmin ? "all" : "network",
       requesterId: req.user.id,
@@ -81,22 +81,22 @@ export const getOrdersByUserController = async (req, res, next) => {
 
 /**
  * AGENT
- * GET /medicine-orders/stats/agent/downline?range=month
+ * GET /medicine-orders/stats/community_partner/downline?range=month
  *
- * Returns total orders across the agent's entire downline tree (including self)
+ * Returns total orders across the community_partner's entire downline tree (including self)
  * range: today | week | month | year | custom
  */
-export const getAgentDownlineOrderStatsController = async (req, res, next) => {
+export const getCommunityPartnerDownlineOrderStatsController = async (req, res, next) => {
   try {
     const roles = req.user.roles || [];
-    if (!roles.includes("agent")) {
+    if (!roles.includes("community_partner")) {
       throw new AppError("Forbidden: RM Member only", 403);
     }
 
     const { range, from, to } = req.query;
 
-    const data = await getAgentDownlineOrderStatsService({
-      agentUserId: req.user.id,
+    const data = await getCommunityPartnerDownlineOrderStatsService({
+      communityPartnerUserId: req.user.id,
       range,
       from,
       to
@@ -116,22 +116,22 @@ export const getAgentDownlineOrderStatsController = async (req, res, next) => {
 
 /**
  * MARKETING AGENT
- * GET /medicine-orders/stats/marketing-agent/network?range=month
+ * GET /medicine-orders/stats/marketing-community_partner/network?range=month
  *
- * Returns total orders placed by all agents assigned to this marketing agent
+ * Returns total orders placed by all community_partners assigned to this marketing community_partner
  * range: today | week | month | year | custom
  */
-export const getMarketingAgentNetworkOrderStatsController = async (req, res, next) => {
+export const getBlockCoordinatorNetworkOrderStatsController = async (req, res, next) => {
   try {
     const roles = req.user.roles || [];
-    if (!roles.includes("marketing_agent")) {
+    if (!roles.includes("block_coordinator")) {
       throw new AppError("Forbidden: Marketing Executive only", 403);
     }
 
     const { range, from, to } = req.query;
 
-    const data = await getMarketingAgentNetworkOrderStatsService({
-      marketingAgentUserId: req.user.id,
+    const data = await getBlockCoordinatorNetworkOrderStatsService({
+      blockCoordinatorUserId: req.user.id,
       range,
       from,
       to

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const agentProfileSchema = new mongoose.Schema(
+const communityPartnerProfileSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -11,22 +11,22 @@ const agentProfileSchema = new mongoose.Schema(
     },
 
     /* 🌳 MLM HIERARCHY */
-    parentAgentId: {
+    parentCommunityPartnerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "AgentProfile",
+      ref: "CommunityPartnerProfile",
       default: null,
       index: true
     },
 
-    childAgentIds: [
+    childCommunityPartnerIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref:"AgentProfile",
+        ref:"CommunityPartnerProfile",
         index: true
       }
     ],
 
-    marketingAgentId: {
+    blockCoordinatorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       index: true
@@ -62,7 +62,7 @@ const agentProfileSchema = new mongoose.Schema(
 
     registeredBy: {
       type: String,
-      enum: ["AGENT", "SUBADMIN", "MARKETING_AGENT", "ADMIN"],
+      enum: ["COMMUNITY_PARTNER", "SUBADMIN", "BLOCK_COORDINATOR", "ADMIN"],
       default:"ADMIN"
     },
     status: {
@@ -72,8 +72,8 @@ const agentProfileSchema = new mongoose.Schema(
     },
 
     /* 🏪 SHOP DETAILS
-       Captured at registration. The meet/visit screens route a marketing
-       executive to the shop, so the address lives on the profile rather than
+       Captured at registration. The meet/visit screens route a block
+       coordinator to the shop, so the address lives on the profile rather than
        only on the user account — a member can move shop without the login
        address changing. */
     shopName: { type: String, trim: true, default: null },
@@ -95,8 +95,7 @@ const agentProfileSchema = new mongoose.Schema(
     location: {
       type: {
         type: String,
-        enum: ["Point"],
-        default: "Point"
+        enum: ["Point"]
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
@@ -118,7 +117,7 @@ const agentProfileSchema = new mongoose.Schema(
 );
 
 // Powers the "search a location → every RM member on that route" lookup
-agentProfileSchema.index({ location: "2dsphere" });
+communityPartnerProfileSchema.index({ location: "2dsphere" });
 
-const AgentProfile=mongoose.model("AgentProfile",agentProfileSchema);
-export default AgentProfile
+const CommunityPartnerProfile = mongoose.model("CommunityPartnerProfile", communityPartnerProfileSchema);
+export default CommunityPartnerProfile;

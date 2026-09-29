@@ -66,8 +66,8 @@ const labTestSchema = new mongoose.Schema(
         type: Number,
         required: true
       },
-      // Discounted price for agents (like medicine.pricing.specialPrice)
-      agentPrice: {
+      // Discounted price for community partners (like medicine.pricing.specialPrice)
+      communityPartnerPrice: {
         type: Number,
         required: true
       }

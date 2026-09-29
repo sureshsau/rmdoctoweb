@@ -8,13 +8,13 @@ const medicineOrderSchema = new mongoose.Schema(
       required: true,
       index: true
     },
-    deliveryAgentId: {
+    deliveryCommunityPartnerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         default:null,
         index: true
     },
-    marketingAgentId: {
+    blockCoordinatorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         default:null,

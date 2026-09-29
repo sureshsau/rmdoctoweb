@@ -1,25 +1,25 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
-import AgentProfile from "../models/agentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import ROLE from "../models/role.model.js";
 import RoleAssignment from '../models/roleAssignment.model.js'
 import { hashPassword } from "../utils/password.js";
 import { uploadAgreementToS3 } from "./aws.service.js";
 import AppError from "../utils/AppError.js";
-import marketingAgentProfile from "../models/marketingAgentProfile.model.js";
+import blockCoordinatorProfile from "../models/blockCoordinatorProfile.model.js";
 import { error } from "console";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 
 
 
-const validateAgentPayload = ({
-  agentName,
+const validateCommunityPartnerPayload = ({
+  communityPartnerName,
   phone,
   latitude,
   longitude
 }) => {
-  if (!agentName || !phone) {
-    throw new Error("agentName and phone are required");
+  if (!communityPartnerName || !phone) {
+    throw new Error("communityPartnerName and phone are required");
   }
 
   if (
@@ -30,14 +30,14 @@ const validateAgentPayload = ({
   }
 };
 
-export const registerAgentByMarketingAgentService = async ({
-  marketingAgentId,
+export const registerCommunityPartnerByBlockCoordinatorService = async ({
+  blockCoordinatorId,
   payload
 }) => {
 
   try {
     const {
-      agentName,
+      communityPartnerName,
       phone,
       latitude,
       longitude,
@@ -46,18 +46,18 @@ export const registerAgentByMarketingAgentService = async ({
       city = null,
       state = null,
       pincode = null,
-      parentAgentId = null,
+      parentCommunityPartnerId = null,
       shopName = null,
       visitFrequency = "MONTHLY"
     } = payload;
 
-    validateAgentPayload({ agentName, phone, latitude, longitude });
+    validateCommunityPartnerPayload({ communityPartnerName, phone, latitude, longitude });
 
-    /* The shop details ride on the agent profile, not the user account — the
+    /* The shop details ride on the community_partner profile, not the user account — the
        meet plan routes an executive to a shop, and a member can change shop
        without changing where they log in from. */
     const shopDetails = {
-      shopName: shopName || agentName,
+      shopName: shopName || communityPartnerName,
       address,
       landmark,
       city,
@@ -78,7 +78,7 @@ export const registerAgentByMarketingAgentService = async ({
     let user = await User.findOne({ phone });
 
     if (
-      user?.roles?.includes("marketing_agent") ||
+      user?.roles?.includes("block_coordinator") ||
       user?.roles?.includes("admin") ||
       user?.roles?.includes("subadmin")
     ) {
@@ -91,22 +91,22 @@ export const registerAgentByMarketingAgentService = async ({
       throw new AppError(`${user.roles} are already given to user`, 400);
     }
 
-    // 🔍 2. If agent profile already exists
-    if (user?.profiles?.agentId) {
-      const existingAgentProfile = await AgentProfile.findById(
-        user.profiles.agentId
+    // 🔍 2. If community_partner profile already exists
+    if (user?.profiles?.communityPartnerId) {
+      const existingCommunityPartnerProfile = await CommunityPartnerProfile.findById(
+        user.profiles.communityPartnerId
       );
 
-      if (existingAgentProfile) {
+      if (existingCommunityPartnerProfile) {
 
-        if (existingAgentProfile.marketingAgentId) {
+        if (existingCommunityPartnerProfile.blockCoordinatorId) {
           throw new AppError(
             "RM Member is already allocated to a Marketing Executive",
             400
           );
         }
 
-        if (existingAgentProfile.parentAgentId) {
+        if (existingCommunityPartnerProfile.parentCommunityPartnerId) {
           throw new AppError(
             "RM Member already belongs to a network. Contact admin for transfer.",
             400
@@ -114,11 +114,11 @@ export const registerAgentByMarketingAgentService = async ({
         }
 
         // Assign if unallocated
-        await AgentProfile.updateOne(
-          { _id: existingAgentProfile._id },
+        await CommunityPartnerProfile.updateOne(
+          { _id: existingCommunityPartnerProfile._id },
           {
             $set: {
-              marketingAgentId,
+              blockCoordinatorId,
               registeredBy: "MARKETING_AGENT",
               ...shopDetails
             }
@@ -127,7 +127,7 @@ export const registerAgentByMarketingAgentService = async ({
 
         return {
           userId: user._id,
-          agentProfileId: existingAgentProfile._id,
+          communityPartnerProfileId: existingCommunityPartnerProfile._id,
           message: "Existing RM Member assigned under Marketing Executive successfully"
         };
       }
@@ -136,20 +136,20 @@ export const registerAgentByMarketingAgentService = async ({
     // 🌳 MLM level calculation
     let level = 0;
 
-    if (parentAgentId) {
-      const parentAgent = await AgentProfile.findById(parentAgentId);
+    if (parentCommunityPartnerId) {
+      const parentCommunityPartner = await CommunityPartnerProfile.findById(parentCommunityPartnerId);
 
-      if (!parentAgent) {
+      if (!parentCommunityPartner) {
         throw new Error("Parent RM Member not found");
       }
 
-      level = parentAgent.level + 1;
+      level = parentCommunityPartner.level + 1;
     }
 
     // 🔹 3. Create user if not exists
     if (!user) {
       user = await User.create({
-        name: agentName,
+        name: communityPartnerName,
         phone,
         address,
         landmark,
@@ -160,8 +160,8 @@ export const registerAgentByMarketingAgentService = async ({
           type: "Point",
           coordinates: [longitude, latitude]
         },
-        dashboard: "agent",
-        roles: ["agent"],
+        dashboard: "community_partner",
+        roles: ["community_partner"],
         permissions: [],
         isActive: true,
         isBlocked: false,
@@ -169,21 +169,21 @@ export const registerAgentByMarketingAgentService = async ({
       });
     }
 
-    // 🔹 4. Create agent profile
-    const agentProfile = await AgentProfile.create({
+    // 🔹 4. Create community_partner profile
+    const communityPartnerProfile = await CommunityPartnerProfile.create({
       userId: user._id,
       level,
       directDownlineCount: 0,
       totalDownlineCount: 0,
-      marketingAgentId,
+      blockCoordinatorId,
       registeredBy: "MARKETING_AGENT",
       ...shopDetails
     });
 
-    const agentProfileId = agentProfile._id;
+    const communityPartnerProfileId = communityPartnerProfile._id;
 
     // 🔗 5. RBAC update
-    const role = await ROLE.findOne({ key: "agent" })
+    const role = await ROLE.findOne({ key: "community_partner" })
       .select("permissions")
       .lean();
 
@@ -191,17 +191,17 @@ export const registerAgentByMarketingAgentService = async ({
       { _id: user._id },
       {
         $set: {
-          dashboard: "agent",
-          roles: ["agent"],
+          dashboard: "community_partner",
+          roles: ["community_partner"],
           permissions: role?.permissions || [],
-          "profiles.agentId": agentProfileId
+          "profiles.communityPartnerId": communityPartnerProfileId
         }
       }
     );
 
     return {
       userId: user._id,
-      agentProfileId,
+      communityPartnerProfileId,
       message: "New RM Member registered successfully"
     };
 
@@ -212,15 +212,15 @@ export const registerAgentByMarketingAgentService = async ({
 };
 
 
-export const getMarketingAgentTree = async ({
-  marketingAgentUserId
+export const getBlockCoordinatorTree = async ({
+  blockCoordinatorUserId
 }) => {
   try {
     /* =========================
        1️⃣ FETCH ROOT AGENTS (LEVEL 0)
     ========================= */
-    const rootAgents = await AgentProfile.find({
-      marketingAgentId: marketingAgentUserId,
+    const rootCommunityPartners = await CommunityPartnerProfile.find({
+      blockCoordinatorId: blockCoordinatorUserId,
       level: 0
     })
       .populate({
@@ -229,45 +229,45 @@ export const getMarketingAgentTree = async ({
       })
       .lean();
 
-    if (!rootAgents.length) {
+    if (!rootCommunityPartners.length) {
       return { success: true, tree: [] };
     }
 
     /* =========================
        2️⃣ PREPARE MAP & QUEUE
     ========================= */
-    const agentMap = new Map();
+    const community_partnerMap = new Map();
     const queue = [];
 
     // Initialize roots
-    for (const agent of rootAgents) {
+    for (const community_partner of rootCommunityPartners) {
       const node = {
-        id: agent._id,
-        name: agent.userId?.name || "",
-        phone: agent.userId?.phone || "",
-        level: agent.level,
+        id: community_partner._id,
+        name: community_partner.userId?.name || "",
+        phone: community_partner.userId?.phone || "",
+        level: community_partner.level,
         children: []
       };
 
-      agentMap.set(agent._id.toString(), node);
-      queue.push(agent); // push full agent doc for traversal
+      community_partnerMap.set(community_partner._id.toString(), node);
+      queue.push(community_partner); // push full community_partner doc for traversal
     }
 
     /* =========================
        3️⃣ BFS TRAVERSAL
     ========================= */
     while (queue.length > 0) {
-      const currentAgent = queue.shift();
-      const currentNode = agentMap.get(
-        currentAgent._id.toString()
+      const currentCommunityPartner = queue.shift();
+      const currentNode = community_partnerMap.get(
+        currentCommunityPartner._id.toString()
       );
 
       if (
-        currentAgent.childAgentIds &&
-        currentAgent.childAgentIds.length > 0
+        currentCommunityPartner.childCommunityPartnerIds &&
+        currentCommunityPartner.childCommunityPartnerIds.length > 0
       ) {
-        const children = await AgentProfile.find({
-          _id: { $in: currentAgent.childAgentIds }
+        const children = await CommunityPartnerProfile.find({
+          _id: { $in: currentCommunityPartner.childCommunityPartnerIds }
         })
           .populate({
             path: "userId",
@@ -284,7 +284,7 @@ export const getMarketingAgentTree = async ({
             children: []
           };
 
-          agentMap.set(child._id.toString(), childNode);
+          community_partnerMap.set(child._id.toString(), childNode);
           currentNode.children.push(childNode);
           queue.push(child);
         }
@@ -296,24 +296,24 @@ export const getMarketingAgentTree = async ({
     ========================= */
     return {
       success: true,
-      tree: Array.from(agentMap.values()).filter(
+      tree: Array.from(community_partnerMap.values()).filter(
         node => node.level === 0
       )
     };
   } catch (error) {
-    console.error("getMarketingAgentTree error:", error);
+    console.error("getBlockCoordinatorTree error:", error);
     throw error;
   }
 };
 
-export const getOrdersForMarketingAgentService = async ({
-  marketingAgentUserId,
+export const getOrdersForBlockCoordinatorService = async ({
+  blockCoordinatorUserId,
   status,
   page = 1,
   limit = 10
 }) => {
   const query = {
-    marketingAgentId: marketingAgentUserId
+    blockCoordinatorId: blockCoordinatorUserId
   };
 
   if (status) {

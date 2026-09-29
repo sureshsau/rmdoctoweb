@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-import AgentProfile from "../models/agentProfile.model.js";
-import AgentVisit from "../models/agentVisit.model.js";
-import MarketingAgentProfile from "../models/marketingAgentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
+import CommunityPartnerVisit from "../models/communityPartnerVisit.model.js";
+import BlockCoordinatorProfile from "../models/blockCoordinatorProfile.model.js";
 import User from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import { describePeriod, resolvePeriod } from "../utils/period.js";
@@ -23,7 +23,7 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const roleTag = (roles = []) => {
   if (roles.includes("admin")) return "ADMIN";
   if (roles.includes("subadmin")) return "SUBADMIN";
-  if (roles.includes("marketing_agent")) return "MARKETING_AGENT";
+  if (roles.includes("block_coordinator")) return "MARKETING_AGENT";
   return "EMPLOYEE";
 };
 
@@ -36,7 +36,7 @@ const toNumber = (v) => {
    SHARED PIPELINE FRAGMENTS
 ──────────────────────────────────────────────────────────────── */
 
-/* A shop's coordinates live on the agent profile once it has been captured
+/* A shop's coordinates live on the community_partner profile once it has been captured
    at registration, but older members only have a location on their user
    account. Prefer the shop, fall back to the account. */
 const EFFECTIVE_COORDS = {
@@ -100,14 +100,14 @@ const haversineFrom = (centreLng, centreLat) => ({
    with the name of whoever logged it. */
 const periodVisitsLookup = (from, to) => ({
   $lookup: {
-    from: "agentvisits",
+    from: "community_partnervisits",
     let: { pid: "$_id" },
     pipeline: [
       {
         $match: {
           $expr: {
             $and: [
-              { $eq: ["$agentProfileId", "$$pid"] },
+              { $eq: ["$communityPartnerProfileId", "$$pid"] },
               { $gte: ["$visitedAt", from] },
               { $lt: ["$visitedAt", to] },
             ],
@@ -176,7 +176,7 @@ const DERIVE_STATUS = [
 
 const MEMBER_PROJECTION = {
   _id: 0,
-  agentProfileId: "$_id",
+  communityPartnerProfileId: "$_id",
   userId: "$user._id",
   name: "$user.name",
   phone: "$user.phone",
@@ -195,7 +195,7 @@ const MEMBER_PROJECTION = {
 
   visitFrequency: 1,
   level: 1,
-  marketingAgentId: 1,
+  blockCoordinatorId: 1,
   lastVisitedAt: 1,
 
   visitStatus: 1,
@@ -210,18 +210,18 @@ const MEMBER_PROJECTION = {
    SCOPE
 ──────────────────────────────────────────────────────────────── */
 
-const buildScope = ({ requester, marketingAgentId }) => {
+const buildScope = ({ requester, blockCoordinatorId }) => {
   if (!isFullScope(requester.roles)) {
     // Marketing executive — hard-locked to their own allocation
-    return { marketingAgentId: oid(requester.id) };
+    return { blockCoordinatorId: oid(requester.id) };
   }
 
-  if (marketingAgentId && marketingAgentId !== "all") {
-    if (marketingAgentId === "unassigned") return { marketingAgentId: null };
-    if (!mongoose.isValidObjectId(marketingAgentId)) {
-      throw new AppError("Invalid marketingAgentId", 400);
+  if (blockCoordinatorId && blockCoordinatorId !== "all") {
+    if (blockCoordinatorId === "unassigned") return { blockCoordinatorId: null };
+    if (!mongoose.isValidObjectId(blockCoordinatorId)) {
+      throw new AppError("Invalid blockCoordinatorId", 400);
     }
-    return { marketingAgentId: oid(marketingAgentId) };
+    return { blockCoordinatorId: oid(blockCoordinatorId) };
   }
 
   return {};
@@ -242,12 +242,12 @@ export const getVisitPlanService = async ({
   longitude,
   radiusKm,
   frequency,
-  marketingAgentId,
+  blockCoordinatorId,
   page = 1,
   limit = 20,
 }) => {
   const period = resolvePeriod({ range, from, to });
-  const scope = buildScope({ requester, marketingAgentId });
+  const scope = buildScope({ requester, blockCoordinatorId });
 
   const statusFilter = String(status || "all").toLowerCase();
   if (!["all", "pending", "completed"].includes(statusFilter)) {
@@ -353,7 +353,7 @@ export const getVisitPlanService = async ({
     },
   });
 
-  const [result] = await AgentProfile.aggregate(pipeline).allowDiskUse(true);
+  const [result] = await CommunityPartnerProfile.aggregate(pipeline).allowDiskUse(true);
 
   const counts = result?.counts || [];
   const completed = counts.find((c) => c._id === "COMPLETED")?.count || 0;
@@ -405,11 +405,11 @@ export const getVisitLocationsService = async ({
   range = "day",
   from,
   to,
-  marketingAgentId,
+  blockCoordinatorId,
   search,
 }) => {
   const period = resolvePeriod({ range, from, to });
-  const scope = buildScope({ requester, marketingAgentId });
+  const scope = buildScope({ requester, blockCoordinatorId });
 
   const pipeline = [
     { $match: scope },
@@ -497,7 +497,7 @@ export const getVisitLocationsService = async ({
     { $limit: 100 }
   );
 
-  const routes = await AgentProfile.aggregate(pipeline).allowDiskUse(true);
+  const routes = await CommunityPartnerProfile.aggregate(pipeline).allowDiskUse(true);
 
   return {
     period: {
@@ -516,41 +516,41 @@ export const getVisitLocationsService = async ({
 
 export const getVisitTrackService = async ({
   requester,
-  agentProfileId,
+  communityPartnerProfileId,
   range = "month",
   from,
   to,
 }) => {
-  if (!mongoose.isValidObjectId(agentProfileId)) {
+  if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
     throw new AppError("Invalid RM Member id", 400);
   }
 
-  const profile = await AgentProfile.findById(agentProfileId).lean();
+  const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
   if (!profile) throw new AppError("RM Member not found", 404);
 
   assertCanTouchMember({ requester, profile });
 
-  const [user, marketingAgent] = await Promise.all([
+  const [user, blockCoordinator] = await Promise.all([
     User.findById(profile.userId)
       .select("name phone address landmark city state pincode location faceImage")
       .lean(),
-    profile.marketingAgentId
-      ? User.findById(profile.marketingAgentId).select("name phone").lean()
+    profile.blockCoordinatorId
+      ? User.findById(profile.blockCoordinatorId).select("name phone").lean()
       : null,
   ]);
 
   const period = resolvePeriod({ range, from, to });
 
   const [periodVisits, recentVisits] = await Promise.all([
-    AgentVisit.find({
-      agentProfileId: profile._id,
+    CommunityPartnerVisit.find({
+      communityPartnerProfileId: profile._id,
       visitedAt: { $gte: period.from, $lt: period.to },
     })
       .sort({ visitedAt: -1 })
       .populate({ path: "visitedBy", select: "name phone" })
       .lean(),
 
-    AgentVisit.find({ agentProfileId: profile._id })
+    CommunityPartnerVisit.find({ communityPartnerProfileId: profile._id })
       .sort({ visitedAt: -1 })
       .limit(20)
       .populate({ path: "visitedBy", select: "name phone" })
@@ -582,7 +582,7 @@ export const getVisitTrackService = async ({
 
   return {
     member: {
-      agentProfileId: profile._id,
+      communityPartnerProfileId: profile._id,
       userId: profile.userId,
       name: user?.name || null,
       phone: user?.phone || null,
@@ -603,8 +603,8 @@ export const getVisitTrackService = async ({
 
       visitFrequency: profile.visitFrequency,
       lastVisitedAt: profile.lastVisitedAt,
-      marketingAgent: marketingAgent
-        ? { userId: marketingAgent._id, name: marketingAgent.name, phone: marketingAgent.phone }
+      blockCoordinator: blockCoordinator
+        ? { userId: blockCoordinator._id, name: blockCoordinator.name, phone: blockCoordinator.phone }
         : null,
     },
     period: {
@@ -628,11 +628,11 @@ export const getVisitTrackService = async ({
 const assertCanTouchMember = ({ requester, profile }) => {
   if (isFullScope(requester.roles)) return;
 
-  if (!requester.roles.includes("marketing_agent")) {
+  if (!requester.roles.includes("block_coordinator")) {
     throw new AppError("You are not allowed to manage RM Member meets", 403);
   }
 
-  if (String(profile.marketingAgentId || "") !== String(requester.id)) {
+  if (String(profile.blockCoordinatorId || "") !== String(requester.id)) {
     throw new AppError("This RM Member is not allocated to you", 403);
   }
 };
@@ -657,11 +657,11 @@ const distanceBetween = (a, b) => {
 
 export const markVisitService = async ({
   requester,
-  agentProfileId,
+  communityPartnerProfileId,
   payload = {},
   file = null,
 }) => {
-  if (!mongoose.isValidObjectId(agentProfileId)) {
+  if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
     throw new AppError("Invalid RM Member id", 400);
   }
 
@@ -686,7 +686,7 @@ export const markVisitService = async ({
     throw new AppError("visitType must be DAILY, WEEKLY, MONTHLY or CUSTOM", 400);
   }
 
-  const profile = await AgentProfile.findById(agentProfileId).lean();
+  const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
   if (!profile) throw new AppError("RM Member not found", 404);
 
   assertCanTouchMember({ requester, profile });
@@ -709,19 +709,19 @@ export const markVisitService = async ({
   let photo = undefined;
   if (file?.buffer) {
     photo = await uploadVisitPhotoToS3({
-      agentProfileId: profile._id,
+      communityPartnerProfileId: profile._id,
       imageBuffer: file.buffer,
       mimeType: file.mimetype,
       fileName: file.originalname,
     });
   }
 
-  const visit = await AgentVisit.create({
-    agentProfileId: profile._id,
-    agentUserId: profile.userId,
+  const visit = await CommunityPartnerVisit.create({
+    communityPartnerProfileId: profile._id,
+    communityPartnerUserId: profile.userId,
     visitedBy: requester.id,
     visitedByRole: roleTag(requester.roles),
-    marketingAgentId: profile.marketingAgentId || null,
+    blockCoordinatorId: profile.blockCoordinatorId || null,
     visitedAt: visitedAt ? new Date(visitedAt) : new Date(),
     status: nextStatus,
     outcome:
@@ -736,12 +736,12 @@ export const markVisitService = async ({
   });
 
   if (nextStatus === "COMPLETED") {
-    await AgentProfile.updateOne(
+    await CommunityPartnerProfile.updateOne(
       { _id: profile._id },
       { $set: { lastVisitedAt: visit.visitedAt } }
     );
 
-    await bumpMarketingAgentCounters(profile.marketingAgentId, visit.visitedAt);
+    await bumpBlockCoordinatorCounters(profile.blockCoordinatorId, visit.visitedAt);
   }
 
   /* The executive's own radius rule — surfaced as a flag rather than a block
@@ -750,7 +750,7 @@ export const markVisitService = async ({
 
   return {
     visitId: visit._id,
-    agentProfileId: profile._id,
+    communityPartnerProfileId: profile._id,
     status: visit.status,
     outcome: visit.outcome,
     visitedAt: visit.visitedAt,
@@ -765,7 +765,7 @@ export const markVisitService = async ({
 const visitRadiusFor = async (requester) => {
   if (isFullScope(requester.roles)) return Number.MAX_SAFE_INTEGER;
 
-  const profile = await MarketingAgentProfile.findOne({ userId: requester.id })
+  const profile = await BlockCoordinatorProfile.findOne({ userId: requester.id })
     .select("visitRadiusInMeters")
     .lean();
 
@@ -773,13 +773,13 @@ const visitRadiusFor = async (requester) => {
 };
 
 /* Keeps the executive's monthly snapshot honest without a nightly job. */
-const bumpMarketingAgentCounters = async (marketingAgentUserId, visitedAt) => {
-  if (!marketingAgentUserId) return;
+const bumpBlockCoordinatorCounters = async (blockCoordinatorUserId, visitedAt) => {
+  if (!blockCoordinatorUserId) return;
 
   const monthKey = new Date(visitedAt).toISOString().slice(0, 7); // YYYY-MM
 
-  const profile = await MarketingAgentProfile.findOne({
-    userId: marketingAgentUserId,
+  const profile = await BlockCoordinatorProfile.findOne({
+    userId: blockCoordinatorUserId,
   })
     .select("currentMonth")
     .lean();
@@ -788,8 +788,8 @@ const bumpMarketingAgentCounters = async (marketingAgentUserId, visitedAt) => {
 
   if (profile.currentMonth !== monthKey) {
     // New month — reset the snapshot before counting this meet
-    await MarketingAgentProfile.updateOne(
-      { userId: marketingAgentUserId },
+    await BlockCoordinatorProfile.updateOne(
+      { userId: blockCoordinatorUserId },
       {
         $set: {
           currentMonth: monthKey,
@@ -802,8 +802,8 @@ const bumpMarketingAgentCounters = async (marketingAgentUserId, visitedAt) => {
     return;
   }
 
-  await MarketingAgentProfile.updateOne(
-    { userId: marketingAgentUserId },
+  await BlockCoordinatorProfile.updateOne(
+    { userId: blockCoordinatorUserId },
     {
       $inc: { totalVisitsCompletedThisMonth: 1 },
       $set: { lastVisitMarkedAt: visitedAt, lastActiveAt: new Date() },
@@ -820,7 +820,7 @@ export const deleteVisitService = async ({ requester, visitId }) => {
     throw new AppError("Invalid visit id", 400);
   }
 
-  const visit = await AgentVisit.findById(visitId);
+  const visit = await CommunityPartnerVisit.findById(visitId);
   if (!visit) throw new AppError("Meet record not found", 404);
 
   const admin = isFullScope(requester.roles);
@@ -833,28 +833,28 @@ export const deleteVisitService = async ({ requester, visitId }) => {
 
   /* lastVisitedAt is a cache of the newest completed meet — recompute it
      rather than leaving a timestamp for a record that no longer exists. */
-  const newest = await AgentVisit.findOne({
-    agentProfileId: visit.agentProfileId,
+  const newest = await CommunityPartnerVisit.findOne({
+    communityPartnerProfileId: visit.communityPartnerProfileId,
     status: "COMPLETED",
   })
     .sort({ visitedAt: -1 })
     .select("visitedAt")
     .lean();
 
-  await AgentProfile.updateOne(
-    { _id: visit.agentProfileId },
+  await CommunityPartnerProfile.updateOne(
+    { _id: visit.communityPartnerProfileId },
     { $set: { lastVisitedAt: newest?.visitedAt || null } }
   );
 
-  if (visit.status === "COMPLETED" && visit.marketingAgentId) {
+  if (visit.status === "COMPLETED" && visit.blockCoordinatorId) {
     const monthKey = new Date(visit.visitedAt).toISOString().slice(0, 7);
-    await MarketingAgentProfile.updateOne(
-      { userId: visit.marketingAgentId, currentMonth: monthKey },
+    await BlockCoordinatorProfile.updateOne(
+      { userId: visit.blockCoordinatorId, currentMonth: monthKey },
       { $inc: { totalVisitsCompletedThisMonth: -1 } }
     );
   }
 
-  return { visitId, agentProfileId: visit.agentProfileId };
+  return { visitId, communityPartnerProfileId: visit.communityPartnerProfileId };
 };
 
 /* ────────────────────────────────────────────────────────────────
@@ -866,12 +866,12 @@ export const getVisitSummaryService = async ({
   range = "day",
   from,
   to,
-  marketingAgentId,
+  blockCoordinatorId,
 }) => {
   const period = resolvePeriod({ range, from, to });
-  const scope = buildScope({ requester, marketingAgentId });
+  const scope = buildScope({ requester, blockCoordinatorId });
 
-  const [result] = await AgentProfile.aggregate([
+  const [result] = await CommunityPartnerProfile.aggregate([
     { $match: scope },
     {
       $lookup: {
@@ -925,15 +925,15 @@ export const getVisitSummaryService = async ({
 
 export const updateShopDetailsService = async ({
   requester,
-  agentProfileId,
+  communityPartnerProfileId,
   payload = {},
   file = null,
 }) => {
-  if (!mongoose.isValidObjectId(agentProfileId)) {
+  if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
     throw new AppError("Invalid RM Member id", 400);
   }
 
-  const profile = await AgentProfile.findById(agentProfileId).lean();
+  const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
   if (!profile) throw new AppError("RM Member not found", 404);
 
   assertCanTouchMember({ requester, profile });
@@ -971,7 +971,7 @@ export const updateShopDetailsService = async ({
 
   if (file?.buffer) {
     const uploaded = await uploadVisitPhotoToS3({
-      agentProfileId: profile._id,
+      communityPartnerProfileId: profile._id,
       imageBuffer: file.buffer,
       mimeType: file.mimetype,
       fileName: file.originalname,
@@ -985,10 +985,10 @@ export const updateShopDetailsService = async ({
     throw new AppError("Nothing to update", 400);
   }
 
-  await AgentProfile.updateOne({ _id: profile._id }, { $set: set });
+  await CommunityPartnerProfile.updateOne({ _id: profile._id }, { $set: set });
 
   return {
-    agentProfileId: profile._id,
+    communityPartnerProfileId: profile._id,
     shopName: set.shopName ?? profile.shopName ?? null,
     shopImage: set.shopImage?.url ?? profile.shopImage?.url ?? null,
     location: set.location ?? profile.location ?? null,

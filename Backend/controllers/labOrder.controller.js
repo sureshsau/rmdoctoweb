@@ -7,7 +7,7 @@ import {
   getAllLabOrdersOverview,
   updateLabOrderStatusService,
   verifyLabOtpService,
-  assignCollectionAgentService,
+  assignCollectionCommunityPartnerService,
   uploadPrescriptionService,
   getPrescriptionService,
   deletePrescriptionService,
@@ -86,7 +86,7 @@ export const getAllLabOrdersController = async (req, res) => {
       collectionType,
       userId,
       labId,
-      collectionAgentId,
+      collectionCommunityPartnerId,
       fromDate,
       toDate,
       page  = 1,
@@ -94,7 +94,7 @@ export const getAllLabOrdersController = async (req, res) => {
     } = req.query;
 
     const result = await getAllLabOrdersOverview({
-      filters: { orderStatus, paymentStatus, paymentMode, collectionType, userId, labId, collectionAgentId, fromDate, toDate },
+      filters: { orderStatus, paymentStatus, paymentMode, collectionType, userId, labId, collectionCommunityPartnerId, fromDate, toDate },
       page,
       limit
     });
@@ -174,24 +174,24 @@ export const verifyLabOtpController = async (req, res) => {
 /* ═══════════════════════════════════════════════
    ASSIGN COLLECTION AGENT
 ═══════════════════════════════════════════════ */
-export const assignCollectionAgentController = async (req, res) => {
+export const assignCollectionCommunityPartnerController = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { userId }  = req.body;
 
-    const updated = await assignCollectionAgentService({
+    const updated = await assignCollectionCommunityPartnerService({
       orderId,
-      agentUserId: userId,
+      communityPartnerUserId: userId,
       requester:   req.user
     });
 
     return res.status(200).json({
       success: true,
-      message: "Collection agent assigned successfully",
+      message: "Collection community_partner assigned successfully",
       data: updated
     });
   } catch (error) {
-    console.error("assignCollectionAgentController:", error);
+    console.error("assignCollectionCommunityPartnerController:", error);
     return res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 };

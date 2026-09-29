@@ -300,7 +300,7 @@ export const uploadMedicineImageToS3 = async ({
 /* Shop front photos (captured at RM Member registration) and on-the-spot
    proof photos taken during a meet. Same bucket, different folder. */
 export const uploadVisitPhotoToS3 = async ({
-  agentProfileId,
+  communityPartnerProfileId,
   imageBuffer,
   mimeType,
   fileName,
@@ -318,7 +318,7 @@ export const uploadVisitPhotoToS3 = async ({
     ? fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9.\-]/g, "")
     : "photo";
 
-  const key = `agents/${agentProfileId}/${folder}/${Date.now()}-${safeName}.${ext}`;
+  const key = `community_partners/${communityPartnerProfileId}/${folder}/${Date.now()}-${safeName}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
@@ -370,7 +370,7 @@ export const uploadAgreementToS3 = async ({
     }
 
     // 🗂️ Structured S3 key (audit + easy cleanup)
-    const key = `agents/${userId}/agreement/${documentType}.pdf`;
+    const key = `community_partners/${userId}/agreement/${documentType}.pdf`;
 
     console.log("⏫ Uploading agreement to S3...", key);
 

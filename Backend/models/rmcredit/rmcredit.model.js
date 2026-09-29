@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const RMCreditSchema = new mongoose.Schema(
   {
-    agentId: {
+    communityPartnerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,

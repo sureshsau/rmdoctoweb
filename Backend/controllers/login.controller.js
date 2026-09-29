@@ -131,7 +131,7 @@ export const verifyOtpLogin = async (req, res) => {
   try {
     const { phone, otp } = req.body;
     const ip = req.ip;
-    const device = req.headers["user-agent"];
+    const device = req.headers["user-community_partner"];
     console.log("for number is ", phone, ":", otp);
 
     if (!phone || !otp) {

@@ -13,13 +13,13 @@ import rolesRoute from "./routes/role.route.js";
 import roleAssignmentsRoute from "./routes/roleAssignments.route.js";
 import userRoute from "./routes/user.route.js";
 import permissionRoute from "./routes/permission.route.js";
-import agentRoute from "./routes/agent.route.js";
+import communityPartnerRoute from "./routes/communityPartner.route.js";
 import medicineRouter from "./routes/medicine.route.js";
 import medicineOrderRoute from './routes/medicineOrder.route.js'
 import rmcreditRoute from "./routes/rmcredit.route.js";
 import AppError from "./utils/AppError.js";
 import { ensureRekognitionCollection, wipeAllFacesFromRekognition } from "./services/aws.service.js";
-import marketingAgentRoute from './routes/marketingAgent.route.js'
+import blockCoordinatorRoute from './routes/blockCoordinator.route.js'
 import Razorpay from "razorpay";
 import razorpay from "./config/razorpay.config.js";
 import appointmentRoute from './routes/appointment.routes.js';
@@ -80,9 +80,9 @@ app.use("/roles", rolesRoute);
 app.use("/role-assignments", roleAssignmentsRoute);
 app.use("/user", userRoute);
 app.use("/permission", permissionRoute);
-app.use("/agent", agentRoute);
+app.use("/community-partner", communityPartnerRoute);
 app.use("/medicine/order", medicineOrderRoute);
-app.use("/marketing-agent", marketingAgentRoute)
+app.use("/block-coordinator", blockCoordinatorRoute)
 app.use("/appointment", appointmentRoute)
 app.use("/rmcredit", rmcreditRoute);
 app.use("/rmcoin", rmcoinRoute);

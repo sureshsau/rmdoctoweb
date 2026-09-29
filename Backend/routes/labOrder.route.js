@@ -8,7 +8,7 @@ import {
   getAllLabOrdersController,
   updateLabOrderStatusController,
   verifyLabOtpController,
-  assignCollectionAgentController,
+  assignCollectionCommunityPartnerController,
   uploadPrescriptionController,
   getPrescriptionController,
   deletePrescriptionController,
@@ -52,13 +52,13 @@ router.post("/payments/razorpay/create", authenticate, createRazorpayLabOrderCon
 // POST /lab/order/payments/razorpay/verify
 router.post("/payments/razorpay/verify", authenticate, verifyRazorpayLabPaymentController);
 
-// Assign collection agent (delivery_partner) to order
+// Assign collection community_partner (delivery_partner) to order
 // PATCH /lab/order/assign-collector/:orderId
 router.patch(
   "/assign-collector/:orderId",
   authenticate,
   authorize("labOrder.assign.collector"),
-  assignCollectionAgentController
+  assignCollectionCommunityPartnerController
 );
 
 // Update order status (admin)
@@ -74,7 +74,7 @@ router.patch(
    MAIN ROUTES
 ═════════════════════════════════════════ */
 
-// Place a lab booking (user / agent)
+// Place a lab booking (user / community_partner)
 // POST /lab/order
 router.post("/", authenticate, bookLabOrderController);
 

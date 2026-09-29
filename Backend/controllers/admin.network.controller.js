@@ -1,23 +1,23 @@
-import { getAgentVisibleNetwork, registerAgentByAdminService } from "../services/agent.service.js";
-import { getMarketingAgentTree } from "../services/marketingAgent.service.js";
+import { getCommunityPartnerVisibleNetwork, registerCommunityPartnerByAdminService } from "../services/communityPartner.service.js";
+import { getBlockCoordinatorTree } from "../services/blockCoordinator.service.js";
 import User from "../models/user.model.js";
 
 /* ──────────────────────────────────────────────────────────────
-   GET /admin/network/agent/:userId
-   Admin views any specific Agent's full network tree
+   GET /admin/network/community_partner/:userId
+   Admin views any specific CommunityPartner's full network tree
 ────────────────────────────────────────────────────────────── */
-export const adminGetAgentNetworkController = async (req, res) => {
+export const adminGetCommunityPartnerNetworkController = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const data = await getAgentVisibleNetwork({ agentUserId: userId });
+    const data = await getCommunityPartnerVisibleNetwork({ communityPartnerUserId: userId });
 
     return res.status(200).json({
       success: true,
       data,
     });
   } catch (error) {
-    console.error("adminGetAgentNetworkController error:", error);
+    console.error("adminGetCommunityPartnerNetworkController error:", error);
     return res.status(400).json({
       success: false,
       message: error.message,
@@ -26,21 +26,21 @@ export const adminGetAgentNetworkController = async (req, res) => {
 };
 
 /* ──────────────────────────────────────────────────────────────
-   GET /admin/network/marketing-agent/:userId
-   Admin views any specific Marketing Agent's full tree
+   GET /admin/network/marketing-community_partner/:userId
+   Admin views any specific Marketing CommunityPartner's full tree
 ────────────────────────────────────────────────────────────── */
-export const adminGetMarketingAgentNetworkController = async (req, res) => {
+export const adminGetBlockCoordinatorNetworkController = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const data = await getMarketingAgentTree({ marketingAgentUserId: userId });
+    const data = await getBlockCoordinatorTree({ blockCoordinatorUserId: userId });
 
     return res.status(200).json({
       success: true,
       data,
     });
   } catch (error) {
-    console.error("adminGetMarketingAgentNetworkController error:", error);
+    console.error("adminGetBlockCoordinatorNetworkController error:", error);
     return res.status(400).json({
       success: false,
       message: error.message,
@@ -49,21 +49,21 @@ export const adminGetMarketingAgentNetworkController = async (req, res) => {
 };
 
 /* ──────────────────────────────────────────────────────────────
-   GET /admin/network/agents
-   Admin gets a list of all root agents (level 0, no parent)
+   GET /admin/network/community_partners
+   Admin gets a list of all root community_partners (level 0, no parent)
    for quick selection in the pick list
 ────────────────────────────────────────────────────────────── */
-export const adminGetAllAgentsController = async (req, res) => {
+export const adminGetAllCommunityPartnersController = async (req, res) => {
   try {
-    const agents = await User.find({
-      roles: { $in: ["agent"] },
+    const community_partners = await User.find({
+      roles: { $in: ["community_partner"] },
     })
       .select("_id name phone faceImage isActive")
       .lean();
 
     return res.status(200).json({
       success: true,
-      data: agents,
+      data: community_partners,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -71,30 +71,30 @@ export const adminGetAllAgentsController = async (req, res) => {
 };
 
 /* ──────────────────────────────────────────────────────────────
-   GET /admin/network/marketing-agents
-   Admin gets a list of all marketing agents for the pick list
+   GET /admin/network/marketing-community_partners
+   Admin gets a list of all marketing community_partners for the pick list
 ────────────────────────────────────────────────────────────── */
-export const adminGetAllMarketingAgentsController = async (req, res) => {
+export const adminGetAllBlockCoordinatorsController = async (req, res) => {
   try {
-    const agents = await User.find({
-      roles: { $in: ["marketing_agent"] },
+    const community_partners = await User.find({
+      roles: { $in: ["block_coordinator"] },
     })
       .select("_id name phone faceImage isActive")
       .lean();
 
     return res.status(200).json({
       success: true,
-      data: agents,
+      data: community_partners,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const registerAgentByAdminController = async (req, res) => {
+export const registerCommunityPartnerByAdminController = async (req, res) => {
   try {
       const payload=req.body;
-      const data=await registerAgentByAdminService({payload})
+      const data=await registerCommunityPartnerByAdminService({payload})
 
     return res.status(201).json({
       success: true,
@@ -103,7 +103,7 @@ export const registerAgentByAdminController = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Agent registration error:", error);
+    console.error("❌ CommunityPartner registration error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Internal server error",

@@ -9,7 +9,7 @@ const RMCreditTransactionSchema = new mongoose.Schema(
       index: true
     },
 
-    agentId: {
+    communityPartnerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,

@@ -5,23 +5,23 @@ import mongoose from "mongoose";
    period the caller asks about (day, week, month or a custom range) rather
    than stored per period — that way one model answers every filter and a
    custom range needs no backfill. */
-const agentVisitSchema = new mongoose.Schema(
+const communityPartnerVisitSchema = new mongoose.Schema(
   {
-    agentProfileId: {
+    communityPartnerProfileId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "AgentProfile",
+      ref: "CommunityPartnerProfile",
       required: true,
       index: true
     },
 
-    agentUserId: {
+    communityPartnerUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true
     },
 
-    /* Who did the meet — a marketing executive or an admin */
+    /* Who did the meet — a block coordinator or an admin */
     visitedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -31,14 +31,14 @@ const agentVisitSchema = new mongoose.Schema(
 
     visitedByRole: {
       type: String,
-      enum: ["ADMIN", "SUBADMIN", "MARKETING_AGENT", "EMPLOYEE"],
-      default: "MARKETING_AGENT"
+      enum: ["ADMIN", "SUBADMIN", "BLOCK_COORDINATOR", "EMPLOYEE"],
+      default: "BLOCK_COORDINATOR"
     },
 
-    /* The marketing executive this RM Member belonged to at meet time.
+    /* The block coordinator this RM Member belonged to at meet time.
        Kept denormalised so an admin can filter the plan by executive even
        after a member is re-assigned. */
-    marketingAgentId: {
+    blockCoordinatorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
@@ -86,8 +86,7 @@ const agentVisitSchema = new mongoose.Schema(
     location: {
       type: {
         type: String,
-        enum: ["Point"],
-        default: "Point"
+        enum: ["Point"]
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
@@ -114,8 +113,8 @@ const agentVisitSchema = new mongoose.Schema(
 );
 
 // The plan screen always slices by member + when, so index them together
-agentVisitSchema.index({ agentProfileId: 1, visitedAt: -1 });
-agentVisitSchema.index({ visitedBy: 1, visitedAt: -1 });
-agentVisitSchema.index({ location: "2dsphere" });
+communityPartnerVisitSchema.index({ communityPartnerProfileId: 1, visitedAt: -1 });
+communityPartnerVisitSchema.index({ visitedBy: 1, visitedAt: -1 });
+communityPartnerVisitSchema.index({ location: "2dsphere" });
 
-export default mongoose.model("AgentVisit", agentVisitSchema);
+export default mongoose.model("CommunityPartnerVisit", communityPartnerVisitSchema);

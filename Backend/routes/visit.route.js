@@ -23,7 +23,7 @@ router.get("/plan", authenticate, authorize("visit.read"), getVisitPlanControlle
 router.get("/summary", authenticate, authorize("visit.read"), getVisitSummaryController);
 router.get("/locations", authenticate, authorize("visit.read"), getVisitLocationsController);
 router.get(
-  "/member/:agentProfileId",
+  "/member/:communityPartnerProfileId",
   authenticate,
   authorize("visit.read"),
   getVisitTrackController
@@ -32,7 +32,7 @@ router.get(
 // ── WRITE ────────────────────────────────────────────────────────────────────
 // Optional `photo` field lets the executive attach on-the-spot proof
 router.post(
-  "/member/:agentProfileId",
+  "/member/:communityPartnerProfileId",
   authenticate,
   authorize("visit.mark"),
   upload.single("photo"),
@@ -40,7 +40,7 @@ router.post(
 );
 
 router.patch(
-  "/member/:agentProfileId/shop",
+  "/member/:communityPartnerProfileId/shop",
   authenticate,
   authorize("visit.mark"),
   upload.single("image"),

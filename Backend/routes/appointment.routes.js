@@ -1,7 +1,7 @@
 import express from "express";
 import {
   createAppointmentController,
-  getAgentAppointmentsController,
+  getCommunityPartnerAppointmentsController,
   getAllBookingsController,
   getDoctorAppointmentsController,
   getMyAppointmentsController,
@@ -28,9 +28,9 @@ router.post(
 // Any logged-in user views their own appointments
 router.get('/bookings/me', authenticate, getMyAppointmentsController);
 
-// ── ROLE-INTERNAL (controller checks roles.includes('agent'/'doctor')) ────────
-// Agent views their bookings — controller enforces 'agent' role
-router.get('/agent/bookings', authenticate, getAgentAppointmentsController);
+// ── ROLE-INTERNAL (controller checks roles.includes('community_partner'/'doctor')) ────────
+// CommunityPartner views their bookings — controller enforces 'community_partner' role
+router.get('/community_partner/bookings', authenticate, getCommunityPartnerAppointmentsController);
 
 // Doctor views their appointments — controller enforces 'doctor' role
 router.get('/doctor/bookings', authenticate, getDoctorAppointmentsController);

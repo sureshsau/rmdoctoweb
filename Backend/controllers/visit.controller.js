@@ -52,12 +52,12 @@ export const getVisitLocationsController = async (req, res, next) => {
   }
 };
 
-/* GET /visits/member/:agentProfileId — track: shop location, photo, history */
+/* GET /visits/member/:communityPartnerProfileId — track: shop location, photo, history */
 export const getVisitTrackController = async (req, res, next) => {
   try {
     const data = await getVisitTrackService({
       requester: req.user,
-      agentProfileId: req.params.agentProfileId,
+      communityPartnerProfileId: req.params.communityPartnerProfileId,
       ...req.query,
     });
 
@@ -67,12 +67,12 @@ export const getVisitTrackController = async (req, res, next) => {
   }
 };
 
-/* POST /visits/member/:agentProfileId — tick a meet complete or incomplete */
+/* POST /visits/member/:communityPartnerProfileId — tick a meet complete or incomplete */
 export const markVisitController = async (req, res, next) => {
   try {
     const data = await markVisitService({
       requester: req.user,
-      agentProfileId: req.params.agentProfileId,
+      communityPartnerProfileId: req.params.communityPartnerProfileId,
       payload: req.body,
       file: req.file || null,
     });
@@ -108,12 +108,12 @@ export const deleteVisitController = async (req, res, next) => {
   }
 };
 
-/* PATCH /visits/member/:agentProfileId/shop — shop photo, name, coordinates */
+/* PATCH /visits/member/:communityPartnerProfileId/shop — shop photo, name, coordinates */
 export const updateShopDetailsController = async (req, res, next) => {
   try {
     const data = await updateShopDetailsService({
       requester: req.user,
-      agentProfileId: req.params.agentProfileId,
+      communityPartnerProfileId: req.params.communityPartnerProfileId,
       payload: req.body,
       file: req.file || null,
     });

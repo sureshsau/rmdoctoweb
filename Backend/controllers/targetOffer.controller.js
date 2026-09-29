@@ -1,6 +1,6 @@
 import TargetOffer from "../models/targetOffer.model.js";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
-import AgentProfile from "../models/agentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import mongoose from "mongoose";
 
 // CREATE TARGET
@@ -56,7 +56,7 @@ export const deleteTarget = async (req, res) => {
 };
 
 // GET PROGRESS FOR A SPECIFIC AGENT OR ALL AGENTS
-export const getAgentTargetProgress = async (req, res) => {
+export const getCommunityPartnerTargetProgress = async (req, res) => {
   try {
     const { month } = req.query; // YYYY-MM
     if (!month) return res.status(400).json({ success: false, message: "targetMonth is required (YYYY-MM)" });
@@ -66,7 +66,7 @@ export const getAgentTargetProgress = async (req, res) => {
 
     const targets = await TargetOffer.find({ targetMonth: month, isActive: true }).sort({ rank: 1 });
 
-    // Aggregate Medicine Orders by Agent
+    // Aggregate Medicine Orders by CommunityPartner
     const salesData = await MedicineOrder.aggregate([
       {
         $match: {
@@ -85,16 +85,16 @@ export const getAgentTargetProgress = async (req, res) => {
       { $unwind: "$userDetails" },
       {
         $lookup: {
-          from: "agentprofiles",
-          localField: "userDetails.profiles.agentId",
+          from: "community_partnerprofiles",
+          localField: "userDetails.profiles.communityPartnerId",
           foreignField: "_id",
-          as: "agentDetails"
+          as: "community_partnerDetails"
         }
       },
-      { $unwind: "$agentDetails" },
+      { $unwind: "$community_partnerDetails" },
       {
         $group: {
-          _id: "$agentDetails.userId",
+          _id: "$community_partnerDetails.userId",
           totalSales: { $sum: "$pricing.payableAmount" }
         }
       }
@@ -102,8 +102,8 @@ export const getAgentTargetProgress = async (req, res) => {
 
     // Format the response
     const progressReport = await Promise.all(salesData.map(async (data) => {
-      // Find the agent user
-      const agentUser = await mongoose.model("User").findById(data._id).select("name phone");
+      // Find the community_partner user
+      const community_partnerUser = await mongoose.model("User").findById(data._id).select("name phone");
       
       let currentTarget = null;
       let nextTarget = null;
@@ -118,9 +118,9 @@ export const getAgentTargetProgress = async (req, res) => {
       }
 
       return {
-        agentId: data._id,
-        agentName: agentUser ? agentUser.name : "Unknown",
-        agentPhone: agentUser ? agentUser.phone : "Unknown",
+        communityPartnerId: data._id,
+        communityPartnerName: community_partnerUser ? community_partnerUser.name : "Unknown",
+        community_partnerPhone: community_partnerUser ? community_partnerUser.phone : "Unknown",
         totalSales: data.totalSales,
         achievedTarget: currentTarget ? currentTarget.rewardDescription : "None",
         nextTargetAmount: nextTarget ? nextTarget.targetSalesAmount : null,
@@ -150,17 +150,17 @@ export const getMyTargetProgress = async (req, res) => {
 
     const targets = await TargetOffer.find({ targetMonth, isActive: true }).sort({ rank: 1 });
 
-    // Aggregate sales specifically for this agent's downline or direct users
-    // Since medicineOrder has userId, we need to find all orders by users who belong to this agent
-    const agentProfile = await AgentProfile.findOne({ userId });
+    // Aggregate sales specifically for this community_partner's downline or direct users
+    // Since medicineOrder has userId, we need to find all orders by users who belong to this community_partner
+    const communityPartnerProfile = await CommunityPartnerProfile.findOne({ userId });
     
-    if (!agentProfile) {
+    if (!communityPartnerProfile) {
       return res.status(404).json({ success: false, message: "RM Member profile not found" });
     }
 
-    // Find all users belonging to this agent
-    const agentUsers = await mongoose.model("User").find({ "profiles.agentId": agentProfile._id });
-    const userIds = agentUsers.map(u => u._id);
+    // Find all users belonging to this community_partner
+    const community_partnerUsers = await mongoose.model("User").find({ "profiles.communityPartnerId": communityPartnerProfile._id });
+    const userIds = community_partnerUsers.map(u => u._id);
 
     const salesData = await MedicineOrder.aggregate([
       {

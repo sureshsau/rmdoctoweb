@@ -262,12 +262,12 @@ export const getAllBookingsController = async (req, res) => {
 
 
 
-export const getAgentAppointmentsController = async (req, res) => {
+export const getCommunityPartnerAppointmentsController = async (req, res) => {
   try {
     const roles = req.user.roles || [];
 
-    // Only agent allowed
-    if (!roles.includes("agent")) {
+    // Only community_partner allowed
+    if (!roles.includes("community_partner")) {
       throw new AppError("Only RM Members allowed", 403);
     }
 
@@ -282,19 +282,19 @@ export const getAgentAppointmentsController = async (req, res) => {
 
     const skip = (currentPage - 1) * perPage;
 
-    const agentId = req.user.id;
+    const communityPartnerId = req.user.id;
 
-    // Get agent phone
-    const agent = await User.findById(agentId).select("phone");
+    // Get community_partner phone
+    const community_partner = await User.findById(communityPartnerId).select("phone");
 
-    if (!agent) {
+    if (!community_partner) {
       throw new AppError("RM Member not found", 404);
     }
 
     const filter = {
       $or: [
-        { bookedBy: agentId },
-        { patientPhone: agent.phone }
+        { bookedBy: communityPartnerId },
+        { patientPhone: community_partner.phone }
       ]
     };
 

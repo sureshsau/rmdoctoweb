@@ -1,5 +1,5 @@
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
-import AgentProfile from "../models/agentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import User from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
 import mongoose from "mongoose";
@@ -56,19 +56,19 @@ export const buildDateRange = ({ range, from, to }) => {
 
 /* ════════════════════════════════════════════════════════════
    AGENT ORDER ALERTS
-   Follow-up list for admin / marketing agent: every agent in
+   Follow-up list for admin / marketing community_partner: every community_partner in
    scope with what they ordered in the period, so under-ordering
-   agents can be called directly.
+   community_partners can be called directly.
 ════════════════════════════════════════════════════════════ */
 
 const DEFAULT_LOW_THRESHOLD = 5000;
 
 /**
- * @param scope        "all" (admin/subadmin) or "network" (marketing agent)
+ * @param scope        "all" (admin/subadmin) or "network" (marketing community_partner)
  * @param requesterId  required when scope is "network"
- * @param lowThreshold order value below which an agent is flagged LOW
+ * @param lowThreshold order value below which an community_partner is flagged LOW
  */
-export const getAgentOrderAlertsService = async ({
+export const getCommunityPartnerOrderAlertsService = async ({
   scope,
   requesterId,
   range,
@@ -81,40 +81,40 @@ export const getAgentOrderAlertsService = async ({
     throw new AppError("lowThreshold must be a non-negative number", 400);
   }
 
-  /* 1. Which agents are in scope? */
+  /* 1. Which community_partners are in scope? */
   const profileQuery = {};
 
   if (scope === "network") {
     if (!mongoose.Types.ObjectId.isValid(requesterId)) {
       throw new AppError("Invalid Marketing Executive id", 400);
     }
-    profileQuery.marketingAgentId = new mongoose.Types.ObjectId(requesterId);
+    profileQuery.blockCoordinatorId = new mongoose.Types.ObjectId(requesterId);
   }
 
-  const agentProfiles = await AgentProfile.find(profileQuery)
-    .select("userId marketingAgentId level directDownlineCount totalDownlineCount lastVisitedAt")
+  const communityPartnerProfiles = await CommunityPartnerProfile.find(profileQuery)
+    .select("userId blockCoordinatorId level directDownlineCount totalDownlineCount lastVisitedAt")
     .lean();
 
-  if (!agentProfiles.length) {
+  if (!communityPartnerProfiles.length) {
     return {
       scope,
       range: range || "all",
       lowThreshold: threshold,
-      summary: { totalAgents: 0, noOrderAgents: 0, lowAgents: 0, activeAgents: 0, totalOrderValue: 0 },
-      agents: []
+      summary: { totalCommunityPartners: 0, noOrderCommunityPartners: 0, lowCommunityPartners: 0, activeCommunityPartners: 0, totalOrderValue: 0 },
+      community_partners: []
     };
   }
 
-  const agentUserIds = agentProfiles.map((p) => p.userId);
+  const communityPartnerUserIds = communityPartnerProfiles.map((p) => p.userId);
 
-  /* 2. Order totals per agent for the period.
+  /* 2. Order totals per community_partner for the period.
         Cancelled orders are excluded — they are not sales. */
   const dateFilter = buildDateRange({ range, from, to });
 
-  const perAgent = await MedicineOrder.aggregate([
+  const perCommunityPartner = await MedicineOrder.aggregate([
     {
       $match: {
-        userId: { $in: agentUserIds },
+        userId: { $in: communityPartnerUserIds },
         orderStatus: { $ne: "CANCELLED" },
         ...(Object.keys(dateFilter).length && { createdAt: dateFilter })
       }
@@ -130,18 +130,18 @@ export const getAgentOrderAlertsService = async ({
   ]);
 
   const statsByUser = Object.fromEntries(
-    perAgent.map((s) => [s._id.toString(), s])
+    perCommunityPartner.map((s) => [s._id.toString(), s])
   );
 
-  /* 3. Contact details — the point of the screen is calling these agents */
-  const users = await User.find({ _id: { $in: agentUserIds } })
+  /* 3. Contact details — the point of the screen is calling these community_partners */
+  const users = await User.find({ _id: { $in: communityPartnerUserIds } })
     .select("name phone address city district state pincode isActive isBlocked")
     .lean();
 
   const userById = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
-  /* 4. Merge — agents with no orders are kept, they matter most here */
-  const agents = agentProfiles
+  /* 4. Merge — community_partners with no orders are kept, they matter most here */
+  const community_partners = communityPartnerProfiles
     .map((profile) => {
       const key = profile.userId.toString();
       const user = userById[key];
@@ -176,11 +176,11 @@ export const getAgentOrderAlertsService = async ({
     })
     .filter(Boolean);
 
-  /* 5. Sort so the agents worth calling come first:
+  /* 5. Sort so the community_partners worth calling come first:
         no orders → low value (lowest first) → active (highest first) */
   const severity = { NO_ORDERS: 0, LOW: 1, ACTIVE: 2 };
 
-  agents.sort((a, b) => {
+  community_partners.sort((a, b) => {
     if (severity[a.alertLevel] !== severity[b.alertLevel]) {
       return severity[a.alertLevel] - severity[b.alertLevel];
     }
@@ -188,15 +188,15 @@ export const getAgentOrderAlertsService = async ({
     return a.totalOrderValue - b.totalOrderValue;
   });
 
-  const summary = agents.reduce(
+  const summary = community_partners.reduce(
     (acc, a) => {
       acc.totalOrderValue += a.totalOrderValue;
-      if (a.alertLevel === "NO_ORDERS") acc.noOrderAgents += 1;
-      else if (a.alertLevel === "LOW") acc.lowAgents += 1;
-      else acc.activeAgents += 1;
+      if (a.alertLevel === "NO_ORDERS") acc.noOrderCommunityPartners += 1;
+      else if (a.alertLevel === "LOW") acc.lowCommunityPartners += 1;
+      else acc.activeCommunityPartners += 1;
       return acc;
     },
-    { totalAgents: agents.length, noOrderAgents: 0, lowAgents: 0, activeAgents: 0, totalOrderValue: 0 }
+    { totalCommunityPartners: community_partners.length, noOrderCommunityPartners: 0, lowCommunityPartners: 0, activeCommunityPartners: 0, totalOrderValue: 0 }
   );
 
   summary.totalOrderValue = Number(summary.totalOrderValue.toFixed(2));
@@ -206,7 +206,7 @@ export const getAgentOrderAlertsService = async ({
     range: range || "all",
     lowThreshold: threshold,
     summary,
-    agents
+    community_partners
   };
 };
 
@@ -256,37 +256,37 @@ export const getOrdersByUserService = async ({ targetUserId, range, from, to }) 
 // ============================================================
 // 2️⃣ AGENT: Orders from entire downline tree
 // ============================================================
-export const getAgentDownlineOrderStatsService = async ({ agentUserId, range, from, to }) => {
-  if (!mongoose.Types.ObjectId.isValid(agentUserId)) {
-    throw new AppError("Invalid agentUserId", 400);
+export const getCommunityPartnerDownlineOrderStatsService = async ({ communityPartnerUserId, range, from, to }) => {
+  if (!mongoose.Types.ObjectId.isValid(communityPartnerUserId)) {
+    throw new AppError("Invalid communityPartnerUserId", 400);
   }
 
-  // 1. Get all agents (self + downline) under this agent's subtree
-  const selfProfile = await AgentProfile.findOne({ userId: agentUserId }).lean();
+  // 1. Get all community_partners (self + downline) under this community_partner's subtree
+  const selfProfile = await CommunityPartnerProfile.findOne({ userId: communityPartnerUserId }).lean();
   if (!selfProfile) throw new AppError("RM Member profile not found", 404);
 
-  // BFS to collect all agent userIds in the downline
-  const allAgentProfileIds = [selfProfile._id];
-  const queue = [...selfProfile.childAgentIds];
+  // BFS to collect all community_partner userIds in the downline
+  const allCommunityPartnerProfileIds = [selfProfile._id];
+  const queue = [...selfProfile.childCommunityPartnerIds];
 
   while (queue.length > 0) {
     const batchIds = queue.splice(0, 50); // process in batches of 50
-    const batch = await AgentProfile.find({ _id: { $in: batchIds } })
-      .select("_id userId childAgentIds")
+    const batch = await CommunityPartnerProfile.find({ _id: { $in: batchIds } })
+      .select("_id userId childCommunityPartnerIds")
       .lean();
 
     for (const ap of batch) {
-      allAgentProfileIds.push(ap._id);
-      if (ap.childAgentIds?.length) queue.push(...ap.childAgentIds);
+      allCommunityPartnerProfileIds.push(ap._id);
+      if (ap.childCommunityPartnerIds?.length) queue.push(...ap.childCommunityPartnerIds);
     }
   }
 
-  // 2. Get the user IDs for all these agent profiles
-  const agentProfiles = await AgentProfile.find({ _id: { $in: allAgentProfileIds } })
+  // 2. Get the user IDs for all these community_partner profiles
+  const communityPartnerProfiles = await CommunityPartnerProfile.find({ _id: { $in: allCommunityPartnerProfileIds } })
     .select("userId")
     .lean();
 
-  const allUserIds = agentProfiles.map(p => p.userId);
+  const allUserIds = communityPartnerProfiles.map(p => p.userId);
 
   const dateFilter = buildDateRange({ range, from, to });
   const query = {
@@ -310,7 +310,7 @@ export const getAgentDownlineOrderStatsService = async ({ agentUserId, range, fr
       }
     ]),
 
-    // Per-agent breakdown
+    // Per-community_partner breakdown
     MedicineOrder.aggregate([
       { $match: query },
       {
@@ -331,7 +331,7 @@ export const getAgentDownlineOrderStatsService = async ({ agentUserId, range, fr
   const users = await User.find({ _id: { $in: userIds } }).select("name phone").lean();
   const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u]));
 
-  const agentBreakdown = perUserStats.map(s => ({
+  const community_partnerBreakdown = perUserStats.map(s => ({
     userId: s._id,
     name: userMap[s._id.toString()]?.name || "Unknown",
     phone: userMap[s._id.toString()]?.phone || "",
@@ -342,33 +342,33 @@ export const getAgentDownlineOrderStatsService = async ({ agentUserId, range, fr
   return {
     downlineSize: allUserIds.length,
     summary,
-    agentBreakdown
+    community_partnerBreakdown
   };
 };
 
 
 // ============================================================
-// 3️⃣ MARKETING AGENT: Orders from entire assigned agent network
+// 3️⃣ MARKETING AGENT: Orders from entire assigned community_partner network
 // ============================================================
-export const getMarketingAgentNetworkOrderStatsService = async ({ marketingAgentUserId, range, from, to }) => {
-  if (!mongoose.Types.ObjectId.isValid(marketingAgentUserId)) {
-    throw new AppError("Invalid marketingAgentUserId", 400);
+export const getBlockCoordinatorNetworkOrderStatsService = async ({ blockCoordinatorUserId, range, from, to }) => {
+  if (!mongoose.Types.ObjectId.isValid(blockCoordinatorUserId)) {
+    throw new AppError("Invalid blockCoordinatorUserId", 400);
   }
 
-  // All agents under this marketing agent (stored directly on AgentProfile)
-  const allAgentProfiles = await AgentProfile.find({
-    marketingAgentId: new mongoose.Types.ObjectId(marketingAgentUserId)
+  // All community_partners under this marketing community_partner (stored directly on CommunityPartnerProfile)
+  const allCommunityPartnerProfiles = await CommunityPartnerProfile.find({
+    blockCoordinatorId: new mongoose.Types.ObjectId(blockCoordinatorUserId)
   }).select("userId").lean();
 
-  if (!allAgentProfiles.length) {
+  if (!allCommunityPartnerProfiles.length) {
     return {
       networkSize: 0,
       summary: { totalOrders: 0, totalRevenue: 0, delivered: 0, cancelled: 0, pending: 0 },
-      agentBreakdown: []
+      community_partnerBreakdown: []
     };
   }
 
-  const allUserIds = allAgentProfiles.map(p => p.userId);
+  const allUserIds = allCommunityPartnerProfiles.map(p => p.userId);
 
   const dateFilter = buildDateRange({ range, from, to });
   const query = {
@@ -410,7 +410,7 @@ export const getMarketingAgentNetworkOrderStatsService = async ({ marketingAgent
   const users = await User.find({ _id: { $in: userIds } }).select("name phone").lean();
   const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u]));
 
-  const agentBreakdown = perUserStats.map(s => ({
+  const community_partnerBreakdown = perUserStats.map(s => ({
     userId: s._id,
     name: userMap[s._id.toString()]?.name || "Unknown",
     phone: userMap[s._id.toString()]?.phone || "",
@@ -421,6 +421,6 @@ export const getMarketingAgentNetworkOrderStatsService = async ({ marketingAgent
   return {
     networkSize: allUserIds.length,
     summary,
-    agentBreakdown
+    community_partnerBreakdown
   };
 };

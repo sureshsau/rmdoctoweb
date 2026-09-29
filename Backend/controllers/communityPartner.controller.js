@@ -1,12 +1,12 @@
-import AgentProfile from "../models/agentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import userModel from "../models/user.model.js";
-import { getAgentVisibleNetwork, registerAgentByAgentService, uploadAgentAgreementService } from "../services/agent.service.js";
+import { getCommunityPartnerVisibleNetwork, registerCommunityPartnerByCommunityPartnerService, uploadCommunityPartnerAgreementService } from "../services/communityPartner.service.js";
 
 export const agetNetworkController = async (req, res) => {
   try {
     const { id } = req.user;
 
-    const data = await getAgentVisibleNetwork({agentUserId:id});
+    const data = await getCommunityPartnerVisibleNetwork({communityPartnerUserId:id});
 
     return res.status(200).json({
       success: true,
@@ -23,11 +23,11 @@ export const agetNetworkController = async (req, res) => {
 };
 
 
-export const registerAgentController = async (req, res) => {
+export const registerCommunityPartnerController = async (req, res) => {
   try {
       const payload=req.body;
       const {id}=req.user;
-      const data=await registerAgentByAgentService({parentAgentUserId:id,payload})
+      const data=await registerCommunityPartnerByCommunityPartnerService({parentCommunityPartnerUserId:id,payload})
 
     return res.status(201).json({
       success: true,
@@ -36,7 +36,7 @@ export const registerAgentController = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Agent registration error:", error);
+    console.error("❌ CommunityPartner registration error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
@@ -83,30 +83,30 @@ export const uploadAgreementEnsureProfileController = async (req, res) => {
     }
 
     // 3️⃣ Role check (STRICT)
-    if (!user.roles || !user.roles.includes("agent")) {
+    if (!user.roles || !user.roles.includes("community_partner")) {
       return res.status(403).json({
         success: false,
         message: "User is not an RM Member"
       });
     }
 
-    // 4️⃣ Find agent profile
-    let agentProfile = await AgentProfile.findOne({ userId: user._id });
+    // 4️⃣ Find community_partner profile
+    let communityPartnerProfile = await CommunityPartnerProfile.findOne({ userId: user._id });
 
     // 5️⃣ Create profile if not exists
-    if (!agentProfile) {
-      agentProfile = await AgentProfile.create({
+    if (!communityPartnerProfile) {
+      communityPartnerProfile = await CommunityPartnerProfile.create({
         userId: user._id,
-        agentName: user.name,
+        communityPartnerName: user.name,
         phone: user.phone,
-        registeredBy: "admin", // or marketing_agent if needed
+        registeredBy: "admin", // or block_coordinator if needed
         status: "INACTIVE"
       });
     }
 
     // 6️⃣ Call SERVICE (single source of truth)
-    const result = await uploadAgentAgreementService({
-      agentProfileId: agentProfile._id,
+    const result = await uploadCommunityPartnerAgreementService({
+      communityPartnerProfileId: communityPartnerProfile._id,
       uploadedByUserId,
       documentType,
       fileBuffer: req.file.buffer,
@@ -116,7 +116,7 @@ export const uploadAgreementEnsureProfileController = async (req, res) => {
     // 7️⃣ Response
     return res.status(200).json({
       success: true,
-      agentProfileId: agentProfile._id,
+      communityPartnerProfileId: communityPartnerProfile._id,
       message: result.message,
       agreement: result.agreement
     });

@@ -1,22 +1,22 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
-import AgentProfile from "../models/agentProfile.model.js";
+import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import ROLE from "../models/role.model.js";
 import RoleAssignment from '../models/roleAssignment.model.js'
 import { hashPassword } from "../utils/password.js";
 import { uploadAgreementToS3 } from "./aws.service.js";
 import AppError from "../utils/AppError.js";
-import marketingAgentProfile from "../models/marketingAgentProfile.model.js";
+import blockCoordinatorProfile from "../models/blockCoordinatorProfile.model.js";
 import { error } from "console";
 
-const validateAgentPayload = ({
-  agentName,
+const validateCommunityPartnerPayload = ({
+  communityPartnerName,
   phone,
   latitude,
   longitude
 }) => {
-  if (!agentName || !phone) {
-    throw new Error("agentName and phone are required");
+  if (!communityPartnerName || !phone) {
+    throw new Error("communityPartnerName and phone are required");
   }
 
   if (
@@ -30,9 +30,9 @@ const validateAgentPayload = ({
 
 
 //only for admin 
-export const assignMarketingAgentToAgent = async ({
-  agentUserId,
-  marketingAgentUserId
+export const assignBlockCoordinatorToCommunityPartner = async ({
+  communityPartnerUserId,
+  blockCoordinatorUserId
 }) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -41,42 +41,42 @@ export const assignMarketingAgentToAgent = async ({
     /* =========================
        FIND ROOT AGENT
     ========================= */
-    const rootAgent = await AgentProfile.findOne(
-      { userId: agentUserId },
+    const rootCommunityPartner = await CommunityPartnerProfile.findOne(
+      { userId: communityPartnerUserId },
       null,
       { session }
     );
 
-    if (!rootAgent) {
+    if (!rootCommunityPartner) {
       throw new Error("RM Member not found");
     }
 
     /* =========================
        BFS OVER SUBTREE
     ========================= */
-    const queue = [rootAgent._id];
+    const queue = [rootCommunityPartner._id];
 
     while (queue.length > 0) {
-      const agentId = queue.shift();
+      const communityPartnerId = queue.shift();
 
-      const agent = await AgentProfile.findById(
-        agentId,
+      const community_partner = await CommunityPartnerProfile.findById(
+        communityPartnerId,
         null,
         { session }
       );
 
-      if (!agent) continue;
+      if (!community_partner) continue;
 
-      // Update marketing agent
-      await AgentProfile.updateOne(
-        { _id: agent._id },
-        { marketingAgentId: marketingAgentUserId },
+      // Update marketing community_partner
+      await CommunityPartnerProfile.updateOne(
+        { _id: community_partner._id },
+        { blockCoordinatorId: blockCoordinatorUserId },
         { session }
       );
 
       // Push children into queue
-      if (agent.childAgentIds?.length > 0) {
-        for (const childId of agent.childAgentIds) {
+      if (community_partner.childCommunityPartnerIds?.length > 0) {
+        for (const childId of community_partner.childCommunityPartnerIds) {
           queue.push(childId);
         }
       }
@@ -99,34 +99,34 @@ export const assignMarketingAgentToAgent = async ({
 };
 
 
-export const uploadAgentAgreementService = async ({
-  agentProfileId,
+export const uploadCommunityPartnerAgreementService = async ({
+  communityPartnerProfileId,
   uploadedByUserId,
   fileBuffer,
   mimeType,
   documentType // "AGREEMENT" | "LICENSE"
 }) => {
-  if (!agentProfileId || !uploadedByUserId || !fileBuffer || !documentType) {
+  if (!communityPartnerProfileId || !uploadedByUserId || !fileBuffer || !documentType) {
     throw new Error("Missing required parameters");
   }
 
-  // 1️⃣ Fetch agent profile
-  const agentProfile = await AgentProfile.findById(agentProfileId);
+  // 1️⃣ Fetch community_partner profile
+  const communityPartnerProfile = await CommunityPartnerProfile.findById(communityPartnerProfileId);
 
-  if (!agentProfile) {
+  if (!communityPartnerProfile) {
     throw new Error("RM Member profile not found");
   }
 
   // 2️⃣ Upload to S3 FIRST (no DB mutation yet)
   const uploadResult = await uploadAgreementToS3({
-    userId: agentProfile.userId.toString(),
+    userId: communityPartnerProfile.userId.toString(),
     documentType: documentType.toLowerCase(), // agreement | license
     fileBuffer,
     mimeType
   });
 
   // 3️⃣ Update agreement section (atomic document update)
-  agentProfile.agreement = {
+  communityPartnerProfile.agreement = {
     documentType,
     document: {
       url: uploadResult.url,
@@ -139,26 +139,26 @@ export const uploadAgentAgreementService = async ({
     rejectionReason: null
   };
 
-  // 4️⃣ Agent must go inactive until approved
-  agentProfile.status = "INACTIVE";
+  // 4️⃣ CommunityPartner must go inactive until approved
+  communityPartnerProfile.status = "INACTIVE";
 
-  await agentProfile.save();
+  await communityPartnerProfile.save();
 
   return {
     message: "Agreement uploaded successfully and pending verification",
-    agreement: agentProfile.agreement
+    agreement: communityPartnerProfile.agreement
   };
 };
 
 
-//register agent by agent
-export const registerAgentByAgentService = async ({
-  parentAgentUserId,
+//register community_partner by community_partner
+export const registerCommunityPartnerByCommunityPartnerService = async ({
+  parentCommunityPartnerUserId,
   payload
 }) => {
   try {
     const {
-      agentName,
+      communityPartnerName,
       phone,
       latitude,
       longitude,
@@ -169,16 +169,16 @@ export const registerAgentByAgentService = async ({
       pincode = null
     } = payload;
 
-    validateAgentPayload({ agentName, phone, latitude, longitude });
+    validateCommunityPartnerPayload({ communityPartnerName, phone, latitude, longitude });
 
     /* =========================
        1. FIND PARENT AGENT
     ========================= */
-    const parentAgent = await AgentProfile.findOne({
-      userId: parentAgentUserId
+    const parentCommunityPartner = await CommunityPartnerProfile.findOne({
+      userId: parentCommunityPartnerUserId
     });
 
-    if (!parentAgent) {
+    if (!parentCommunityPartner) {
       throw new AppError("Parent RM Member profile not found", 404);
     }
 
@@ -188,7 +188,7 @@ export const registerAgentByAgentService = async ({
     let user = await User.findOne({ phone });
 
     if (
-      user?.roles?.includes("marketing_agent") ||
+      user?.roles?.includes("block_coordinator") ||
       user?.roles?.includes("admin") ||
       user?.roles?.includes("subadmin")
     ) {
@@ -201,38 +201,38 @@ export const registerAgentByAgentService = async ({
     /* =========================
        3. EXISTING AGENT PROFILE
     ========================= */
-    if (user?.profiles?.agentId) {
-      const existingAgent = await AgentProfile.findById(
-        user.profiles.agentId
+    if (user?.profiles?.communityPartnerId) {
+      const existingCommunityPartner = await CommunityPartnerProfile.findById(
+        user.profiles.communityPartnerId
       );
 
-      if (!existingAgent) {
+      if (!existingCommunityPartner) {
         throw new AppError("RM Member profile corrupted", 500);
       }
 
-      if (existingAgent.parentAgentId) {
+      if (existingCommunityPartner.parentCommunityPartnerId) {
         throw new AppError(
           "RM Member already belongs to a network. Contact admin for transfer.",
           400
         );
       }
 
-      if (existingAgent.marketingAgentId) {
+      if (existingCommunityPartner.blockCoordinatorId) {
         throw new AppError(
           "RM Member already assigned to a Marketing Executive",
           400
         );
       }
 
-      await AgentProfile.updateOne(
-        { _id: existingAgent._id },
+      await CommunityPartnerProfile.updateOne(
+        { _id: existingCommunityPartner._id },
         {
           $set: {
-            parentAgentId: parentAgent._id,
-            marketingAgentId: parentAgent.marketingAgentId,
-            level: parentAgent.level + 1,
+            parentCommunityPartnerId: parentCommunityPartner._id,
+            blockCoordinatorId: parentCommunityPartner.blockCoordinatorId,
+            level: parentCommunityPartner.level + 1,
             registeredBy: "AGENT",
-            agentName,
+            communityPartnerName,
             address,
             city,
             state,
@@ -245,17 +245,17 @@ export const registerAgentByAgentService = async ({
         }
       );
 
-      await AgentProfile.updateOne(
-        { _id: parentAgent._id },
+      await CommunityPartnerProfile.updateOne(
+        { _id: parentCommunityPartner._id },
         {
-          $addToSet: { childAgentIds: existingAgent._id },
+          $addToSet: { childCommunityPartnerIds: existingCommunityPartner._id },
           $inc: { directDownlineCount: 1 }
         }
       );
 
       return {
         userId: user._id,
-        agentProfileId: existingAgent._id,
+        communityPartnerProfileId: existingCommunityPartner._id,
         message: "Existing RM Member linked under parent RM Member successfully"
       };
     }
@@ -265,7 +265,7 @@ export const registerAgentByAgentService = async ({
     ========================= */
     if (!user) {
       user = await User.create({
-        name: agentName,
+        name: communityPartnerName,
         phone,
         address,
         landmark,
@@ -276,8 +276,8 @@ export const registerAgentByAgentService = async ({
           type: "Point",
           coordinates: [longitude, latitude]
         },
-        dashboard: "agent",
-        roles: ["agent"],
+        dashboard: "community_partner",
+        roles: ["community_partner"],
         permissions: [],
         isActive: true,
         isBlocked: false,
@@ -288,11 +288,11 @@ export const registerAgentByAgentService = async ({
     /* =========================
        5. CREATE AGENT PROFILE
     ========================= */
-    const agentProfile = await AgentProfile.create({
+    const communityPartnerProfile = await CommunityPartnerProfile.create({
       userId: user._id,
-      parentAgentId: parentAgent._id,
-      marketingAgentId: parentAgent.marketingAgentId,
-      level: parentAgent.level + 1,
+      parentCommunityPartnerId: parentCommunityPartner._id,
+      blockCoordinatorId: parentCommunityPartner.blockCoordinatorId,
+      level: parentCommunityPartner.level + 1,
       registeredBy: "AGENT",
       directDownlineCount: 0,
       totalDownlineCount: 0
@@ -301,10 +301,10 @@ export const registerAgentByAgentService = async ({
     /* =========================
        6. LINK PARENT → CHILD
     ========================= */
-    await AgentProfile.updateOne(
-      { _id: parentAgent._id },
+    await CommunityPartnerProfile.updateOne(
+      { _id: parentCommunityPartner._id },
       {
-        $addToSet: { childAgentIds: agentProfile._id },
+        $addToSet: { childCommunityPartnerIds: communityPartnerProfile._id },
         $inc: { directDownlineCount: 1 }
       }
     );
@@ -312,7 +312,7 @@ export const registerAgentByAgentService = async ({
     /* =========================
        7. RBAC UPDATE
     ========================= */
-    const role = await ROLE.findOne({ key: "agent" })
+    const role = await ROLE.findOne({ key: "community_partner" })
       .select("permissions")
       .lean();
 
@@ -320,17 +320,17 @@ export const registerAgentByAgentService = async ({
       { _id: user._id },
       {
         $set: {
-          dashboard: "agent",
-          roles: ["agent"], // fixed from "role" → "roles"
+          dashboard: "community_partner",
+          roles: ["community_partner"], // fixed from "role" → "roles"
           permissions: role?.permissions || [],
-          "profiles.agentId": agentProfile._id
+          "profiles.communityPartnerId": communityPartnerProfile._id
         }
       }
     );
 
     return {
       userId: user._id,
-      agentProfileId: agentProfile._id,
+      communityPartnerProfileId: communityPartnerProfile._id,
       message: "New RM Member registered under parent RM Member successfully"
     };
 
@@ -343,15 +343,15 @@ export const registerAgentByAgentService = async ({
 
 
 //view his network
-export const getAgentVisibleNetwork = async ({
-  agentUserId
+export const getCommunityPartnerVisibleNetwork = async ({
+  communityPartnerUserId
 }) => {
   try {
     /* =========================
        1️⃣ FETCH SELF AGENT
     ========================= */
-    const selfAgent = await AgentProfile.findOne({
-      userId: agentUserId
+    const selfCommunityPartner = await CommunityPartnerProfile.findOne({
+      userId: communityPartnerUserId
     })
       .populate({
         path: "userId",
@@ -359,18 +359,18 @@ export const getAgentVisibleNetwork = async ({
       })
       .lean();
 
-    if (!selfAgent) {
+    if (!selfCommunityPartner) {
       throw new AppError("RM Member profile not found", 404);
     }
 
     /* =========================
        2️⃣ FETCH PARENT AGENT (ONE LEVEL ONLY)
     ========================= */
-    let parentAgent = null;
+    let parentCommunityPartner = null;
 
-    if (selfAgent.parentAgentId) {
-      parentAgent = await AgentProfile.findById(
-        selfAgent.parentAgentId
+    if (selfCommunityPartner.parentCommunityPartnerId) {
+      parentCommunityPartner = await CommunityPartnerProfile.findById(
+        selfCommunityPartner.parentCommunityPartnerId
       )
         .populate({
           path: "userId",
@@ -382,11 +382,11 @@ export const getAgentVisibleNetwork = async ({
     /* =========================
        3️⃣ FETCH MARKETING AGENT (EMPLOYEE)
     ========================= */
-    let marketingAgent = null;
+    let blockCoordinator = null;
 
-    if (selfAgent.marketingAgentId) {
-      marketingAgent = await User.findById(
-        selfAgent.marketingAgentId
+    if (selfCommunityPartner.blockCoordinatorId) {
+      blockCoordinator = await User.findById(
+        selfCommunityPartner.blockCoordinatorId
       )
         .select("name phone")
         .lean();
@@ -395,8 +395,8 @@ export const getAgentVisibleNetwork = async ({
     /* =========================
        4️⃣ FETCH ALL DOWNLINE AGENTS (ONCE)
     ========================= */
-    const allAgents = await AgentProfile.find({
-      marketingAgentId: selfAgent.marketingAgentId
+    const allCommunityPartners = await CommunityPartnerProfile.find({
+      blockCoordinatorId: selfCommunityPartner.blockCoordinatorId
     })
       .populate({
         path: "userId",
@@ -407,14 +407,14 @@ export const getAgentVisibleNetwork = async ({
     /* =========================
        5️⃣ BUILD MAP FOR BFS
     ========================= */
-    const agentMap = new Map();
+    const community_partnerMap = new Map();
 
-    allAgents.forEach(agent => {
-      agentMap.set(agent._id.toString(), {
-        id: agent._id,
-        name: agent.userId?.name || "",
-        phone: agent.userId?.phone || "",
-        level: agent.level,
+    allCommunityPartners.forEach(community_partner => {
+      community_partnerMap.set(community_partner._id.toString(), {
+        id: community_partner._id,
+        name: community_partner.userId?.name || "",
+        phone: community_partner.userId?.phone || "",
+        level: community_partner.level,
         children: []
       });
     });
@@ -425,9 +425,9 @@ export const getAgentVisibleNetwork = async ({
     const queue = [];
     const downlineTree = [];
 
-    if (selfAgent.childAgentIds?.length > 0) {
-      selfAgent.childAgentIds.forEach(childId => {
-        const childNode = agentMap.get(childId.toString());
+    if (selfCommunityPartner.childCommunityPartnerIds?.length > 0) {
+      selfCommunityPartner.childCommunityPartnerIds.forEach(childId => {
+        const childNode = community_partnerMap.get(childId.toString());
         if (childNode) {
           downlineTree.push(childNode);
           queue.push(childId.toString());
@@ -437,16 +437,16 @@ export const getAgentVisibleNetwork = async ({
 
     while (queue.length > 0) {
       const currentId = queue.shift();
-      const currentAgent = allAgents.find(
+      const currentCommunityPartner = allCommunityPartners.find(
         a => a._id.toString() === currentId
       );
 
-      if (!currentAgent?.childAgentIds?.length) continue;
+      if (!currentCommunityPartner?.childCommunityPartnerIds?.length) continue;
 
-      for (const childId of currentAgent.childAgentIds) {
-        const childNode = agentMap.get(childId.toString());
+      for (const childId of currentCommunityPartner.childCommunityPartnerIds) {
+        const childNode = community_partnerMap.get(childId.toString());
         if (childNode) {
-          agentMap
+          community_partnerMap
             .get(currentId)
             .children.push(childNode);
 
@@ -462,26 +462,26 @@ export const getAgentVisibleNetwork = async ({
       success: true,
       data: {
         self: {
-          id: selfAgent._id,
-          name: selfAgent.userId?.name,
-          phone: selfAgent.userId?.phone,
-          level: selfAgent.level
+          id: selfCommunityPartner._id,
+          name: selfCommunityPartner.userId?.name,
+          phone: selfCommunityPartner.userId?.phone,
+          level: selfCommunityPartner.level
         },
 
-        parentAgent: parentAgent
+        parentCommunityPartner: parentCommunityPartner
           ? {
-              id: parentAgent._id,
-              name: parentAgent.userId?.name,
-              phone: parentAgent.userId?.phone,
-              level: parentAgent.level
+              id: parentCommunityPartner._id,
+              name: parentCommunityPartner.userId?.name,
+              phone: parentCommunityPartner.userId?.phone,
+              level: parentCommunityPartner.level
             }
           : null,
 
-        marketingAgent: marketingAgent
+        blockCoordinator: blockCoordinator
           ? {
-              id: marketingAgent._id,
-              name: marketingAgent.name,
-              phone: marketingAgent.phone
+              id: blockCoordinator._id,
+              name: blockCoordinator.name,
+              phone: blockCoordinator.phone
             }
           : null,
 
@@ -490,18 +490,18 @@ export const getAgentVisibleNetwork = async ({
     };
 
   } catch (error) {
-    console.error("getAgentVisibleNetwork error:", error);
+    console.error("getCommunityPartnerVisibleNetwork error:", error);
     throw error;
   }
 };
 
-export const registerAgentByAdminService = async ({ payload }) => {
-  const { agentName, phone, latitude, longitude, address = null, landmark = null, city = null, state = null, pincode = null, shopName = null, marketingAgentId = null, visitFrequency = 'MONTHLY' } = payload;
-  validateAgentPayload({ agentName, phone, latitude, longitude });
+export const registerCommunityPartnerByAdminService = async ({ payload }) => {
+  const { communityPartnerName, phone, latitude, longitude, address = null, landmark = null, city = null, state = null, pincode = null, shopName = null, blockCoordinatorId = null, visitFrequency = 'MONTHLY' } = payload;
+  validateCommunityPartnerPayload({ communityPartnerName, phone, latitude, longitude });
 
   let user = await User.findOne({ phone: phone.trim() });
   
-  if (user?.roles?.includes('marketing_agent') || user?.roles?.includes('admin') || user?.roles?.includes('subadmin')) {
+  if (user?.roles?.includes('block_coordinator') || user?.roles?.includes('admin') || user?.roles?.includes('subadmin')) {
     throw new AppError('You cannot register this user as an RM Member because they are already an employee');
   }
   
@@ -509,13 +509,13 @@ export const registerAgentByAdminService = async ({ payload }) => {
     throw new AppError('This user already has roles: ' + user.roles.join(', '), 400);
   }
   
-  if (user?.profiles?.agentId) {
+  if (user?.profiles?.communityPartnerId) {
     throw new AppError('User is already registered as an RM Member', 400);
   }
   
   if (!user) {
     user = await User.create({
-      name: agentName.trim(),
+      name: communityPartnerName.trim(),
       phone: phone.trim(),
       address,
       landmark,
@@ -523,23 +523,23 @@ export const registerAgentByAdminService = async ({ payload }) => {
       state,
       pincode,
       location: { type: 'Point', coordinates: [longitude, latitude] },
-      dashboard: 'agent',
-      roles: ['agent'],
+      dashboard: 'community_partner',
+      roles: ['community_partner'],
       isActive: true,
       kycStatus: 'none'
     });
   }
   
-  const agentProfile = await AgentProfile.create({
+  const communityPartnerProfile = await CommunityPartnerProfile.create({
     userId: user._id,
     level: 0,
     directDownlineCount: 0,
     totalDownlineCount: 0,
     registeredBy: 'ADMIN',
-    marketingAgentId: marketingAgentId || null,
+    blockCoordinatorId: blockCoordinatorId || null,
 
-    // Shop details drive the meet plan — see agentProfile.model.js
-    shopName: shopName || agentName.trim(),
+    // Shop details drive the meet plan — see communityPartnerProfile.model.js
+    shopName: shopName || communityPartnerName.trim(),
     address,
     landmark,
     city,
@@ -551,12 +551,12 @@ export const registerAgentByAdminService = async ({ payload }) => {
     location: { type: 'Point', coordinates: [longitude, latitude] }
   });
 
-  const role = await ROLE.findOne({ key: 'agent' }).select('permissions').lean();
+  const role = await ROLE.findOne({ key: 'community_partner' }).select('permissions').lean();
   
   await User.updateOne(
     { _id: user._id },
-    { $set: { dashboard: 'agent', roles: ['agent'], permissions: role?.permissions || [], 'profiles.agentId': agentProfile._id } }
+    { $set: { dashboard: 'community_partner', roles: ['community_partner'], permissions: role?.permissions || [], 'profiles.communityPartnerId': communityPartnerProfile._id } }
   );
   
-  return { userId: user._id, agentProfileId: agentProfile._id, message: 'RM Member registered by admin successfully' };
+  return { userId: user._id, communityPartnerProfileId: communityPartnerProfile._id, message: 'RM Member registered by admin successfully' };
 };

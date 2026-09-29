@@ -10,12 +10,12 @@ export const addCreditController = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { agentId, expiryDate, description } = req.body;
+    const { communityPartnerId, expiryDate, description } = req.body;
 
     // Always convert here
     const amount = Number(req.body.amount);
 
-    if (!agentId || !expiryDate || isNaN(amount)) {
+    if (!communityPartnerId || !expiryDate || isNaN(amount)) {
       throw new AppError("Invalid input data", 400);
     }
 
@@ -26,7 +26,7 @@ export const addCreditController = async (req, res, next) => {
     // findOneAndUpdate + $inc so a concurrent add can't clobber another
     // one's write the way a find -> mutate -> save round trip could.
     const wallet = await RMCredit.findOneAndUpdate(
-      { agentId },
+      { communityPartnerId },
       {
         $inc: { totalCredit: amount, balance: amount },
         $set: { expiryDate },
@@ -38,7 +38,7 @@ export const addCreditController = async (req, res, next) => {
       [
         {
           walletId: wallet._id,
-          agentId,
+          communityPartnerId,
           amount,
           type: "credit",
           performedBy: req.user.id,
@@ -67,14 +67,14 @@ export const addCreditController = async (req, res, next) => {
 
 export const requestRevokeCreditController = async (req, res, next) => {
   try {
-    const { agentId } = req.body;
+    const { communityPartnerId } = req.body;
     const amount = Number(req.body.amount);
 
-    if (!agentId || isNaN(amount) || amount <= 0) {
+    if (!communityPartnerId || isNaN(amount) || amount <= 0) {
       return next(new AppError("Valid RM Member and amount required", 400));
     }
 
-    const wallet = await RMCredit.findOne({ agentId });
+    const wallet = await RMCredit.findOne({ communityPartnerId });
 
     if (!wallet) {
       return next(new AppError("Wallet not found", 404));
@@ -117,10 +117,10 @@ const MAX_REVOKE_OTP_ATTEMPTS = 5;
 
 export const verifyRevokeCreditController = async (req, res, next) => {
   try {
-    const { agentId } = req.body;
+    const { communityPartnerId } = req.body;
     const otp = String(req.body.otp);
 
-    if (!agentId || !otp) {
+    if (!communityPartnerId || !otp) {
       return next(new AppError("RM Member and OTP required", 400));
     }
 
@@ -128,7 +128,7 @@ export const verifyRevokeCreditController = async (req, res, next) => {
     // NOT inside the transaction below -- a wrong-attempt still has to persist
     // even though the request as a whole fails, and a transaction rollback
     // would otherwise erase that increment along with it.
-    const wallet = await RMCredit.findOne({ agentId });
+    const wallet = await RMCredit.findOne({ communityPartnerId });
 
     if (!wallet) {
       return next(new AppError("Wallet not found", 404));
@@ -168,7 +168,7 @@ export const verifyRevokeCreditController = async (req, res, next) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const lockedWallet = await RMCredit.findOne({ agentId }).session(session);
+      const lockedWallet = await RMCredit.findOne({ communityPartnerId }).session(session);
 
       if (Number(lockedWallet.balance) < amount) {
         throw new AppError("Insufficient balance", 400);
@@ -189,7 +189,7 @@ export const verifyRevokeCreditController = async (req, res, next) => {
         [
           {
             walletId: lockedWallet._id,
-            agentId,
+            communityPartnerId,
             amount,
             type: "revoke",
             performedBy: req.user.id,
@@ -219,9 +219,9 @@ export const verifyRevokeCreditController = async (req, res, next) => {
 
 export const getMyCreditDetailsController = async (req, res, next) => {
   try {
-    const agentId = req.user.id;
+    const communityPartnerId = req.user.id;
 
-    const wallet = await RMCredit.findOne({ agentId });
+    const wallet = await RMCredit.findOne({ communityPartnerId });
 
     if (!wallet) {
       return res.status(200).json({
@@ -242,7 +242,7 @@ export const getMyCreditDetailsController = async (req, res, next) => {
       });
     }
 
-    const transactions = await RMCreditTransaction.find({ agentId })
+    const transactions = await RMCreditTransaction.find({ communityPartnerId })
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -269,17 +269,17 @@ export const getMyCreditDetailsController = async (req, res, next) => {
 };
 
 
-export const getAgentCreditDetailsController = async (req, res, next) => {
+export const getCommunityPartnerCreditDetailsController = async (req, res, next) => {
   try {
-    const { agentId } = req.params;
+    const { communityPartnerId } = req.params;
 
-    const wallet = await RMCredit.findOne({ agentId });
+    const wallet = await RMCredit.findOne({ communityPartnerId });
 
     if (!wallet) {
       return next(new AppError("Wallet not found", 404));
     }
 
-    const transactions = await RMCreditTransaction.find({ agentId })
+    const transactions = await RMCreditTransaction.find({ communityPartnerId })
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -306,14 +306,14 @@ export const getAgentCreditDetailsController = async (req, res, next) => {
 
 export const getAdminCreditHistoryController = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, type = null, agentId = null } = req.query;
+    const { page = 1, limit = 20, type = null, communityPartnerId = null } = req.query;
 
     const query = {};
     if (type) {
       query.type = type;
     }
-    if (agentId) {
-      query.agentId = agentId;
+    if (communityPartnerId) {
+      query.communityPartnerId = communityPartnerId;
     }
 
     const currentPage = Number(page) || 1;
@@ -324,7 +324,7 @@ export const getAdminCreditHistoryController = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip((currentPage - 1) * perPage)
         .limit(perPage)
-        .populate("agentId", "name phone")
+        .populate("communityPartnerId", "name phone")
         .populate("performedBy", "name")
         .populate("walletId", "expiryDate balance")
         .lean(),
@@ -338,10 +338,10 @@ export const getAdminCreditHistoryController = async (req, res, next) => {
       description: txn.description,
       date: txn.createdAt,
 
-      agent: txn.agentId ? {
-        id: txn.agentId._id,
-        name: txn.agentId.name,
-        phone: txn.agentId.phone
+      community_partner: txn.communityPartnerId ? {
+        id: txn.communityPartnerId._id,
+        name: txn.communityPartnerId.name,
+        phone: txn.communityPartnerId.phone
       } : null,
 
       performedBy: txn.performedBy ? {
@@ -372,23 +372,23 @@ export const getAdminCreditHistoryController = async (req, res, next) => {
 };
 
 /* ════════════════════════════════════════════════
-   REPAYMENT -- an agent pays back credit they've used.
+   REPAYMENT -- an community_partner pays back credit they've used.
    The line is time-limited: whatever was drawn down (usedCredit) has to come
-   back to the admin, either by the agent paying online themselves, or by
+   back to the admin, either by the community_partner paying online themselves, or by
    handing over cash which the admin then records.
 ════════════════════════════════════════════════ */
 
-/** Agent opens a Razorpay order to pay back some (or all) of their usedCredit. */
+/** CommunityPartner opens a Razorpay order to pay back some (or all) of their usedCredit. */
 export const createRepaymentOrderController = async (req, res, next) => {
   try {
-    const agentId = req.user.id;
+    const communityPartnerId = req.user.id;
     const amount = Number(req.body.amount);
 
     if (isNaN(amount) || amount <= 0) {
       return next(new AppError("Valid amount required", 400));
     }
 
-    const wallet = await RMCredit.findOne({ agentId });
+    const wallet = await RMCredit.findOne({ communityPartnerId });
     if (!wallet) {
       return next(new AppError("Wallet not found", 404));
     }
@@ -400,7 +400,7 @@ export const createRepaymentOrderController = async (req, res, next) => {
       amount: Math.round(amount * 100),
       currency: "INR",
       receipt: `rmcredit_repay_${wallet._id}_${Date.now()}`,
-      notes: { agentId: agentId.toString(), purpose: "rmcredit_repayment" }
+      notes: { communityPartnerId: communityPartnerId.toString(), purpose: "rmcredit_repayment" }
     });
 
     // The amount is locked here, server-side -- verify below reads this
@@ -428,14 +428,14 @@ export const verifyRepaymentController = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const agentId = req.user.id;
+    const communityPartnerId = req.user.id;
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       throw new AppError("Incomplete payment confirmation", 400);
     }
 
-    const wallet = await RMCredit.findOne({ agentId }).session(session);
+    const wallet = await RMCredit.findOne({ communityPartnerId }).session(session);
     if (!wallet) throw new AppError("Wallet not found", 404);
 
     if (wallet.pendingRepayment?.razorpayOrderId !== razorpay_order_id) {
@@ -464,10 +464,10 @@ export const verifyRepaymentController = async (req, res, next) => {
       [
         {
           walletId: wallet._id,
-          agentId,
+          communityPartnerId,
           amount,
           type: "repayment",
-          performedBy: agentId,
+          performedBy: communityPartnerId,
           razorpay: { orderId: razorpay_order_id, paymentId: razorpay_payment_id },
           description: "Online repayment via Razorpay"
         }
@@ -491,9 +491,9 @@ export const verifyRepaymentController = async (req, res, next) => {
 };
 
 /**
- * Admin-recorded offline repayment -- the agent handed over cash in person,
+ * Admin-recorded offline repayment -- the community_partner handed over cash in person,
  * so there's nothing to verify against a gateway; the admin's entry IS the
- * record. No OTP round trip needed (unlike revoke): the agent is the one
+ * record. No OTP round trip needed (unlike revoke): the community_partner is the one
  * initiating the handover, the admin is just confirming receipt.
  */
 export const recordOfflineRepaymentController = async (req, res, next) => {
@@ -501,18 +501,18 @@ export const recordOfflineRepaymentController = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { agentId, description } = req.body;
+    const { communityPartnerId, description } = req.body;
     const amount = Number(req.body.amount);
 
-    if (!agentId || isNaN(amount) || amount <= 0) {
+    if (!communityPartnerId || isNaN(amount) || amount <= 0) {
       throw new AppError("Valid RM Member and amount required", 400);
     }
 
-    const wallet = await RMCredit.findOne({ agentId }).session(session);
+    const wallet = await RMCredit.findOne({ communityPartnerId }).session(session);
     if (!wallet) throw new AppError("Wallet not found", 404);
 
     if (amount > Number(wallet.usedCredit)) {
-      throw new AppError("Amount exceeds the credit this agent currently owes", 400);
+      throw new AppError("Amount exceeds the credit this community_partner currently owes", 400);
     }
 
     wallet.usedCredit = parseFloat((Number(wallet.usedCredit) - amount).toFixed(2));
@@ -523,7 +523,7 @@ export const recordOfflineRepaymentController = async (req, res, next) => {
       [
         {
           walletId: wallet._id,
-          agentId,
+          communityPartnerId,
           amount,
           type: "repayment",
           performedBy: req.user.id,

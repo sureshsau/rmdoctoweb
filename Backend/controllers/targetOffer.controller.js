@@ -2,11 +2,33 @@ import TargetOffer from "../models/targetOffer.model.js";
 import MedicineOrder from "../models/medicine/medicineOrder.model.js";
 import CommunityPartnerProfile from "../models/communityPartnerProfile.model.js";
 import mongoose from "mongoose";
+import { uploadBannerImageToS3 } from "../services/aws.service.js";
 
 // CREATE TARGET
 export const createTarget = async (req, res) => {
   try {
-    const target = new TargetOffer(req.body);
+    const targetData = { ...req.body };
+    if (targetData.targetPeriodType === "MONTHLY") {
+       targetData.startDate = new Date(`${targetData.targetMonth}-01T00:00:00.000Z`);
+       targetData.endDate = new Date(targetData.startDate.getFullYear(), targetData.startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (targetData.targetPeriodType === "YEARLY") {
+       targetData.startDate = new Date(`${targetData.targetMonth}-01-01T00:00:00.000Z`);
+       targetData.endDate = new Date(`${targetData.targetMonth}-12-31T23:59:59.999Z`);
+    } else if (targetData.targetPeriodType === "CUSTOM") {
+       targetData.startDate = new Date(`${targetData.startDate}T00:00:00.000Z`);
+       targetData.endDate = new Date(`${targetData.endDate}T23:59:59.999Z`);
+       targetData.targetMonth = "CUSTOM"; // Group all custom under this
+    }
+
+    if (req.file) {
+      const bannerResult = await uploadBannerImageToS3({
+        imageBuffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        fileName: req.file.originalname
+      });
+      targetData.bannerImage = bannerResult;
+    }
+    const target = new TargetOffer(targetData);
     await target.save();
     res.status(201).json({ success: true, message: "Target created successfully", target });
   } catch (error) {
@@ -31,7 +53,28 @@ export const getAllTargets = async (req, res) => {
 export const updateTarget = async (req, res) => {
   try {
     const { id } = req.params;
-    const target = await TargetOffer.findByIdAndUpdate(id, req.body, { new: true });
+    const updateData = { ...req.body };
+    if (updateData.targetPeriodType === "MONTHLY") {
+       updateData.startDate = new Date(`${updateData.targetMonth}-01T00:00:00.000Z`);
+       updateData.endDate = new Date(updateData.startDate.getFullYear(), updateData.startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (updateData.targetPeriodType === "YEARLY") {
+       updateData.startDate = new Date(`${updateData.targetMonth}-01-01T00:00:00.000Z`);
+       updateData.endDate = new Date(`${updateData.targetMonth}-12-31T23:59:59.999Z`);
+    } else if (updateData.targetPeriodType === "CUSTOM") {
+       updateData.startDate = new Date(`${updateData.startDate}T00:00:00.000Z`);
+       updateData.endDate = new Date(`${updateData.endDate}T23:59:59.999Z`);
+       updateData.targetMonth = "CUSTOM";
+    }
+
+    if (req.file) {
+      const bannerResult = await uploadBannerImageToS3({
+        imageBuffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        fileName: req.file.originalname
+      });
+      updateData.bannerImage = bannerResult;
+    }
+    const target = await TargetOffer.findByIdAndUpdate(id, updateData, { new: true });
     if (!target) {
       return res.status(404).json({ success: false, message: "Target not found" });
     }
@@ -58,13 +101,17 @@ export const deleteTarget = async (req, res) => {
 // GET PROGRESS FOR A SPECIFIC AGENT OR ALL AGENTS
 export const getCommunityPartnerTargetProgress = async (req, res) => {
   try {
-    const { month } = req.query; // YYYY-MM
-    if (!month) return res.status(400).json({ success: false, message: "targetMonth is required (YYYY-MM)" });
+    const { month } = req.query; // YYYY-MM, YYYY, or CUSTOM
+    if (!month) return res.status(400).json({ success: false, message: "targetMonth is required" });
 
-    const startDate = new Date(`${month}-01T00:00:00.000Z`);
-    const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    const allTargets = await TargetOffer.find({ targetMonth: month, isActive: true }).sort({ rank: 1 });
+    if (allTargets.length === 0) {
+      return res.status(200).json({ success: true, progressReport: [], activeTargets: [] });
+    }
 
-    const targets = await TargetOffer.find({ targetMonth: month, isActive: true }).sort({ rank: 1 });
+    // Use the exact date range from the targets
+    const startDate = allTargets[0].startDate;
+    const endDate = allTargets[0].endDate;
 
     // Aggregate Medicine Orders by CommunityPartner
     const salesData = await MedicineOrder.aggregate([
@@ -88,13 +135,15 @@ export const getCommunityPartnerTargetProgress = async (req, res) => {
           from: "community_partnerprofiles",
           localField: "userDetails.profiles.communityPartnerId",
           foreignField: "_id",
-          as: "community_partnerDetails"
+          as: "cpDetails"
         }
       },
-      { $unwind: "$community_partnerDetails" },
+      { $unwind: "$cpDetails" },
       {
         $group: {
-          _id: "$community_partnerDetails.userId",
+          _id: "$cpDetails.userId",
+          cpProfileId: { $first: "$cpDetails._id" },
+          parentCpId: { $first: "$cpDetails.parentCommunityPartnerId" },
           totalSales: { $sum: "$pricing.payableAmount" }
         }
       }
@@ -103,8 +152,24 @@ export const getCommunityPartnerTargetProgress = async (req, res) => {
     // Format the response
     const progressReport = await Promise.all(salesData.map(async (data) => {
       // Find the community_partner user
-      const community_partnerUser = await mongoose.model("User").findById(data._id).select("name phone");
+      const cpUser = await mongoose.model("User").findById(data._id).select("name phone");
+      const isSubCp = !!data.parentCpId;
       
+      let parentUserId = null;
+      if (isSubCp) {
+        const parentProfile = await CommunityPartnerProfile.findById(data.parentCpId);
+        if (parentProfile) parentUserId = parentProfile.userId.toString();
+      }
+
+      // Filter targets applicable to this CP
+      const targets = allTargets.filter(t => {
+        if (t.audienceType === "ALL_MAIN_CPS" && !isSubCp) return true;
+        if (t.audienceType === "ALL_SUB_CPS" && isSubCp) return true;
+        if (t.audienceType === "SPECIFIC_CP" && t.audienceRefId?.toString() === data._id.toString()) return true;
+        if (t.audienceType === "SUB_CPS_OF" && isSubCp && t.audienceRefId?.toString() === parentUserId) return true;
+        return false;
+      });
+
       let currentTarget = null;
       let nextTarget = null;
 
@@ -119,16 +184,17 @@ export const getCommunityPartnerTargetProgress = async (req, res) => {
 
       return {
         communityPartnerId: data._id,
-        communityPartnerName: community_partnerUser ? community_partnerUser.name : "Unknown",
-        community_partnerPhone: community_partnerUser ? community_partnerUser.phone : "Unknown",
+        communityPartnerName: cpUser ? cpUser.name : "Unknown",
+        community_partnerPhone: cpUser ? cpUser.phone : "Unknown",
         totalSales: data.totalSales,
         achievedTarget: currentTarget ? currentTarget.rewardDescription : "None",
         nextTargetAmount: nextTarget ? nextTarget.targetSalesAmount : null,
         nextTargetReward: nextTarget ? nextTarget.rewardDescription : null,
+        applicableTargetsCount: targets.length
       };
     }));
 
-    res.status(200).json({ success: true, month, progressReport, activeTargets: targets });
+    res.status(200).json({ success: true, month, progressReport, activeTargets: allTargets });
 
   } catch (error) {
     console.error(error);
@@ -140,27 +206,39 @@ export const getCommunityPartnerTargetProgress = async (req, res) => {
 export const getMyTargetProgress = async (req, res) => {
   try {
     const userId = req.user.id; // from auth middleware
-    const { month } = req.query; // YYYY-MM
+    const { month } = req.query; 
     
     // Default to current month if not provided
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
-    const startDate = new Date(`${targetMonth}-01T00:00:00.000Z`);
-    const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    const allTargets = await TargetOffer.find({ targetMonth, isActive: true }).sort({ rank: 1 });
+    if (allTargets.length === 0) {
+      return res.status(200).json({ success: true, targetMonth, totalSales: 0, activeTargets: [] });
+    }
 
-    const targets = await TargetOffer.find({ targetMonth, isActive: true }).sort({ rank: 1 });
+    const startDate = allTargets[0].startDate;
+    const endDate = allTargets[0].endDate;
 
-    // Aggregate sales specifically for this community_partner's downline or direct users
-    // Since medicineOrder has userId, we need to find all orders by users who belong to this community_partner
     const communityPartnerProfile = await CommunityPartnerProfile.findOne({ userId });
-    
     if (!communityPartnerProfile) {
       return res.status(404).json({ success: false, message: "RM Member profile not found" });
     }
 
-    if (communityPartnerProfile.parentCommunityPartnerId) {
-      return res.status(403).json({ success: false, message: "Only Main Community Partners are eligible for contests" });
+    const isSubCp = !!communityPartnerProfile.parentCommunityPartnerId;
+    let parentUserId = null;
+    if (isSubCp) {
+      const parentProfile = await CommunityPartnerProfile.findById(communityPartnerProfile.parentCommunityPartnerId);
+      if (parentProfile) parentUserId = parentProfile.userId.toString();
     }
+
+    // Filter targets applicable to this CP
+    const targets = allTargets.filter(t => {
+      if (t.audienceType === "ALL_MAIN_CPS" && !isSubCp) return true;
+      if (t.audienceType === "ALL_SUB_CPS" && isSubCp) return true;
+      if (t.audienceType === "SPECIFIC_CP" && t.audienceRefId?.toString() === userId.toString()) return true;
+      if (t.audienceType === "SUB_CPS_OF" && isSubCp && t.audienceRefId?.toString() === parentUserId) return true;
+      return false;
+    });
 
     // Aggregate downline CPs using graphLookup
     const allDescendants = await CommunityPartnerProfile.aggregate([

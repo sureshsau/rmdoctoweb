@@ -480,4 +480,34 @@ export const wipeAllFacesFromRekognition = async () => {
   }
 };
 
+export const uploadBannerImageToS3 = async ({
+  imageBuffer,
+  mimeType,
+  fileName
+}) => {
+  const bucketName = process.env.AWS_BUCKET_NAME;
+  const region = process.env.AWS_REGION;
 
+  if (!imageBuffer || !bucketName) {
+    throw new Error("Missing image upload parameters");
+  }
+
+  const ext = mimeType.split("/")[1] || "jpg";
+  const safeName = fileName ? fileName.replace(/[^a-zA-Z0-9.\-]/g, "") : "banner";
+  const key = `banners/${Date.now()}-${safeName}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType
+    })
+  );
+
+  return {
+    url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
+    key,
+    bucket: bucketName
+  };
+};

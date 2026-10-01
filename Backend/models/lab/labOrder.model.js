@@ -26,6 +26,22 @@ const labOrderSchema = new mongoose.Schema(
       index: true
     },
 
+    // Community Partner associated with sample collection
+    collectionCommunityPartnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true
+    },
+
+    // Block Coordinator associated with the community partner
+    blockCoordinatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true
+    },
+
     // Lab where sample is processed
     labId: {
       type: mongoose.Schema.Types.ObjectId,

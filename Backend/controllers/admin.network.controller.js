@@ -58,7 +58,17 @@ export const adminGetAllCommunityPartnersController = async (req, res) => {
     const community_partners = await User.find({
       roles: { $in: ["community_partner"] },
     })
-      .select("_id name phone faceImage isActive")
+      .select("_id name phone faceImage isActive profiles")
+      .populate({
+        path: "profiles.communityPartnerId",
+        populate: {
+          path: "parentCommunityPartnerId",
+          populate: {
+            path: "userId",
+            select: "name"
+          }
+        }
+      })
       .lean();
 
     return res.status(200).json({

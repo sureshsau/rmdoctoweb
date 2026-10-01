@@ -26,6 +26,8 @@ export const agetNetworkController = async (req, res) => {
 export const registerCommunityPartnerController = async (req, res) => {
   try {
       const payload=req.body;
+      if (payload.latitude) payload.latitude = parseFloat(payload.latitude);
+      if (payload.longitude) payload.longitude = parseFloat(payload.longitude);
       const {id}=req.user;
       const data=await registerCommunityPartnerByCommunityPartnerService({
         parentCommunityPartnerUserId:id,

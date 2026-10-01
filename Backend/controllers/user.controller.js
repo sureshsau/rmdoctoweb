@@ -248,7 +248,7 @@ export const toggleUserStatusController = async (req, res, next) => {
 export const getMeController = async (req, res, next) => {
   try {
     const user = await USER.findById(req.user.id).select(
-      "_id rmdId faceImage.url name email phone address district state pincode isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
+      "_id rmdId faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
     ).lean();
 
     if (!user) {

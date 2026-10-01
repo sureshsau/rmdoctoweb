@@ -166,6 +166,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       address = null,
       landmark = null,
       city = null,
+      district = null,
       state = null,
       pincode = null,
       shopName = null
@@ -233,11 +234,12 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
             parentCommunityPartnerId: parentCommunityPartner._id,
             blockCoordinatorId: parentCommunityPartner.blockCoordinatorId,
             level: parentCommunityPartner.level + 1,
-            registeredBy: "AGENT",
+            registeredBy: "COMMUNITY_PARTNER",
             communityPartnerName,
             shopName,
             address,
             city,
+            district,
             state,
             pincode,
             location: {
@@ -295,6 +297,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
         address,
         landmark,
         city,
+        district,
         state,
         pincode,
         location: {
@@ -318,7 +321,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       parentCommunityPartnerId: parentCommunityPartner._id,
       blockCoordinatorId: parentCommunityPartner.blockCoordinatorId,
       level: parentCommunityPartner.level + 1,
-      registeredBy: "AGENT",
+      registeredBy: "COMMUNITY_PARTNER",
       shopName,
       directDownlineCount: 0,
       totalDownlineCount: 0

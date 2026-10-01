@@ -40,6 +40,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
+      "http://localhost:3001",
       "http://localhost:8081",
       "http://172.20.10.2:8081",
       "https://www.rmdocto.in",

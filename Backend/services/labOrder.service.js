@@ -480,7 +480,20 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     .select("items pricing paymentMode paymentStatus orderStatus collectionType scheduledAt userId collectionCommunityPartnerId blockCoordinatorId labId accession createdAt")
     .populate("items.testId", "name shortCode")
     .populate("userId", "name phone")
-    .populate("collectionCommunityPartnerId", "name phone")
+    .populate({
+      path: "collectionCommunityPartnerId",
+      select: "name phone profiles",
+      populate: {
+        path: "profiles.communityPartnerId",
+        populate: {
+          path: "parentCommunityPartnerId",
+          populate: {
+            path: "userId",
+            select: "name"
+          }
+        }
+      }
+    })
     .populate("blockCoordinatorId", "name phone")
     .populate("labId", "name address.city")
     .populate("accession", "accessionNo status collectionInfo.unmatchedTests")
@@ -503,7 +516,11 @@ export const getAllLabOrdersOverview = async ({ filters = {}, page = 1, limit = 
     lab: order.labId ? { name: order.labId.name, city: order.labId.address?.city } : null,
     user: order.userId ? { id: order.userId._id, name: order.userId.name, phone: order.userId.phone } : null,
     collectionCommunityPartner: order.collectionCommunityPartnerId
-      ? { id: order.collectionCommunityPartnerId._id, name: order.collectionCommunityPartnerId.name }
+      ? { 
+          id: order.collectionCommunityPartnerId._id, 
+          name: order.collectionCommunityPartnerId.name,
+          parentPartnerName: order.collectionCommunityPartnerId.profiles?.communityPartnerId?.parentCommunityPartnerId?.userId?.name || null
+        }
       : null,
     testsCount: order.items?.length || 0,
     createdAt: order.createdAt

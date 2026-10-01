@@ -790,7 +790,20 @@ export const getAllMedicineOrdersOverview = async ({
     )
     .populate("items.medicineId", "name images")
     .populate("userId", "name phone")
-    .populate("deliveryCommunityPartnerId", "name phone")
+    .populate({
+      path: "deliveryCommunityPartnerId",
+      select: "name phone profiles",
+      populate: {
+        path: "profiles.communityPartnerId",
+        populate: {
+          path: "parentCommunityPartnerId",
+          populate: {
+            path: "userId",
+            select: "name"
+          }
+        }
+      }
+    })
     .populate("blockCoordinatorId", "name phone")
     .populate("placedBy", "name phone roles")
     .lean();
@@ -808,7 +821,10 @@ export const getAllMedicineOrdersOverview = async ({
       createdAt: order.createdAt,
       customer: order.userId,
       blockCoordinator: order.blockCoordinatorId,
-      deliveryCommunityPartner: order.deliveryCommunityPartnerId,
+      deliveryCommunityPartner: order.deliveryCommunityPartnerId ? {
+        name: order.deliveryCommunityPartnerId.name,
+        parentPartnerName: order.deliveryCommunityPartnerId.profiles?.communityPartnerId?.parentCommunityPartnerId?.userId?.name || null
+      } : null,
       placedBy: order.placedBy || null,
       medicine: firstItem
         ? {

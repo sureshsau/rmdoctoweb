@@ -36,6 +36,7 @@ router.patch('/:userId/details', authenticate, isOwnerOrAdmin("userId"), updateU
 // ── OPEN TO ALL AUTHENTICATED USERS ──────────────────────────────────────────
 router.get("/doctors", authenticate, getAllDoctorsController);
 router.get("/delivery_partners", authenticate, getAllDeliveryPartnersController);
+router.get("/rmriders", authenticate, getAllDeliveryPartnersController);
 
 // ── OWNER OR ADMIN (profile picture — only own or admin can upload) ───────────
 router.post("/:userId/profile-picture", authenticate, isOwnerOrAdmin("userId"), upload.single("image"), uploadProfilePictureController);

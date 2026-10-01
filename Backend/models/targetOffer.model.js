@@ -18,9 +18,37 @@ const targetOfferSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    targetPeriodType: {
+      type: String,
+      enum: ["MONTHLY", "YEARLY", "CUSTOM"],
+      default: "MONTHLY"
+    },
     targetMonth: {
-      type: String, // format YYYY-MM
-      required: true,
+      type: String, 
+      default: ""
+    },
+    startDate: {
+      type: Date,
+      required: false,
+    },
+    endDate: {
+      type: Date,
+      required: false,
+    },
+    audienceType: {
+      type: String,
+      enum: ["ALL_MAIN_CPS", "SPECIFIC_CP", "ALL_SUB_CPS", "SUB_CPS_OF"],
+      default: "ALL_MAIN_CPS"
+    },
+    audienceRefId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Stores the User ID of the Community Partner
+      default: null
+    },
+    bannerImage: {
+      url: { type: String, default: null },
+      key: { type: String, default: null },
+      bucket: { type: String, default: null }
     },
   },
   { timestamps: true }

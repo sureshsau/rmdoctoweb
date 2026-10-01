@@ -499,7 +499,7 @@ export const downloadInvoiceController = async (req, res, next) => {
     }
 
     const invoiceNo = `INV-${order._id.toString().slice(-6).toUpperCase()}`;
-    const orderNo = order._id.toString();
+    const orderNo = `ORD-${order._id.toString().slice(-6).toUpperCase()}`;
 
     const data = {
       seller: {
@@ -599,10 +599,17 @@ export const downloadInvoiceController = async (req, res, next) => {
       data
     );
 
-    const pdfBuffer = await pdf.generatePdf(
-      { content: html },
-      { format: "A4" }
-    );
+    const puppeteer = (await import("puppeteer")).default;
+    const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    const hasMacChrome = fs.existsSync(macPath);
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      ...(hasMacChrome ? { executablePath: macPath } : {})
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+    await browser.close();
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=invoice-${orderId}.pdf`);

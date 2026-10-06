@@ -39,7 +39,7 @@ export const getCommunityPartnerOrderAlertsController = async (req, res, next) =
 
     return res.status(200).json({
       success: true,
-      message: "RM Member order alerts fetched",
+      message: "Community Partner order alerts fetched",
       rangeApplied: range || "all",
       ...data
     });
@@ -90,7 +90,7 @@ export const getCommunityPartnerDownlineOrderStatsController = async (req, res, 
   try {
     const roles = req.user.roles || [];
     if (!roles.includes("community_partner")) {
-      throw new AppError("Forbidden: RM Member only", 403);
+      throw new AppError("Forbidden: Community Partner only", 403);
     }
 
     const { range, from, to } = req.query;
@@ -104,7 +104,7 @@ export const getCommunityPartnerDownlineOrderStatsController = async (req, res, 
 
     return res.status(200).json({
       success: true,
-      message: "RM Member downline order stats fetched",
+      message: "Community Partner downline order stats fetched",
       rangeApplied: range || "all",
       ...data
     });

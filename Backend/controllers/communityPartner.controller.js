@@ -37,7 +37,7 @@ export const registerCommunityPartnerController = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "RM Member registered successfully",
+      message: "Community Partner registered successfully",
       data: data,
     });
 
@@ -92,7 +92,7 @@ export const uploadAgreementEnsureProfileController = async (req, res) => {
     if (!user.roles || !user.roles.includes("community_partner")) {
       return res.status(403).json({
         success: false,
-        message: "User is not an RM Member"
+        message: "User is not an Community Partner"
       });
     }
 

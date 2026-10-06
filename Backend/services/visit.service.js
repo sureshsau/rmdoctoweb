@@ -10,7 +10,7 @@ import { uploadVisitPhotoToS3 } from "./aws.service.js";
 
 const EARTH_RADIUS_M = 6371000;
 
-/* Admin-side roles see every RM member; a marketing executive only sees the
+/* Admin-side roles see every Community partner; a marketing executive only sees the
    members allocated to them. */
 const FULL_SCOPE_ROLES = ["admin", "subadmin", "employee"];
 
@@ -522,11 +522,11 @@ export const getVisitTrackService = async ({
   to,
 }) => {
   if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
-    throw new AppError("Invalid RM Member id", 400);
+    throw new AppError("Invalid Community Partner id", 400);
   }
 
   const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
-  if (!profile) throw new AppError("RM Member not found", 404);
+  if (!profile) throw new AppError("Community Partner not found", 404);
 
   assertCanTouchMember({ requester, profile });
 
@@ -629,11 +629,11 @@ const assertCanTouchMember = ({ requester, profile }) => {
   if (isFullScope(requester.roles)) return;
 
   if (!requester.roles.includes("block_coordinator")) {
-    throw new AppError("You are not allowed to manage RM Member meets", 403);
+    throw new AppError("You are not allowed to manage Community Partner meets", 403);
   }
 
   if (String(profile.blockCoordinatorId || "") !== String(requester.id)) {
-    throw new AppError("This RM Member is not allocated to you", 403);
+    throw new AppError("This Community Partner is not allocated to you", 403);
   }
 };
 
@@ -662,7 +662,7 @@ export const markVisitService = async ({
   file = null,
 }) => {
   if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
-    throw new AppError("Invalid RM Member id", 400);
+    throw new AppError("Invalid Community Partner id", 400);
   }
 
   const {
@@ -687,7 +687,7 @@ export const markVisitService = async ({
   }
 
   const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
-  if (!profile) throw new AppError("RM Member not found", 404);
+  if (!profile) throw new AppError("Community Partner not found", 404);
 
   assertCanTouchMember({ requester, profile });
 
@@ -930,11 +930,11 @@ export const updateShopDetailsService = async ({
   file = null,
 }) => {
   if (!mongoose.isValidObjectId(communityPartnerProfileId)) {
-    throw new AppError("Invalid RM Member id", 400);
+    throw new AppError("Invalid Community Partner id", 400);
   }
 
   const profile = await CommunityPartnerProfile.findById(communityPartnerProfileId).lean();
-  if (!profile) throw new AppError("RM Member not found", 404);
+  if (!profile) throw new AppError("Community Partner not found", 404);
 
   assertCanTouchMember({ requester, profile });
 

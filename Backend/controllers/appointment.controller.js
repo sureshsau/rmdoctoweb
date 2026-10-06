@@ -268,7 +268,7 @@ export const getCommunityPartnerAppointmentsController = async (req, res) => {
 
     // Only community_partner allowed
     if (!roles.includes("community_partner")) {
-      throw new AppError("Only RM Members allowed", 403);
+      throw new AppError("Only Community Partners allowed", 403);
     }
 
     const { page = 1, limit = 10 } = req.query;
@@ -288,7 +288,7 @@ export const getCommunityPartnerAppointmentsController = async (req, res) => {
     const community_partner = await User.findById(communityPartnerId).select("phone");
 
     if (!community_partner) {
-      throw new AppError("RM Member not found", 404);
+      throw new AppError("Community Partner not found", 404);
     }
 
     const filter = {

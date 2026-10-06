@@ -142,7 +142,7 @@ export const searchCommunityPartnersForStaffOrder = async (search = "", limit = 
 
   return community_partners.map((a) => ({
     id: a._id,
-    name: a.name || "Unnamed RM Member",
+    name: a.name || "Unnamed Community Partner",
     phone: a.phone,
     ...registeredAddress(a)
   }));
@@ -304,7 +304,7 @@ export const createMedicineOrder = async ({
       case "RM_CREDIT":
         // Only community_partners can use RM Credit
         if (!user.roles.includes("community_partner")) {
-          throw new AppError("Only RM Members can use RM Credit", 403);
+          throw new AppError("Only Community Partners can use RM Credit", 403);
         }
 
         const wallet = await RMCredit.findOne({ communityPartnerId: userId })

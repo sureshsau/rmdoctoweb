@@ -43,9 +43,9 @@
     }
   },
   "visit": {
-    "label": "RM Member Meet Management",
+    "label": "Community Partner Meet Management",
     "permissions": {
-      "visit.read": "View the RM Member meet plan",
+      "visit.read": "View the Community Partner meet plan",
       "visit.mark": "Mark a meet complete / incomplete"
     }
   },

@@ -117,7 +117,7 @@ const communityPartnerProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Powers the "search a location → every RM member on that route" lookup
+// Powers the "search a location → every Community partner on that route" lookup
 communityPartnerProfileSchema.index({ location: "2dsphere" });
 
 const CommunityPartnerProfile = mongoose.model("CommunityPartnerProfile", communityPartnerProfileSchema);

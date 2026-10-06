@@ -101,14 +101,14 @@ export const registerCommunityPartnerByBlockCoordinatorService = async ({
 
         if (existingCommunityPartnerProfile.blockCoordinatorId) {
           throw new AppError(
-            "RM Member is already allocated to a Marketing Executive",
+            "Community Partner is already allocated to a Marketing Executive",
             400
           );
         }
 
         if (existingCommunityPartnerProfile.parentCommunityPartnerId) {
           throw new AppError(
-            "RM Member already belongs to a network. Contact admin for transfer.",
+            "Community Partner already belongs to a network. Contact admin for transfer.",
             400
           );
         }
@@ -128,7 +128,7 @@ export const registerCommunityPartnerByBlockCoordinatorService = async ({
         return {
           userId: user._id,
           communityPartnerProfileId: existingCommunityPartnerProfile._id,
-          message: "Existing RM Member assigned under Marketing Executive successfully"
+          message: "Existing Community Partner assigned under Marketing Executive successfully"
         };
       }
     }
@@ -140,7 +140,7 @@ export const registerCommunityPartnerByBlockCoordinatorService = async ({
       const parentCommunityPartner = await CommunityPartnerProfile.findById(parentCommunityPartnerId);
 
       if (!parentCommunityPartner) {
-        throw new Error("Parent RM Member not found");
+        throw new Error("Parent Community Partner not found");
       }
 
       level = parentCommunityPartner.level + 1;
@@ -202,7 +202,7 @@ export const registerCommunityPartnerByBlockCoordinatorService = async ({
     return {
       userId: user._id,
       communityPartnerProfileId,
-      message: "New RM Member registered successfully"
+      message: "New Community Partner registered successfully"
     };
 
   } catch (error) {

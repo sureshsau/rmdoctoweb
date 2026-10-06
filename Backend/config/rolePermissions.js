@@ -74,7 +74,7 @@ export const ROLE_PERMISSIONS = {
   block_coordinator: [
     "community_partner.read",
     "community_partner.create",
-    // Meet plan — the service scopes every read/write to their own RM Members
+    // Meet plan — the service scopes every read/write to their own Community Partners
     "visit.read",
     "visit.mark"
   ],

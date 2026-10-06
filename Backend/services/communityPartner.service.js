@@ -48,7 +48,7 @@ export const assignBlockCoordinatorToCommunityPartner = async ({
     );
 
     if (!rootCommunityPartner) {
-      throw new Error("RM Member not found");
+      throw new Error("Community Partner not found");
     }
 
     /* =========================
@@ -114,7 +114,7 @@ export const uploadCommunityPartnerAgreementService = async ({
   const communityPartnerProfile = await CommunityPartnerProfile.findById(communityPartnerProfileId);
 
   if (!communityPartnerProfile) {
-    throw new Error("RM Member profile not found");
+    throw new Error("Community Partner profile not found");
   }
 
   // 2️⃣ Upload to S3 FIRST (no DB mutation yet)
@@ -182,7 +182,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
     });
 
     if (!parentCommunityPartner) {
-      throw new AppError("Parent RM Member profile not found", 404);
+      throw new AppError("Parent Community Partner profile not found", 404);
     }
 
     /* =========================
@@ -210,19 +210,19 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       );
 
       if (!existingCommunityPartner) {
-        throw new AppError("RM Member profile corrupted", 500);
+        throw new AppError("Community Partner profile corrupted", 500);
       }
 
       if (existingCommunityPartner.parentCommunityPartnerId) {
         throw new AppError(
-          "RM Member already belongs to a network. Contact admin for transfer.",
+          "Community Partner already belongs to a network. Contact admin for transfer.",
           400
         );
       }
 
       if (existingCommunityPartner.blockCoordinatorId) {
         throw new AppError(
-          "RM Member already assigned to a Marketing Executive",
+          "Community Partner already assigned to a Marketing Executive",
           400
         );
       }
@@ -283,7 +283,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
       return {
         userId: user._id,
         communityPartnerProfileId: existingCommunityPartner._id,
-        message: "Existing RM Member linked under parent RM Member successfully"
+        message: "Existing Community Partner linked under parent Community Partner successfully"
       };
     }
 
@@ -378,7 +378,7 @@ export const registerCommunityPartnerByCommunityPartnerService = async ({
     return {
       userId: user._id,
       communityPartnerProfileId: communityPartnerProfile._id,
-      message: "New RM Member registered under parent RM Member successfully"
+      message: "New Community Partner registered under parent Community Partner successfully"
     };
 
   } catch (error) {
@@ -407,7 +407,7 @@ export const getCommunityPartnerVisibleNetwork = async ({
       .lean();
 
     if (!selfCommunityPartner) {
-      throw new AppError("RM Member profile not found", 404);
+      throw new AppError("Community Partner profile not found", 404);
     }
 
     /* =========================
@@ -559,7 +559,7 @@ export const registerCommunityPartnerByAdminService = async ({ payload }) => {
   let user = await User.findOne({ phone: phone.trim() });
   
   if (user?.roles?.includes('block_coordinator') || user?.roles?.includes('admin') || user?.roles?.includes('subadmin')) {
-    throw new AppError('You cannot register this user as an RM Member because they are already an employee');
+    throw new AppError('You cannot register this user as an Community Partner because they are already an employee');
   }
   
   if (user?.roles?.length) {
@@ -567,7 +567,7 @@ export const registerCommunityPartnerByAdminService = async ({ payload }) => {
   }
   
   if (user?.profiles?.communityPartnerId) {
-    throw new AppError('User is already registered as an RM Member', 400);
+    throw new AppError('User is already registered as an Community Partner', 400);
   }
   
   if (!user) {
@@ -615,5 +615,5 @@ export const registerCommunityPartnerByAdminService = async ({ payload }) => {
     { $set: { dashboard: 'community_partner', roles: ['community_partner'], permissions: role?.permissions || [], 'profiles.communityPartnerId': communityPartnerProfile._id } }
   );
   
-  return { userId: user._id, communityPartnerProfileId: communityPartnerProfile._id, message: 'RM Member registered by admin successfully' };
+  return { userId: user._id, communityPartnerProfileId: communityPartnerProfile._id, message: 'Community Partner registered by admin successfully' };
 };

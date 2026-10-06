@@ -12,8 +12,8 @@ async function run() {
   // Update "rmrider" to "Delivery Partner"
   await Role.updateOne({ key: "rmrider" }, { $set: { name: "Delivery Partner" } });
   
-  // Rename "agent" to "rm_member" and name to "Community Partner"
-  await Role.updateOne({ key: "agent" }, { $set: { key: "rm_member", name: "Community Partner" } });
+  // Rename "agent" to "community_partner" and name to "Community Partner"
+  await Role.updateOne({ key: "agent" }, { $set: { key: "community_partner", name: "Community Partner" } });
   
   console.log("Roles updated in backend DB.");
   process.exit(0);

@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, authorize, isAdminOrSubadmin } from "../middlewares/auth.middlewire.js";
+import { authenticate, optionalAuthenticate, authorize, isAdminOrSubadmin } from "../middlewares/auth.middlewire.js";
 import { prescriptionUpload } from "../utils/prescriptionUpload.js";
 import {
   bookLabOrderController,
@@ -17,6 +17,10 @@ import {
   verifyRazorpayLabPaymentController,
   getAssignedLabOrdersForRiderController
 } from "../controllers/labOrder.controller.js";
+import {
+  downloadLabReportPdfController,
+  downloadLabOrderInvoiceController
+} from "../controllers/labPdf.controller.js";
 
 const router = express.Router();
 
@@ -112,6 +116,15 @@ router.get("/:orderId/prescription", authenticate, getPrescriptionController);
 // Prescription — delete (owner only, before SAMPLE_COLLECTED)
 // DELETE /lab/order/:orderId/prescription
 router.delete("/:orderId/prescription", authenticate, deletePrescriptionController);
+
+// Live-generate / stream test report PDF (memory generated, zero S3 storage)
+// GET /lab/order/:orderId/report-pdf (and GET /lab/order/:orderId/report)
+router.get("/:orderId/report-pdf", optionalAuthenticate, downloadLabReportPdfController);
+router.get("/:orderId/report", optionalAuthenticate, downloadLabReportPdfController);
+
+// Live-generate / stream lab tax invoice PDF
+// GET /lab/order/:orderId/invoice
+router.get("/:orderId/invoice", optionalAuthenticate, downloadLabOrderInvoiceController);
 
 // Single order details (owner + admin)
 // GET /lab/order/:orderId

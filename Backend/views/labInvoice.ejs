@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Lab Order Invoice - <%= invoice.no %></title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      padding: 20px 24px;
+      color: #000;
+      line-height: 1.4;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 8px;
+      font-weight: bold;
+      border-bottom: 2px solid #0f766e;
+      color: #0f766e;
+      padding-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+
+    td,
+    th {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    th {
+      background: #f1f5f9;
+      text-align: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .right {
+      text-align: right;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .logo-img {
+      max-height: 45px;
+      max-width: 120px;
+    }
+
+    .barcode-img {
+      max-height: 40px;
+      max-width: 180px;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .header-section {
+      border: 1.5px solid #0f766e;
+      border-bottom: none;
+    }
+
+    .address-section {
+      border: 1.5px solid #0f766e;
+      border-bottom: none;
+    }
+
+    .items-table {
+      border: 1.5px solid #0f766e;
+      border-bottom: none;
+    }
+
+    .totals-table {
+      border: 1.5px solid #0f766e;
+      border-bottom: none;
+    }
+
+    .footer-section {
+      border: 1.5px solid #0f766e;
+    }
+
+    .declaration-text {
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .computer-generated {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 11px;
+      font-style: italic;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Diagnostic Service Invoice</h2>
+
+  <!-- ========== HEADER (Seller + Invoice/Barcode + Order/Barcode) ========== -->
+  <table class="header-section">
+    <tr>
+      <!-- Seller Info -->
+      <td style="width: 40%;" rowspan="2">
+        <% if (logoBase64) { %>
+          <img src="<%= logoBase64 %>" class="logo-img" /><br />
+        <% } %>
+        <br />
+        <b>Service Provider:</b><br />
+        <b><%= seller.name %></b><br />
+        <%= seller.address %><br />
+        <b>GSTIN:</b> <%= seller.gstin %><br />
+        <b>Mobile:</b> +91 <%= seller.mobile %><br />
+        <b>Email:</b> <%= seller.email %><br />
+        <b>Place of Supply:</b> <%= seller.place %>
+      </td>
+
+      <!-- Invoice Info -->
+      <td style="width: 30%;">
+        <b>Invoice Date:</b> <%= invoice.date %><br />
+        <b>Invoice No.:</b> <%= invoice.no %><br />
+        <% if (invoiceBarcode) { %>
+          <img src="<%= invoiceBarcode %>" class="barcode-img" />
+        <% } %>
+      </td>
+
+      <!-- Order Info -->
+      <td style="width: 30%;">
+        <b>Booking Date:</b> <%= invoice.orderDate %><br />
+        <b>Booking ID:</b> #<%= invoice.orderNo %><br />
+        <% if (orderBarcode) { %>
+          <img src="<%= orderBarcode %>" class="barcode-img" />
+        <% } %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== BILL TO / PATIENT ========== -->
+  <table class="address-section">
+    <tr>
+      <td style="width: 50%;">
+        <b>Billed To (Patient):</b><br />
+        <b><%= customer.name %></b><br />
+        <%= customer.address %><br />
+        <b>Phone:</b> <%= customer.phone %><br />
+        <b>Place:</b> <%= customer.place %>
+      </td>
+      <td style="width: 50%;">
+        <b>Service Type:</b> <%= serviceType || 'Diagnostic Lab Testing' %><br />
+        <b>Collection Mode:</b> <%= collectionType || 'HOME COLLECTION' %><br />
+        <b>Payment Mode:</b> <%= paymentMode %><br />
+        <b>Payment Status:</b> <%= paymentStatus || 'PENDING' %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== TESTS TABLE ========== -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: 5%;">Sl No</th>
+        <th style="width: 50%;">Test / Investigation Name</th>
+        <th style="width: 10%;">Qty</th>
+        <th style="width: 15%;">Unit Price (₹)</th>
+        <th style="width: 20%;">Total (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(item, index) { %>
+        <tr>
+          <td class="center"><%= index + 1 %></td>
+          <td><b><%= item.name %></b></td>
+          <td class="center"><%= item.qty %></td>
+          <td class="right"><%= Number(item.price).toFixed(2) %></td>
+          <td class="right"><%= Number(item.price * item.qty).toFixed(2) %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <!-- ========== TOTALS TABLE ========== -->
+  <table class="totals-table">
+    <tr>
+      <td style="width: 65%; vertical-align: middle;">
+        <b>Amount in Words:</b><br />
+        <%= amountWords %> ONLY
+      </td>
+      <td style="width: 35%; padding: 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;"><b>Subtotal:</b></td>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;" class="right">₹<%= Number(pricing.subtotal).toFixed(2) %></td>
+          </tr>
+          <tr>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;"><b>Home Collection Charge:</b></td>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;" class="right">₹<%= Number(pricing.homeCollectionCharge || 0).toFixed(2) %></td>
+          </tr>
+          <tr>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;"><b>Tax / GST:</b></td>
+            <td style="border: none; border-bottom: 1px solid #cbd5e1; padding: 4px 6px;" class="right">₹<%= Number(pricing.gstTotal || 0).toFixed(2) %></td>
+          </tr>
+          <tr style="background: #f8fafc;">
+            <td style="border: none; padding: 6px;"><b>Grand Total (Payable):</b></td>
+            <td style="border: none; padding: 6px; font-size: 13px; color: #0f766e;" class="right bold">₹<%= Number(pricing.payableAmount).toFixed(2) %></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== FOOTER ========== -->
+  <table class="footer-section">
+    <tr>
+      <td style="width: 60%;" class="declaration-text">
+        <b>Declaration:</b><br />
+        1. This is a computer-generated tax invoice for medical diagnostic services.<br />
+        2. Test fees once paid are non-refundable after sample processing has commenced.<br />
+        3. All disputes subject to Murshidabad, West Bengal jurisdiction.
+      </td>
+      <td style="width: 40%; text-align: right; vertical-align: bottom;">
+        For <b>RMIA HEALTH CARE (OPC) PRIVATE LIMITED</b><br /><br /><br />
+        <b>Authorized Signatory</b>
+      </td>
+    </tr>
+  </table>
+
+  <div class="computer-generated">
+    This is a Computer Generated Diagnostic Invoice.
+  </div>
+
+</body>
+</html>

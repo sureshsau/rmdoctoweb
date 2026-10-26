@@ -8,6 +8,8 @@ import {
   updateLabController,
   deleteLabController,
   createLabTestController,
+  createLabPackageController,
+  getLabPackagesController,
   getLabTestsController,
   getLabTestByIdController,
   updateLabTestController,
@@ -15,6 +17,21 @@ import {
 } from "../controllers/lab.controller.js";
 
 const router = express.Router();
+
+/* ═════════════════════════════════════════
+   LAB PACKAGE ROUTES (/labs/packages/...)
+═════════════════════════════════════════ */
+
+// Create lab package (admin/subadmin)
+router.post(
+  "/packages/create",
+  authenticate,
+  authorize("labTest.create"),
+  createLabPackageController
+);
+
+// List all lab packages (public)
+router.get("/packages/list", getLabPackagesController);
 
 /* ═════════════════════════════════════════
    LAB ROUTES

@@ -185,13 +185,63 @@ export const createLabTestService = async ({ testData, userId }) => {
   return test;
 };
 
+export const createLabPackageService = async ({ packageData, userId }) => {
+  const { labId } = packageData;
+
+  if (!mongoose.Types.ObjectId.isValid(labId)) {
+    throw new AppError("Invalid lab ID", 400);
+  }
+
+  const labExists = await Lab.exists({ _id: labId, isActive: true });
+  if (!labExists) throw new AppError("Lab not found or inactive", 404);
+
+  // Automatically enforce package categorization and isPackage flag
+  const pricing = { ...packageData.pricing };
+  if (pricing.offerPrice && !pricing.userPrice) {
+    pricing.userPrice = Number(pricing.offerPrice);
+  } else if (!pricing.userPrice && packageData.price) {
+    pricing.userPrice = Number(packageData.price);
+  }
+  if (!pricing.communityPartnerPrice) {
+    pricing.communityPartnerPrice = pricing.userPrice || pricing.mrp || 0;
+  }
+  if (!pricing.mrp && pricing.userPrice) {
+    pricing.mrp = pricing.userPrice;
+  }
+
+  const calculatedDiscount = packageData.discountPercentage ||
+    (pricing.mrp && pricing.userPrice && pricing.mrp > pricing.userPrice
+      ? Math.round(((pricing.mrp - pricing.userPrice) / pricing.mrp) * 100)
+      : 0);
+
+  let tat = packageData.reportTat;
+  if (typeof tat === "string") {
+    tat = parseInt(tat, 10) || 24;
+  }
+
+  const payload = {
+    ...packageData,
+    pricing,
+    discountPercentage: calculatedDiscount,
+    reportTat: tat || 24,
+    isPackage: true,
+    category: packageData.category || "Health Package",
+    sampleType: packageData.sampleType === "Blood, Urine" ? "Blood" : (packageData.sampleType || "Blood"),
+    addedBy: userId
+  };
+
+  const pkg = await LabTest.create(payload);
+  return pkg;
+};
+
 export const getLabTestsService = async ({
   page     = 1,
   limit    = 10,
   search   = "",
   labId    = "",
   category = "",
-  sampleType = ""
+  sampleType = "",
+  isPackage
 }) => {
   page  = Number(page);
   limit = Number(limit);
@@ -199,6 +249,15 @@ export const getLabTestsService = async ({
 
   const query = { isActive: true };
 
+  if (isPackage !== undefined && isPackage !== null && isPackage !== "") {
+    const isPkgBool = isPackage === true || isPackage === "true";
+    if (isPkgBool) {
+      query.$or = [{ isPackage: true }, { category: /Health Package/i }];
+    } else {
+      query.isPackage = { $ne: true };
+      query.category = { $ne: "Health Package" };
+    }
+  }
   if (labId && mongoose.Types.ObjectId.isValid(labId)) {
     query.labId = new mongoose.Types.ObjectId(labId);
   }
@@ -215,7 +274,7 @@ export const getLabTestsService = async ({
 
   const [tests, total] = await Promise.all([
     LabTest.find(query)
-      .select("name shortCode category sampleType pricing gstPercentage homeCollectionAvailable reportTat labId isActive")
+      .select("name shortCode description category sampleType pricing gstPercentage homeCollectionAvailable reportTat labId isActive preparationRequired isPackage testCount testsIncluded fastingRequired fastingDuration popularPackage discountPercentage imageUrl badge")
       .populate({ path: "labId", select: "name brandName address.city homeCollectionCharge" })
       .sort({ createdAt: -1 })
       .skip(skip)

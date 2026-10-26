@@ -14,7 +14,10 @@ import {
   updateKycStatusController,
   getMeController,
   updateUserDetailsController,
-  changePasswordController
+  changePasswordController,
+  getMyFamilyMembersController,
+  addMyFamilyMemberController,
+  deleteMyFamilyMemberController
 } from "../controllers/user.controller.js";
 import { authenticate, authorize, isOwnerOrAdmin } from "../middlewares/auth.middlewire.js";
 
@@ -29,12 +32,17 @@ const router = express.Router();
 router.get('/my/addresses', authenticate, getMyAddressesController);
 router.post('/my/addresses', authenticate, addMyAddressController);
 router.delete('/my/addresses/:addressId', authenticate, deleteMyAddressController);
+router.get('/my/family', authenticate, getMyFamilyMembersController);
+router.post('/my/family', authenticate, addMyFamilyMemberController);
+router.delete('/my/family/:memberId', authenticate, deleteMyFamilyMemberController);
 router.get('/me', authenticate, getMeController);
 router.patch('/change-password', authenticate, changePasswordController);
 router.patch('/:userId/details', authenticate, isOwnerOrAdmin("userId"), updateUserDetailsController);
 
+// ── PUBLIC DOCTOR DIRECTORY ─────────────────────────────────────────────────
+router.get("/doctors", getAllDoctorsController);
+
 // ── OPEN TO ALL AUTHENTICATED USERS ──────────────────────────────────────────
-router.get("/doctors", authenticate, getAllDoctorsController);
 router.get("/delivery_partners", authenticate, getAllDeliveryPartnersController);
 router.get("/rmriders", authenticate, getAllDeliveryPartnersController);
 

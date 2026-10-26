@@ -4,7 +4,7 @@ import { ROLE_PERMISSIONS } from "../config/rolePermissions.js";
 
 export const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || (req.query.token ? `Bearer ${req.query.token}` : null);
     if (!authHeader) {
       return res.status(401).json({ message: "No token provided" });
     }
@@ -65,6 +65,52 @@ export const authenticate = async (req, res, next) => {
   } catch (err) {
     console.error("AUTH ERROR:", err);
     return res.status(500).json({ message: "Authentication failed" });
+  }
+};
+
+export const optionalAuthenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || (req.query.token ? `Bearer ${req.query.token}` : null);
+    if (!authHeader) {
+      return next();
+    }
+
+    const [type, token] = authHeader.split(" ");
+    if (type !== "Bearer" || !token) {
+      return next();
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return next();
+    }
+
+    const user = await USER.findById(decoded.id)
+      .select("_id dashboard roles permissions webSessionVersion appSessionVersion isBlocked isActive")
+      .lean();
+
+    if (user && !user.isBlocked && user.isActive) {
+      const userPermissions = new Set();
+      if (user.roles) {
+        for (const role of user.roles) {
+          if (ROLE_PERMISSIONS[role]) {
+            ROLE_PERMISSIONS[role].forEach((p) => userPermissions.add(p));
+          }
+        }
+      }
+      req.user = {
+        id: user._id,
+        dashboard: user.dashboard,
+        roles: user.roles || [],
+        permissions: Array.from(userPermissions),
+        deviceType: decoded.deviceType,
+      };
+    }
+    next();
+  } catch {
+    next();
   }
 };
 

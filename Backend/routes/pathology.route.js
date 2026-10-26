@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, authorize } from "../middlewares/auth.middlewire.js";
+import { authenticate, optionalAuthenticate, authorize } from "../middlewares/auth.middlewire.js";
 import { prescriptionUpload } from "../utils/prescriptionUpload.js";
 import {
   listPanels,
@@ -28,6 +28,7 @@ import {
   listMyReports,
   getMyReport,
 } from "../controllers/pathology.controller.js";
+import { downloadLabReportPdfController } from "../controllers/labPdf.controller.js";
 
 /**
  * Mounted at /pathology -- the in-house reporting workflow.
@@ -96,10 +97,12 @@ router.patch(
 /* ---------- patient / user: own released reports only ---------- */
 router.get("/my-reports", authenticate, listMyReports);
 router.get("/my-reports/:id", authenticate, getMyReport);
+router.get("/my-reports/:id/pdf", optionalAuthenticate, downloadLabReportPdfController);
 
 /* ---------- report workflow (staff) ---------- */
 router.get("/reports", authenticate, authorize("pathology.report.read"), listReports);
 router.get("/reports/:id", authenticate, authorize("pathology.report.read"), getReport);
+router.get("/reports/:id/pdf", optionalAuthenticate, downloadLabReportPdfController);
 
 // Data entry: enter values, then send to the lab technician. saveReportValues
 // also lets a technician correct values in place; the role split is enforced

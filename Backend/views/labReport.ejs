@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Diagnostic Report - <%= report.reportNo %></title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #1e293b;
+      padding: 24px 30px;
+      background-color: #ffffff;
+      line-height: 1.4;
+    }
+
+    /* ── HEADER ── */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-bottom: 2px solid #0f766e;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+
+    .header-table td {
+      vertical-align: middle;
+      border: none;
+    }
+
+    .logo-img {
+      max-height: 55px;
+      max-width: 130px;
+      object-fit: contain;
+    }
+
+    .lab-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f766e;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .lab-subtitle {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    .report-badge {
+      display: inline-block;
+      background: #0f766e;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ── PATIENT & SPECIMEN METADATA ── */
+    .patient-card {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      background: #f8fafc;
+    }
+
+    .patient-card td {
+      padding: 6px 10px;
+      font-size: 11px;
+      border: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+
+    .label {
+      font-weight: 700;
+      color: #475569;
+      width: 18%;
+    }
+
+    .val {
+      color: #0f172a;
+      width: 32%;
+      font-weight: 600;
+    }
+
+    .barcode-img {
+      max-height: 38px;
+      max-width: 180px;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* ── PANELS & RESULTS ── */
+    .panel-block {
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .panel-header {
+      background: #0f766e;
+      color: #ffffff;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 12px;
+      border-radius: 4px 4px 0 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .panel-sub {
+      background: #f1f5f9;
+      padding: 4px 10px;
+      font-size: 10px;
+      color: #64748b;
+      border-left: 1px solid #cbd5e1;
+      border-right: 1px solid #cbd5e1;
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cbd5e1;
+    }
+
+    .results-table th {
+      background: #e2e8f0;
+      color: #334155;
+      font-weight: 700;
+      font-size: 10px;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      text-transform: uppercase;
+    }
+
+    .results-table td {
+      padding: 6px 8px;
+      font-size: 11px;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+
+    .param-name {
+      font-weight: 600;
+    }
+
+    .observed-val {
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .flag-normal {
+      color: #059669;
+      font-weight: 600;
+    }
+
+    .flag-abnormal {
+      color: #dc2626;
+      font-weight: 700;
+    }
+
+    .flag-pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pill-normal {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .pill-high {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .pill-low {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .end-report {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin: 16px 0 24px 0;
+      text-transform: uppercase;
+    }
+
+    /* ── SIGNATURES FOOTER ── */
+    .sign-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 16px;
+    }
+
+    .sign-table td {
+      width: 33.33%;
+      text-align: center;
+      vertical-align: bottom;
+      font-size: 11px;
+      border: none;
+      padding: 10px;
+    }
+
+    .sign-title {
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 35px;
+      border-top: 1px solid #64748b;
+      padding-top: 4px;
+      display: inline-block;
+      width: 80%;
+    }
+
+    .sign-role {
+      font-size: 9px;
+      color: #64748b;
+    }
+
+    .disclaimer {
+      margin-top: 18px;
+      padding: 6px 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 9px;
+      color: #64748b;
+      line-height: 1.3;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== HEADER ========== -->
+  <table class="header-table">
+    <tr>
+      <td style="width: 20%;">
+        <% if (logoBase64) { %>
+          <img src="<%= logoBase64 %>" class="logo-img" alt="RMDOCTO Logo" />
+        <% } %>
+      </td>
+      <td style="width: 55%; text-align: left; padding-left: 10px;">
+        <div class="lab-title">RMDOCTO DIAGNOSTICS</div>
+        <div class="lab-subtitle">
+          50/G/2, Ground Square Apartment, Churaman Chowdhury Lane, Berhampore - 742101<br />
+          <b>Helpline:</b> +91 9434347825 &nbsp;|&nbsp; <b>Email:</b> info@rmdocto.in &nbsp;|&nbsp; <b>Web:</b> www.rmdocto.in
+        </div>
+      </td>
+      <td style="width: 25%; text-align: right;">
+        <span class="report-badge">TEST REPORT</span><br />
+        <span style="font-size: 10px; color: #475569; font-weight: 600;">Status: <%= report.status ? report.status.toUpperCase() : 'FINAL' %></span>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ========== PATIENT & SAMPLE DETAILS ========== -->
+  <table class="patient-card">
+    <tr>
+      <td class="label">Patient Name:</td>
+      <td class="val"><%= patient.name || "N/A" %></td>
+      <td class="label">Report No:</td>
+      <td class="val"><%= report.reportNo || "N/A" %></td>
+    </tr>
+    <tr>
+      <td class="label">Patient ID / Age / Sex:</td>
+      <td class="val"><%= patient.rmdId || "—" %> &nbsp;|&nbsp; <%= patient.age ? patient.age + " Y" : "—" %> / <%= patient.sex ? patient.sex.toUpperCase() : "—" %></td>
+      <td class="label">Accession No:</td>
+      <td class="val">
+        <b><%= report.accessionNo || "N/A" %></b>
+        <% if (accessionBarcode) { %>
+          <img src="<%= accessionBarcode %>" class="barcode-img" alt="Barcode" />
+        <% } %>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">Referred By:</td>
+      <td class="val"><%= patient.referringDoctor || "SELF" %></td>
+      <td class="label">Sample Collected:</td>
+      <td class="val"><%= dates.collectedAt || "—" %></td>
+    </tr>
+    <tr>
+      <td class="label">Phone:</td>
+      <td class="val"><%= patient.phone || "—" %></td>
+      <td class="label">Sample Received:</td>
+      <td class="val"><%= dates.receivedAt || "—" %></td>
+    </tr>
+    <tr>
+      <td class="label">Address:</td>
+      <td class="val" colspan="1"><%= patient.address || "—" %></td>
+      <td class="label">Report Released:</td>
+      <td class="val"><%= dates.sentAt || "—" %></td>
+    </tr>
+  </table>
+
+  <!-- ========== TEST PANELS ========== -->
+  <% if (report.panels && report.panels.length > 0) { %>
+    <% report.panels.forEach(function(panel) { %>
+      <div class="panel-block">
+        <div class="panel-header">
+          <span><%= (panel.category ? panel.category.toUpperCase() + ' — ' : '') + (panel.name ? panel.name.toUpperCase() : 'INVESTIGATION') %></span>
+          <span><%= panel.code ? '[' + panel.code + ']' : '' %></span>
+        </div>
+        <% if (panel.method || panel.sampleType) { %>
+          <div class="panel-sub">
+            <% if (panel.method) { %><b>Method:</b> <%= panel.method %> &nbsp;&nbsp;|&nbsp;&nbsp;<% } %>
+            <% if (panel.sampleType) { %><b>Sample Specimen:</b> <%= panel.sampleType %><% } %>
+          </div>
+        <% } %>
+
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th style="width: 38%;">Investigation / Parameter</th>
+              <th style="width: 18%; text-align: center;">Observed Value</th>
+              <th style="width: 14%; text-align: center;">Unit</th>
+              <th style="width: 18%; text-align: center;">Biological Ref. Range</th>
+              <th style="width: 12%; text-align: center;">Flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (panel.results && panel.results.length > 0) { %>
+              <% panel.results.forEach(function(r) { %>
+                <% const isAbnormal = r.flag && r.flag !== 'normal' && r.flag !== ''; %>
+                <tr>
+                  <td class="param-name">
+                    <%= r.parameterName %>
+                  </td>
+                  <td class="observed-val" style="text-align: center; <%= isAbnormal ? 'color: #dc2626;' : 'color: #0f172a;' %>">
+                    <%= r.value !== null && r.value !== undefined ? r.value : '—' %>
+                  </td>
+                  <td style="text-align: center; color: #64748b;">
+                    <%= r.unit || '—' %>
+                  </td>
+                  <td style="text-align: center; color: #475569;">
+                    <%= r.refDisplay || (r.refLow !== null && r.refHigh !== null ? (r.refLow + ' - ' + r.refHigh) : '—') %>
+                  </td>
+                  <td style="text-align: center;">
+                    <% if (r.flag === 'high' || r.flag === 'critical_high') { %>
+                      <span class="flag-pill pill-high">HIGH</span>
+                    <% } else if (r.flag === 'low' || r.flag === 'critical_low') { %>
+                      <span class="flag-pill pill-low">LOW</span>
+                    <% } else if (r.flag === 'normal') { %>
+                      <span class="flag-pill pill-normal">NORMAL</span>
+                    <% } else { %>
+                      <span style="color: #94a3b8;">—</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 12px;">
+                  No specific parameter rows recorded for this panel.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    <% }); %>
+  <% } %>
+
+  <div class="end-report">*** End Of Diagnostic Report ***</div>
+
+  <% if (report.doctorRemarks) { %>
+    <div style="margin-bottom: 20px; padding: 8px 12px; background: #fefce8; border: 1px solid #fde047; border-radius: 4px;">
+      <b>Doctor / Pathologist Remarks:</b><br />
+      <span style="color: #713f12;"><%= report.doctorRemarks %></span>
+    </div>
+  <% } %>
+
+  <!-- ========== SIGNATURES ========== -->
+  <table class="sign-table">
+    <tr>
+      <td>
+        <div class="sign-title">Medical Lab Technician</div>
+        <div class="sign-role">Sample Analysis & Testing</div>
+      </td>
+      <td>
+        <% if (reportBarcode) { %>
+          <img src="<%= reportBarcode %>" class="barcode-img" style="margin: 0 auto 6px auto;" alt="Report Barcode" /><br />
+        <% } %>
+        <span style="font-size: 9px; color: #64748b;">Scan to verify report authenticity</span>
+      </td>
+      <td>
+        <div class="sign-title">Consultant Pathologist</div>
+        <div class="sign-role">MD / DNB Pathology (Verified)</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="disclaimer">
+    <b>Note:</b> This is an electronically generated and authenticated diagnostic report. Test results relate strictly to the specimen received at the lab and should be correlated clinically by a registered medical practitioner.
+  </div>
+
+</body>
+</html>

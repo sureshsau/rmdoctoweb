@@ -296,7 +296,8 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
         orderStatus: 1,
         scheduledAt: 1,
         createdAt: 1,
-        accession: 1
+        accession: 1,
+        reportUrl: 1
       })
       .populate({ path: "items.testId", select: "name shortCode category" })
       .populate({ path: "labId", select: "name address.city" })
@@ -341,6 +342,7 @@ export const getUserLabOrdersOverview = async ({ userId, page = 1, limit = 10 })
         ? { name: firstItem.testId?.name || "", shortCode: firstItem.testId?.shortCode || "" }
         : null,
       createdAt: order.createdAt,
+      reportUrl: order.reportUrl || null,
       // True only while paymentStatus !== "PAID" -- once paid the report
       // releases and orderStatus itself flips to REPORT_READY.
       reportReadyPendingPayment: ["final_verified", "released"].includes(reportStatus)

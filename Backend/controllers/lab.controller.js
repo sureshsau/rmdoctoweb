@@ -6,6 +6,7 @@ import {
   updateLabService,
   deleteLabService,
   createLabTestService,
+  createLabPackageService,
   getLabTestsService,
   getLabTestByIdService,
   updateLabTestService,
@@ -93,10 +94,39 @@ export const createLabTestController = async (req, res) => {
   }
 };
 
+export const createLabPackageController = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const pkg = await createLabPackageService({ packageData: req.body, userId });
+    return res.status(201).json({ success: true, message: "Health package created successfully", data: pkg });
+  } catch (error) {
+    console.error("❌ createLabPackageController:", error);
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message });
+  }
+};
+
 export const getLabTestsController = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", labId = "", category = "", sampleType = "" } = req.query;
-    const result = await getLabTestsService({ page, limit, search, labId, category, sampleType });
+    const { page = 1, limit = 10, search = "", labId = "", category = "", sampleType = "", isPackage } = req.query;
+    const result = await getLabTestsService({ page, limit, search, labId, category, sampleType, isPackage });
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getLabPackagesController = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = "", labId = "" } = req.query;
+    const result = await getLabTestsService({
+      page,
+      limit,
+      search,
+      labId,
+      isPackage: true
+    });
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

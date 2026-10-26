@@ -1271,7 +1271,11 @@ export const releaseReport = async (req, res) => {
     );
 
     if (accession?.labOrder) {
-      await LabOrder.findByIdAndUpdate(accession.labOrder, { orderStatus: "REPORT_READY" });
+      const publicBase = (process.env.APP_URL || process.env.API_URL || "https://api.rmdocto.in").replace(/\/+$/, "");
+      await LabOrder.findByIdAndUpdate(accession.labOrder, {
+        orderStatus: "REPORT_READY",
+        reportUrl: `${publicBase}/lab/order/${accession.labOrder}/report-pdf`
+      });
     }
 
     return ok(res, { report }, "Report released");

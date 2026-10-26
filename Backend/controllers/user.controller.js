@@ -248,7 +248,7 @@ export const toggleUserStatusController = async (req, res, next) => {
 export const getMeController = async (req, res, next) => {
   try {
     const user = await USER.findById(req.user.id).select(
-      "_id rmdId faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments"
+      "_id rmdId faceImage.url name email phone address district state pincode bankDetails isActive isBlocked roles dashboard createdAt rmCoinsBalance kycStatus kycDocuments savedAddresses familyMembers"
     ).lean();
 
     if (!user) {
@@ -406,3 +406,81 @@ export const changePasswordController = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+/* ================= FAMILY MEMBERS ================= */
+
+export const getMyFamilyMembersController = async (req, res, next) => {
+  try {
+    const user = await USER.findById(req.user.id).select("familyMembers");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      data: user.familyMembers || [],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addMyFamilyMemberController = async (req, res, next) => {
+  try {
+    const { name, relationship, gender, dob, photo, bloodGroup, medicalConditions } = req.body;
+    if (!name || !relationship) {
+      return res.status(400).json({ success: false, message: "Name and relationship are required" });
+    }
+
+    const user = await USER.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const newMember = {
+      name,
+      relationship,
+      gender: gender || "Male",
+      dob: dob || null,
+      photo: photo || null,
+      bloodGroup: bloodGroup || null,
+      medicalConditions: medicalConditions || null,
+      createdAt: new Date(),
+    };
+
+    user.familyMembers = user.familyMembers || [];
+    user.familyMembers.push(newMember);
+    await user.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Family member added successfully",
+      data: user.familyMembers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMyFamilyMemberController = async (req, res, next) => {
+  try {
+    const { memberId } = req.params;
+    const user = await USER.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.familyMembers = (user.familyMembers || []).filter(
+      (m) => m._id.toString() !== memberId
+    );
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Family member removed successfully",
+      data: user.familyMembers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

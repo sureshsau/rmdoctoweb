@@ -17,6 +17,19 @@ const deviceTokenSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const familyMemberSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    relationship: { type: String, required: true },
+    gender: { type: String, enum: ["Male", "Female", "Other"], default: "Male" },
+    dob: { type: String, default: null },
+    photo: { type: String, default: null },
+    bloodGroup: { type: String, default: null },
+    medicalConditions: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+  }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     // BASIC IDENTITY
@@ -63,6 +76,11 @@ const UserSchema = new mongoose.Schema(
         },
       }
     ],
+
+    familyMembers: {
+      type: [familyMemberSchema],
+      default: []
+    },
 
     // AUTHENTICATION
     passwordHash: { type: String },

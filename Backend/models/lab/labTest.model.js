@@ -90,6 +90,46 @@ const labTestSchema = new mongoose.Schema(
       // e.g. "Fasting 8 hours", "No preparation needed"
     },
 
+    // ── PACKAGE FIELDS ──────────────────────────────────────────────
+    isPackage: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    testCount: {
+      type: Number,
+      default: 1
+    },
+    testsIncluded: {
+      type: [String],
+      default: []
+    },
+    fastingRequired: {
+      type: Boolean,
+      default: false
+    },
+    fastingDuration: {
+      type: String,
+      default: ""
+    },
+    popularPackage: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    discountPercentage: {
+      type: Number,
+      default: 0
+    },
+    imageUrl: {
+      type: String,
+      default: ""
+    },
+    badge: {
+      type: String,
+      default: ""
+    },
+
     // STATUS
     isActive: {
       type: Boolean,

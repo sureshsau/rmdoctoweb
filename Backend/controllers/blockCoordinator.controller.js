@@ -10,7 +10,7 @@ export const registerCommunityPartnerByBlockCoordinatorController = async (req, 
 
     return res.status(201).json({
       success: true,
-      message: "RM Member registered successfully",
+      message: "Community Partner registered successfully",
       data: data,
     });
 

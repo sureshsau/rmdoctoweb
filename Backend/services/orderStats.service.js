@@ -158,7 +158,7 @@ export const getCommunityPartnerOrderAlertsService = async ({
 
       return {
         userId: user._id,
-        name: user.name || "Unnamed RM Member",
+        name: user.name || "Unnamed Community Partner",
         phone: user.phone || null,
         address:
           [user.address, user.city, user.district, user.state, user.pincode]
@@ -263,7 +263,7 @@ export const getCommunityPartnerDownlineOrderStatsService = async ({ communityPa
 
   // 1. Get all community_partners (self + downline) under this community_partner's subtree
   const selfProfile = await CommunityPartnerProfile.findOne({ userId: communityPartnerUserId }).lean();
-  if (!selfProfile) throw new AppError("RM Member profile not found", 404);
+  if (!selfProfile) throw new AppError("Community Partner profile not found", 404);
 
   // BFS to collect all community_partner userIds in the downline
   const allCommunityPartnerProfileIds = [selfProfile._id];

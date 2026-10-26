@@ -15,7 +15,8 @@ import {
   uploadLabReportController,
   createRazorpayLabOrderController,
   verifyRazorpayLabPaymentController,
-  getAssignedLabOrdersForRiderController
+  getAssignedLabOrdersForRiderController,
+  downloadLabInvoiceController
 } from "../controllers/labOrder.controller.js";
 import {
   downloadLabReportPdfController,
@@ -129,5 +130,9 @@ router.get("/:orderId/invoice", optionalAuthenticate, downloadLabOrderInvoiceCon
 // Single order details (owner + admin)
 // GET /lab/order/:orderId
 router.get("/:orderId", authenticate, getLabOrderDetailsController);
+
+// Download invoice
+// GET /lab/order/:orderId/invoice
+router.get("/:orderId/invoice", authenticate, downloadLabInvoiceController);
 
 export default router;

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-/* One row per meet attempt against an RM Member's shop.
+/* One row per meet attempt against an Community Partner's shop.
    The "pending / completed" split is *derived* from these rows for whatever
    period the caller asks about (day, week, month or a custom range) rather
    than stored per period — that way one model answers every filter and a
@@ -35,7 +35,7 @@ const communityPartnerVisitSchema = new mongoose.Schema(
       default: "BLOCK_COORDINATOR"
     },
 
-    /* The block coordinator this RM Member belonged to at meet time.
+    /* The block coordinator this Community Partner belonged to at meet time.
        Kept denormalised so an admin can filter the plan by executive even
        after a member is re-assigned. */
     blockCoordinatorId: {

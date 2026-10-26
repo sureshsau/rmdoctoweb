@@ -190,7 +190,7 @@ export const createLabOrder = async ({
 
       case "RM_CREDIT":
         if (!user.roles?.includes("community_partner")) {
-          throw new AppError("Only RM Members can use RM Credit", 403);
+          throw new AppError("Only Community Partners can use RM Credit", 403);
         }
 
         const wallet = await RMCredit.findOne({ communityPartnerId: userId }).session(session);

@@ -297,7 +297,7 @@ export const uploadMedicineImageToS3 = async ({
 };
 
 
-/* Shop front photos (captured at RM Member registration) and on-the-spot
+/* Shop front photos (captured at Community Partner registration) and on-the-spot
    proof photos taken during a meet. Same bucket, different folder. */
 export const uploadVisitPhotoToS3 = async ({
   communityPartnerProfileId,

@@ -71,7 +71,7 @@ export const requestRevokeCreditController = async (req, res, next) => {
     const amount = Number(req.body.amount);
 
     if (!communityPartnerId || isNaN(amount) || amount <= 0) {
-      return next(new AppError("Valid RM Member and amount required", 400));
+      return next(new AppError("Valid Community Partner and amount required", 400));
     }
 
     const wallet = await RMCredit.findOne({ communityPartnerId });
@@ -121,7 +121,7 @@ export const verifyRevokeCreditController = async (req, res, next) => {
     const otp = String(req.body.otp);
 
     if (!communityPartnerId || !otp) {
-      return next(new AppError("RM Member and OTP required", 400));
+      return next(new AppError("Community Partner and OTP required", 400));
     }
 
     // OTP bookkeeping (expiry / wrong-guess counter / lockout) is deliberately
@@ -505,7 +505,7 @@ export const recordOfflineRepaymentController = async (req, res, next) => {
     const amount = Number(req.body.amount);
 
     if (!communityPartnerId || isNaN(amount) || amount <= 0) {
-      throw new AppError("Valid RM Member and amount required", 400);
+      throw new AppError("Valid Community Partner and amount required", 400);
     }
 
     const wallet = await RMCredit.findOne({ communityPartnerId }).session(session);

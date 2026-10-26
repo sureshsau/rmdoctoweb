@@ -8,13 +8,13 @@ async function run() {
   
   const res = await User.updateMany(
     { dashboard: "agent" },
-    { $set: { dashboard: "rm_member" } }
+    { $set: { dashboard: "community_partner" } }
   );
   console.log(`Updated dashboard for ${res.modifiedCount} users`);
   
   const res2 = await User.updateMany(
     { roles: "agent" },
-    { $set: { "roles.$": "rm_member" } }
+    { $set: { "roles.$": "community_partner" } }
   );
   console.log(`Updated roles array for ${res2.modifiedCount} users`);
   

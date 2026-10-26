@@ -9,7 +9,7 @@ import {
 } from "../services/visit.service.js";
 
 /* GET /visits/plan
-   The working list: every RM Member the caller is responsible for, split into
+   The working list: every Community Partner the caller is responsible for, split into
    pending / completed for the chosen day, week, month or custom range. */
 export const getVisitPlanController = async (req, res, next) => {
   try {

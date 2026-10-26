@@ -221,7 +221,7 @@ export const getMyTargetProgress = async (req, res) => {
 
     const communityPartnerProfile = await CommunityPartnerProfile.findOne({ userId });
     if (!communityPartnerProfile) {
-      return res.status(404).json({ success: false, message: "RM Member profile not found" });
+      return res.status(404).json({ success: false, message: "Community Partner profile not found" });
     }
 
     const isSubCp = !!communityPartnerProfile.parentCommunityPartnerId;
